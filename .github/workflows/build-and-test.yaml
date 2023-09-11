@@ -18,9 +18,25 @@ jobs:
           - humble
         include:
           - rosdistro: humble
-            container: ros:humble
+            container: nvidia/cuda:12.2.0-devel-ubuntu22.04
             build-depends-repos: build_depends.repos
     steps:
+      - name: Setup ROS
+        run: |
+          echo 'Etc/UTC' > /etc/timezone && \
+              ln -s /usr/share/zoneinfo/Etc/UTC /etc/localtime && \
+              apt-get update && \
+              apt-get install -q -y --no-install-recommends tzdata && \
+              rm -rf /var/lib/apt/lists/*
+          apt-get update && apt-get install -q -y --no-install-recommends \
+              dirmngr \
+              gnupg2 \
+              && rm -rf /var/lib/apt/lists/*
+          echo "deb http://packages.ros.org/ros2/ubuntu jammy main" > /etc/apt/sources.list.d/ros2-latest.list
+          apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C1CF6E31E6BADE8868B172B4F42ED6FBAB17C654
+          DEBIAN_FRONTEND=noninteractive apt-get update && apt-get install -y --no-install-recommends \
+              ros-humble-perception \
+              && rm -rf /var/lib/apt/lists/*
       - name: Check out repository
         uses: actions/checkout@v4
 
