@@ -37,6 +37,7 @@ jobs:
           DEBIAN_FRONTEND=noninteractive apt-get update && apt-get install -y --no-install-recommends \
               ros-humble-perception \
               && rm -rf /var/lib/apt/lists/*
+          source /opt/ros/humble/setup.bash
       - name: Check out repository
         uses: actions/checkout@v4
 
