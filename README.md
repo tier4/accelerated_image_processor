@@ -1,1 +1,1 @@
-# accelerated_imgage_processor
+# accelerated_image_processor
