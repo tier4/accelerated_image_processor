@@ -35,9 +35,8 @@ jobs:
           echo "deb http://packages.ros.org/ros2/ubuntu jammy main" > /etc/apt/sources.list.d/ros2-latest.list
           apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C1CF6E31E6BADE8868B172B4F42ED6FBAB17C654
           DEBIAN_FRONTEND=noninteractive apt-get update && apt-get install -y --no-install-recommends \
-              ros-humble-perception \
+              ros-humble-perception ros-dev-tools \
               && rm -rf /var/lib/apt/lists/*
-          source /opt/ros/humble/setup.bash
       - name: Check out repository
         uses: actions/checkout@v4
 
