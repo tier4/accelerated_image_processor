@@ -15,6 +15,7 @@ GpuImgProc::GpuImgProc(const rclcpp::NodeOptions & options)
     std::string rect_impl = this->declare_parameter<std::string>("rect_impl", "npp");
     bool use_opencv_map_init = this->declare_parameter<bool>("use_opencv_map_init", false);
     alpha_ = this->declare_parameter<double>("alpha", 0.0);
+    jpeg_quality_ = this->declare_parameter<int32_t>("jpeg_quality", 60);
 
     // RCLCPP_INFO(this->get_logger(), "Subscribing to %s", image_raw_topic.c_str());
     // RCLCPP_INFO(this->get_logger(), "Subscribing to %s", camera_info_topic.c_str());
@@ -121,17 +122,17 @@ void GpuImgProc::imageCallback(const sensor_msgs::msg::Image::SharedPtr msg) {
 #ifdef NPP_AVAILABLE
                 } else if (rectifier_impl_ == Rectifier::Implementation::NPP) {
                     rect_img = npp_rectifier_->rectify(*msg);
-                    rect_comp_img = rect_compressor_->compress(*rect_img, 60);
+                    rect_comp_img = rect_compressor_->compress(*rect_img, jpeg_quality_);
 #endif
 #ifdef OPENCV_AVAILABLE                            
                 } else if (rectifier_impl_ == Rectifier::Implementation::OpenCV_CPU) {
                     rect_img = cv_cpu_rectifier_->rectify(*msg);
-                    rect_comp_img = rect_compressor_->compress(*rect_img, 60);
+                    rect_comp_img = rect_compressor_->compress(*rect_img, jpeg_quality_);
 #endif
 #ifdef OPENCV_CUDA_AVAILABLE
                 } else if (rectifier_impl_ == Rectifier::Implementation::OpenCV_GPU) {
                     rect_img = cv_gpu_rectifier_->rectify(*msg);
-                    rect_comp_img = rect_compressor_->compress(*rect_img, 60);
+                    rect_comp_img = rect_compressor_->compress(*rect_img, jpeg_quality_);
 #endif
                 } else {
                     RCLCPP_ERROR(this->get_logger(), "Invalid implementation");
@@ -145,8 +146,8 @@ void GpuImgProc::imageCallback(const sensor_msgs::msg::Image::SharedPtr msg) {
     }
 
     std::future<void> compressed_msg =
-        std::async(std::launch::async, [this, msg]() {
-            compressed_pub_->publish(std::move(raw_compressor_->compress(*msg, 60)));
+        std::async(std::launch::async, [this, &msg]() {
+            compressed_pub_->publish(std::move(raw_compressor_->compress(*msg, jpeg_quality_)));
         });
     
     if (rectifier_active_) {

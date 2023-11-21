@@ -49,6 +49,7 @@ private:
     Rectifier::MappingImpl mapping_impl_;
     bool rectifier_active_;
     double alpha_;
+    int32_t jpeg_quality_;
 };
 
 
