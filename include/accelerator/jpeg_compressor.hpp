@@ -11,6 +11,7 @@
 #ifdef JETSON_AVAILABLE
 #include <NvJpegEncoder.h>
 #include <cuda/api.hpp>
+#include "color_space.hpp"
 #endif
 
 #ifdef NVJPEG_AVAILABLE
