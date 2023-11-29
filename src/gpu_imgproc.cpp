@@ -98,7 +98,7 @@ GpuImgProc::GpuImgProc(const rclcpp::NodeOptions & options)
 
     img_sub_ = this->create_subscription<sensor_msgs::msg::Image>(
         "image_raw", 10, std::bind(&GpuImgProc::imageCallback, this, std::placeholders::_1));
-    
+
     info_sub_ = this->create_subscription<sensor_msgs::msg::CameraInfo>(
         "camera_info", 10, std::bind(&GpuImgProc::cameraInfoCallback, this, std::placeholders::_1));
 }
@@ -114,7 +114,7 @@ void GpuImgProc::imageCallback(const sensor_msgs::msg::Image::SharedPtr msg) {
     if (rectifier_active_) {
         RCLCPP_DEBUG(this->get_logger(), "Rectifying image");
         rectified_msg =
-            std::async(std::launch::async, [this, msg]() {
+            std::async(std::launch::async, [this, &msg]() {
                 sensor_msgs::msg::Image::UniquePtr rect_img;
                 sensor_msgs::msg::CompressedImage::UniquePtr rect_comp_img;
                 if (false) {
@@ -123,7 +123,7 @@ void GpuImgProc::imageCallback(const sensor_msgs::msg::Image::SharedPtr msg) {
                     rect_img = npp_rectifier_->rectify(*msg);
                     rect_comp_img = rect_compressor_->compress(*rect_img, jpeg_quality_);
 #endif
-#ifdef OPENCV_AVAILABLE                            
+#ifdef OPENCV_AVAILABLE
                 } else if (rectifier_impl_ == Rectifier::Implementation::OpenCV_CPU) {
                     rect_img = cv_cpu_rectifier_->rectify(*msg);
                     rect_comp_img = rect_compressor_->compress(*rect_img, jpeg_quality_);
@@ -185,6 +185,12 @@ void GpuImgProc::cameraInfoCallback(const sensor_msgs::msg::CameraInfo::SharedPt
             if (npp_rectifier_) {
                 RCLCPP_INFO(this->get_logger(), "Initialized NPP rectifier");
                 rectifier_active_ = true;
+#if JETSON_AVAILABLE || NVJPEG_AVAILABLE
+                // Use the same stream for rectifier
+                // because compression process depends on rectified result
+                auto stream = npp_rectifier_->GetCudaStream();
+                rect_compressor_->setCudaStream(stream);
+#endif
             } else {
                 RCLCPP_ERROR(this->get_logger(), "Failed to initialize NPP rectifier");
                 return;
@@ -199,7 +205,7 @@ void GpuImgProc::cameraInfoCallback(const sensor_msgs::msg::CameraInfo::SharedPt
             RCLCPP_INFO(this->get_logger(), "Initializing OpenCV CPU rectifier");
             cv_cpu_rectifier_ = std::make_shared<Rectifier::OpenCVRectifierCPU>(*msg, mapping_impl_, alpha_);
             if (cv_cpu_rectifier_) {
-                RCLCPP_INFO(this->get_logger(), "Initialized OpenCV GPU rectifier");
+                RCLCPP_INFO(this->get_logger(), "Initialized OpenCV CPU rectifier");
                 rectifier_active_ = true;
             } else {
                 RCLCPP_ERROR(this->get_logger(), "Failed to initialize OpenCV rectifier");
@@ -209,7 +215,7 @@ void GpuImgProc::cameraInfoCallback(const sensor_msgs::msg::CameraInfo::SharedPt
 #else
             RCLCPP_ERROR(this->get_logger(), "OpenCV not enabled");
             return;
-#endif 
+#endif
         case Rectifier::Implementation::OpenCV_GPU:
 #ifdef OPENCV_CUDA_AVAILABLE
             RCLCPP_INFO(this->get_logger(), "Initializing OpenCV GPU rectifier");

@@ -73,12 +73,14 @@ CompressedImage::UniquePtr CPUCompressor::compress(const Image &msg, int quality
 #endif
 
 #ifdef JETSON_AVAILABLE
-JetsonCompressor::JetsonCompressor(std::string name) {
+JetsonCompressor::JetsonCompressor(std::string name)
+        : stream_(cuda::device::current::get().create_stream(cuda::stream::sync)) {
     encoder_ = NvJPEGEncoder::createJPEGEncoder(name.c_str());
 }
 
 JetsonCompressor::~JetsonCompressor() {
     delete encoder_;
+    buffer_->deallocateMemory();
 }
 
 CompressedImage::UniquePtr JetsonCompressor::compress(const Image &msg, int quality, ImageFormat format) {
@@ -98,46 +100,53 @@ CompressedImage::UniquePtr JetsonCompressor::compress(const Image &msg, int qual
       host_yuv = cuda::memory::host::make_unique<uint8_t[]>(yuv_size);
       dev_yuv = cuda::memory::device::make_unique<uint8_t[]>(yuv_size);
       image_size = img.size();
+
+      buffer_.emplace(V4L2_PIX_FMT_YUV420M, width, height, 0);
+      TEST_ERROR(buffer_->allocateMemory() != 0, "NvBuffer allocation failed");
     }
 
-    cuda::memory::copy(dev_image.get(), img.data(), img.size());
+    cuda::memory::async::copy(dev_image.get(), img.data(), img.size(), stream_);
 
     if (format == ImageFormat::RGB) {
-        TEST_ERROR(cudaRGBToYUV420(dev_image.get(), dev_yuv.get(), width, height) !=
+        TEST_ERROR(cudaRGBToYUV420(dev_image.get(), dev_yuv.get(), width, height, stream_.handle()) !=
                 cudaSuccess, "failed to convert rgb8 to yuv420");
     } else {
-        TEST_ERROR(cudaBGRToYUV420(dev_image.get(), dev_yuv.get(), width, height) !=
+        TEST_ERROR(cudaBGRToYUV420(dev_image.get(), dev_yuv.get(), width, height, stream_.handle()) !=
                 cudaSuccess, "failed to convert bgr8 to yuv420");
     }
 
-    cuda::memory::copy(host_yuv.get(), dev_yuv.get(), yuv_size);
-
-    NvBuffer buffer(V4L2_PIX_FMT_YUV420M, width, height, 0);
-    TEST_ERROR(buffer.allocateMemory() != 0, "NvBuffer allocation failed");
+    cuda::memory::async::copy(host_yuv.get(), dev_yuv.get(), yuv_size, stream_);
+    stream_.synchronize();
 
     auto image_data = reinterpret_cast<int8_t *>(host_yuv.get());
 
-    for (uint32_t i = 0; i < buffer.n_planes; ++i) {
-        NvBuffer::NvBufferPlane &plane = buffer.planes[i];
+    for (uint32_t i = 0; i < buffer_->n_planes; ++i) {
+        NvBuffer::NvBufferPlane &plane = buffer_->planes[i];
         plane.bytesused = plane.fmt.stride * plane.fmt.height;
         memcpy(plane.data, image_data, plane.bytesused);
         image_data += plane.bytesused;
     }
 
     size_t out_buf_size = width * height * 3 / 2;
-    compressed_msg->data.resize(out_buf_size);
-    auto out_data = compressed_msg->data.data();
+    unsigned char * out_data = new unsigned char[out_buf_size];
 
     TEST_ERROR(
-        encoder_->encodeFromBuffer(buffer, JCS_YCbCr, &out_data,
+        encoder_->encodeFromBuffer(buffer_.value(), JCS_YCbCr, &out_data,
                                    out_buf_size, quality),
         "NvJpeg Encoder Error");
 
-    buffer.deallocateMemory();
+    compressed_msg->data.resize((size_t)(out_buf_size / sizeof(uint8_t)));
+    memcpy(compressed_msg->data.data(), out_data, out_buf_size);
 
-    compressed_msg->data.resize(out_buf_size);
-    
+    delete[] out_data;
     return compressed_msg;
+}
+
+void JetsonCompressor::setCudaStream(cuda::stream::handle_t &raw_cuda_stream) {
+  stream_.~stream_t();
+  stream_ = cuda::stream::wrap(cuda::device::current::get().id(),
+                               cuda::context::current::get().handle(),
+                               raw_cuda_stream);
 }
 #endif
 
@@ -172,7 +181,7 @@ CompressedImage::UniquePtr NVJPEGCompressor::compress(const Image &msg, int qual
     setNVImage(msg);
     CHECK_NVJPEG(nvjpegEncodeImage(handle_, state_, params_, &nv_image_, NVJPEG_INPUT_RGBI,
                                    msg.width, msg.height, stream_));
-    
+
     unsigned long out_buf_size = 0;
 
     CHECK_NVJPEG(nvjpegEncodeRetrieveBitstream(handle_, state_, NULL, &out_buf_size, stream_));
@@ -202,6 +211,11 @@ void NVJPEGCompressor::setNVImage(const Image &msg) {
     // Assuming RGBI/BGRI
     nv_image_.pitch[0] = msg.width * channels;
     nv_image_.channel[0] = p;
+}
+
+void NVJPEGCompressor::setCudaStream(const cudaStream_t &raw_cuda_stream) {
+    CHECK_CUDA(cudaStreamDestroy(stream_));
+    stream_ = raw_cuda_stream;
 }
 #endif
 

@@ -50,6 +50,7 @@ public:
     ~JetsonCompressor();
 
     CompressedImage::UniquePtr compress(const Image &msg, int quality = 90, ImageFormat format = ImageFormat::RGB);
+    void setCudaStream(cuda::stream::handle_t &raw_cuda_stream);
 private:
     NvJPEGEncoder *encoder_;
     size_t image_size{};
@@ -57,6 +58,9 @@ private:
     cuda::memory::device::unique_ptr<uint8_t[]> dev_image;
     cuda::memory::host::unique_ptr<uint8_t[]> host_yuv;
     cuda::memory::device::unique_ptr<uint8_t[]> dev_yuv;
+
+    cuda::stream_t stream_;
+    std::optional<NvBuffer> buffer_;
 };
 #endif
 
@@ -67,6 +71,8 @@ public:
     ~NVJPEGCompressor();
 
     CompressedImage::UniquePtr compress(const Image &msg, int quality = 90, ImageFormat format = ImageFormat::RGB);
+    void setCudaStream(const cudaStream_t &raw_cuda_stream);
+
 private:
     // void setNVJPEGParams(int quality, ImageFormat format);
     void setNVImage(const Image &msg);
@@ -78,7 +84,7 @@ private:
     nvjpegInputFormat_t input_format_;
     nvjpegChromaSubsampling_t subsampling_;
     nvjpegImage_t nv_image_;
-}; 
+};
 #endif
 
 } // namespace JpegCompressor

@@ -39,6 +39,7 @@ public:
                  MappingImpl impl = MappingImpl::NPP,
                  double alpha = 0.0);
     ~NPPRectifier();
+    cudaStream_t GetCudaStream() {return stream_;}
 
     Image::UniquePtr rectify(const Image &msg);
 private:
@@ -48,6 +49,10 @@ private:
     int pxl_map_y_step_;
     int interpolation_;
     cudaStream_t stream_;
+    Npp8u *src_;
+    Npp8u *dst_;
+    int src_step_;
+    int dst_step_;
 };
 #endif
 

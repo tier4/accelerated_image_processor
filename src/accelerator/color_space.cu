@@ -86,7 +86,7 @@ inline void getConstants(int matrix, float & wr, float & wb, int & black, int & 
   }
 }
 
-void setMatRGB2YUV(int matrix)
+void setMatRGB2YUV(int matrix, cudaStream_t stream)
 {
   float wr, wb;
   int black, white, max;
@@ -101,7 +101,7 @@ void setMatRGB2YUV(int matrix)
       mat[i][j] = (float)(1.0 * (white - black) / max * mat[i][j]);
     }
   }
-  cudaMemcpyToSymbol(matRGB2YUV, mat, sizeof(mat));
+  cudaMemcpyToSymbolAsync(matRGB2YUV, mat, sizeof(mat), 0, cudaMemcpyHostToDevice, stream);
 }
 
 template<class YUVUnit, class RGBUnit>
@@ -191,29 +191,29 @@ __global__ static void RGBToYUVKernel(
   (static_cast<size_t>(y / 2)) + x / 2) = RGBToV<uint8_t, uint8_t>(r, g, b);
 }
 
-cudaError_t cudaBGRToYUV420(uint8_t * input, uint8_t * output, int width, int height, int matrix)
+cudaError_t cudaBGRToYUV420(uint8_t * input, uint8_t * output, int width, int height, cudaStream_t stream, int matrix)
 {
   if (!input) {
     return cudaErrorInvalidDevicePointer;
   }
 
-  setMatRGB2YUV(matrix);
+  setMatRGB2YUV(matrix, stream);
   BGRToYUVKernel<ushort2>
-    << < dim3((width + 63) / 32 / 2, (height + 3) / 2 / 2), dim3(32, 2) >> >
+    <<< dim3((width + 63) / 32 / 2, (height + 3) / 2 / 2), dim3(32, 2), 0, stream >>>
     (input, output, 4 * width, width, height);
 
   return cudaGetLastError();
 }
 
-cudaError_t cudaRGBToYUV420(uint8_t * input, uint8_t * output, int width, int height, int matrix)
+cudaError_t cudaRGBToYUV420(uint8_t * input, uint8_t * output, int width, int height, cudaStream_t stream, int matrix)
 {
   if (!input) {
     return cudaErrorInvalidDevicePointer;
   }
 
-  setMatRGB2YUV(matrix);
+  setMatRGB2YUV(matrix, stream);
   RGBToYUVKernel<ushort2>
-    << < dim3((width + 63) / 32 / 2, (height + 3) / 2 / 2), dim3(32, 2) >> >
+    <<< dim3((width + 63) / 32 / 2, (height + 3) / 2 / 2), dim3(32, 2), 0, stream >>>
     (input, output, 4 * width, width, height);
 
   return cudaGetLastError();
