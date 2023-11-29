@@ -138,18 +138,32 @@ void GpuImgProc::imageCallback(const sensor_msgs::msg::Image::SharedPtr msg) {
                     RCLCPP_ERROR(this->get_logger(), "Invalid implementation");
                     return;
                 }
-                rectified_pub_->publish(std::move(rect_img));
-                rect_compressed_pub_->publish(std::move(rect_comp_img));
+                // XXX: As of 2023/Nov, publishing the topic via unique_ptr here may cause
+                // SIGSEGV during cyclonedds process, so the topics are published via passing by value.
+                // If this SIGSEGV issue will be resolved somehow, it's better to switch back to
+                // publishing topics via unique_ptr for more efficiency.
+
+                // rectified_pub_->publish(std::move(rect_img));
+                // rect_compressed_pub_->publish(std::move(rect_comp_img));
+                rectified_pub_->publish(*rect_img);
+                rect_compressed_pub_->publish(*rect_comp_img);
             });
     } else {
         std::cout << "Not rectifying image" << std::endl;
     }
 
     std::future<void> compressed_msg =
-        std::async(std::launch::async, [this, &msg]() {
-            compressed_pub_->publish(std::move(raw_compressor_->compress(*msg, jpeg_quality_)));
-        });
-    
+            std::async(std::launch::async, [this, &msg]() {
+                sensor_msgs::msg::CompressedImage::UniquePtr comp_img = raw_compressor_->compress(*msg, jpeg_quality_);
+                // XXX: As of 2023/Nov, publishing the topic via unique_ptr here may cause
+                // SIGSEGV during cyclonedds process, so the topics are published via passing by value.
+                // If this SIGSEGV issue will be resolved somehow, it's better to switch back to
+                // publishing topics via unique_ptr for more efficiency.
+
+                // compressed_pub_->publish(std::move(comp_img));
+                compressed_pub_->publish(*comp_img);
+            });
+
     if (rectifier_active_) {
         rectified_msg.wait();
     }
