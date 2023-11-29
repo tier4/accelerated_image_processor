@@ -152,7 +152,7 @@ if (JETSON)
           )
 
   rclcpp_components_register_node(accelerated_image_processor
-          PLUGIN "GpuImgProc"
+          PLUGIN "gpu_imgproc::GpuImgProc"
           EXECUTABLE accelerated_image_processor_node
           )
 
@@ -215,7 +215,7 @@ else()
           )
 
   rclcpp_components_register_node(accelerated_image_processor
-          PLUGIN "GpuImgProc"
+          PLUGIN "gpu_imgproc::GpuImgProc"
           EXECUTABLE accelerated_image_processor_node
           )
 

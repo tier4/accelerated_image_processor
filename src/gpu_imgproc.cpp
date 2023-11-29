@@ -1,5 +1,4 @@
 #include "gpu_imgproc/gpu_imgproc.hpp"
-#include <rclcpp_components/register_node_macro.hpp>
 
 #include <future>
 
@@ -237,6 +236,8 @@ void GpuImgProc::cameraInfoCallback(const sensor_msgs::msg::CameraInfo::SharedPt
         info_sub_.reset();
     }
 }
-
-RCLCPP_COMPONENTS_REGISTER_NODE(GpuImgProc)
 } // namespace gpu_imgproc
+
+#include <rclcpp_components/register_node_macro.hpp>
+
+RCLCPP_COMPONENTS_REGISTER_NODE(gpu_imgproc::GpuImgProc)
