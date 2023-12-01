@@ -76,7 +76,7 @@ static void compute_maps(int width, int height, const double *D, const double *P
 #ifdef OPENCV_AVAILABLE
 static void compute_maps_opencv(const CameraInfo &info, float *map_x, float *map_y, double alpha = 0.0) {
     cv::Mat camera_intrinsics(3, 3, CV_64F);
-    cv::Mat distortion_coefficients(1, 5, CV_64F);
+    cv::Mat distortion_coefficients(1, info.d.size(), CV_64F);
 
     for (int row=0; row<3; row++) {
         for (int col=0; col<3; col++) {
@@ -84,7 +84,7 @@ static void compute_maps_opencv(const CameraInfo &info, float *map_x, float *map
         }
     }
 
-    for (int col=0; col<5; col++) {
+    for (int col=0; col<info.d.size(); col++) {
         distortion_coefficients.at<double>(col) = info.d[col];
     }
 
