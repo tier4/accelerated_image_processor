@@ -89,18 +89,71 @@ GpuImgProc::GpuImgProc(const rclcpp::NodeOptions & options)
     return;
 #endif
 
+    // Query QoS to publisher to align the QoS for the topics to be published
+    auto get_qos =  [this](std::string& topic_name, std::promise<rclcpp::QoS>& p,
+                           std::atomic<bool>& is_run) {
+        while (is_run) {
+            auto qos_list = this->get_publishers_info_by_topic(topic_name);
+            if (qos_list.size() < 1) {
+                RCLCPP_INFO_STREAM_THROTTLE(this->get_logger(), *this->get_clock(), 2000,
+                                            "Waiting for" << topic_name << " ...");
+                continue;
+            } else if (qos_list.size() > 1) {
+                RCLCPP_ERROR(this->get_logger(),
+                             "Multiple publisher for %s are detected. Cannot determine proper QoS",
+                             topic_name);
+                return;
+            } else {
+                RCLCPP_INFO_STREAM(this->get_logger(),
+                                   "QoS for " << topic_name << " is acquired.");
+                p.set_value(qos_list[0].qos_profile());
+                return;
+            }
+        }
+    };
+
+    std::string img_sub_topic_name = this->get_node_topics_interface()->resolve_topic_name(
+        "image_raw", false);
+    std::string info_sub_topic_name = this->get_node_topics_interface()->resolve_topic_name(
+        "camera_info", false);
+
+    std::promise<rclcpp::QoS> img_qos_promise;
+    std::future<rclcpp::QoS> img_qos_future = img_qos_promise.get_future();
+
+    std::promise<rclcpp::QoS> info_qos_promise;
+    std::future<rclcpp::QoS> info_qos_future = info_qos_promise.get_future();
+
+    std::atomic<bool> img_qos_thread_run(true);
+    std::thread img_qos_thread(get_qos, std::ref(img_sub_topic_name), std::ref(img_qos_promise),
+                               std::ref(img_qos_thread_run));
+    std::atomic<bool> info_qos_thread_run(true);
+    std::thread info_qos_thread(get_qos, std::ref(info_sub_topic_name), std::ref(info_qos_promise),
+                                std::ref(info_qos_thread_run));
+
+    img_qos_future.wait();
+    std::future_status info_wait_result = info_qos_future.wait_for(std::chrono::seconds(3));
+
+    img_qos_thread_run = false;
+    info_qos_thread_run = false;
+    img_qos_thread.join();
+    info_qos_thread.join();
+
+    auto img_qos = img_qos_future.get();
+    auto info_qos = (info_wait_result == std::future_status::ready) ?
+                    info_qos_future.get() : rclcpp::SensorDataQoS();
+
     rectified_pub_ = this->create_publisher<sensor_msgs::msg::Image>(
-        "image_rect", 10);
+        "image_rect", img_qos);
     compressed_pub_ = this->create_publisher<sensor_msgs::msg::CompressedImage>(
-        "image_raw/compressed", 10);
+        "image_raw/compressed", img_qos);
     rect_compressed_pub_ = this->create_publisher<sensor_msgs::msg::CompressedImage>(
-        "image_rect/compressed", 10);
+        "image_rect/compressed", img_qos);
 
     img_sub_ = this->create_subscription<sensor_msgs::msg::Image>(
-        "image_raw", 10, std::bind(&GpuImgProc::imageCallback, this, std::placeholders::_1));
+        img_sub_topic_name, img_qos, std::bind(&GpuImgProc::imageCallback, this, std::placeholders::_1));
 
     info_sub_ = this->create_subscription<sensor_msgs::msg::CameraInfo>(
-        "camera_info", 10, std::bind(&GpuImgProc::cameraInfoCallback, this, std::placeholders::_1));
+        info_sub_topic_name, info_qos, std::bind(&GpuImgProc::cameraInfoCallback, this, std::placeholders::_1));
 }
 
 GpuImgProc::~GpuImgProc() {
