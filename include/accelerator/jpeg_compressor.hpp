@@ -12,6 +12,7 @@
 #include <NvJpegEncoder.h>
 #include <cuda/api.hpp>
 #include "color_space.hpp"
+#include <nppi_support_functions.h>
 #endif
 
 #ifdef NVJPEG_AVAILABLE
@@ -55,11 +56,14 @@ private:
     NvJPEGEncoder *encoder_;
     size_t image_size{};
     size_t yuv_size{};
-    cuda::memory::device::unique_ptr<uint8_t[]> dev_image;
-    cuda::memory::host::unique_ptr<uint8_t[]> host_yuv;
-    cuda::memory::device::unique_ptr<uint8_t[]> dev_yuv;
+    Npp8u *dev_image_;
+    std::array<Npp8u*, 3> dev_yuv_;
+    std::array<void*, 3> host_yuv_;
+    int dev_image_step_bytes_;
+    std::array<int, 3> dev_yuv_step_bytes_;
 
     cuda::stream_t stream_;
+    NppStreamContext npp_stream_context_;
     std::optional<NvBuffer> buffer_;
 };
 #endif
