@@ -167,7 +167,7 @@ void GpuImgProc::imageCallback(const sensor_msgs::msg::Image::SharedPtr msg) {
     if (rectifier_active_) {
         RCLCPP_DEBUG(this->get_logger(), "Rectifying image");
         rectified_msg =
-            std::async(std::launch::async, [this, &msg]() {
+            std::async(std::launch::async, [this, msg]() {
                 sensor_msgs::msg::Image::UniquePtr rect_img;
                 sensor_msgs::msg::CompressedImage::UniquePtr rect_comp_img;
                 if (false) {
@@ -205,8 +205,9 @@ void GpuImgProc::imageCallback(const sensor_msgs::msg::Image::SharedPtr msg) {
     }
 
     std::future<void> compressed_msg =
-            std::async(std::launch::async, [this, &msg]() {
-                sensor_msgs::msg::CompressedImage::UniquePtr comp_img = raw_compressor_->compress(*msg, jpeg_quality_);
+            std::async(std::launch::async, [this, msg]() {
+                sensor_msgs::msg::CompressedImage::UniquePtr comp_img;
+                comp_img = raw_compressor_->compress(*msg, jpeg_quality_);
                 // XXX: As of 2023/Nov, publishing the topic via unique_ptr here may cause
                 // SIGSEGV during cyclonedds process, so the topics are published via passing by value.
                 // If this SIGSEGV issue will be resolved somehow, it's better to switch back to
