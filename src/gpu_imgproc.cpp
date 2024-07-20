@@ -15,6 +15,7 @@ GpuImgProc::GpuImgProc(const rclcpp::NodeOptions & options)
     bool use_opencv_map_init = this->declare_parameter<bool>("use_opencv_map_init", false);
     alpha_ = this->declare_parameter<double>("alpha", 0.0);
     jpeg_quality_ = this->declare_parameter<int32_t>("jpeg_quality", 60);
+    bool do_rectify = this->declare_parameter<bool>("do_rectify", true);
 
     // RCLCPP_INFO(this->get_logger(), "Subscribing to %s", image_raw_topic.c_str());
     // RCLCPP_INFO(this->get_logger(), "Subscribing to %s", camera_info_topic.c_str());
@@ -142,18 +143,22 @@ GpuImgProc::GpuImgProc(const rclcpp::NodeOptions & options)
     auto info_qos = (info_wait_result == std::future_status::ready) ?
                     info_qos_future.get() : rclcpp::SensorDataQoS();
 
-    rectified_pub_ = this->create_publisher<sensor_msgs::msg::Image>(
-        "image_rect", img_qos);
     compressed_pub_ = this->create_publisher<sensor_msgs::msg::CompressedImage>(
         "image_raw/compressed", img_qos);
-    rect_compressed_pub_ = this->create_publisher<sensor_msgs::msg::CompressedImage>(
-        "image_rect/compressed", img_qos);
 
     img_sub_ = this->create_subscription<sensor_msgs::msg::Image>(
         img_sub_topic_name, img_qos, std::bind(&GpuImgProc::imageCallback, this, std::placeholders::_1));
 
-    info_sub_ = this->create_subscription<sensor_msgs::msg::CameraInfo>(
-        info_sub_topic_name, info_qos, std::bind(&GpuImgProc::cameraInfoCallback, this, std::placeholders::_1));
+
+    if (do_rectify) {
+      rectified_pub_ = this->create_publisher<sensor_msgs::msg::Image>(
+          "image_rect", img_qos);
+      rect_compressed_pub_ = this->create_publisher<sensor_msgs::msg::CompressedImage>(
+          "image_rect/compressed", img_qos);
+
+      info_sub_ = this->create_subscription<sensor_msgs::msg::CameraInfo>(
+          info_sub_topic_name, info_qos, std::bind(&GpuImgProc::cameraInfoCallback, this, std::placeholders::_1));
+    }
 }
 
 GpuImgProc::~GpuImgProc() {
