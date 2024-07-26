@@ -127,21 +127,12 @@ GpuImgProc::GpuImgProc(const rclcpp::NodeOptions & options)
     std::atomic<bool> img_qos_thread_run(true);
     std::thread img_qos_thread(get_qos, std::ref(img_sub_topic_name), std::ref(img_qos_promise),
                                std::ref(img_qos_thread_run));
-    std::atomic<bool> info_qos_thread_run(true);
-    std::thread info_qos_thread(get_qos, std::ref(info_sub_topic_name), std::ref(info_qos_promise),
-                                std::ref(info_qos_thread_run));
-
     img_qos_future.wait();
-    std::future_status info_wait_result = info_qos_future.wait_for(std::chrono::seconds(3));
-
     img_qos_thread_run = false;
-    info_qos_thread_run = false;
     img_qos_thread.join();
-    info_qos_thread.join();
 
     auto img_qos = img_qos_future.get();
-    auto info_qos = (info_wait_result == std::future_status::ready) ?
-                    info_qos_future.get() : rclcpp::SensorDataQoS();
+    
 
     compressed_pub_ = this->create_publisher<sensor_msgs::msg::CompressedImage>(
         "image_raw/compressed", img_qos);
@@ -149,15 +140,23 @@ GpuImgProc::GpuImgProc(const rclcpp::NodeOptions & options)
     img_sub_ = this->create_subscription<sensor_msgs::msg::Image>(
         img_sub_topic_name, img_qos, std::bind(&GpuImgProc::imageCallback, this, std::placeholders::_1));
 
-
     if (do_rectify) {
-      rectified_pub_ = this->create_publisher<sensor_msgs::msg::Image>(
-          "image_rect", img_qos);
-      rect_compressed_pub_ = this->create_publisher<sensor_msgs::msg::CompressedImage>(
-          "image_rect/compressed", img_qos);
+        std::atomic<bool> info_qos_thread_run(true);
+        std::thread info_qos_thread(get_qos, std::ref(info_sub_topic_name), std::ref(info_qos_promise),
+                                    std::ref(info_qos_thread_run));
+        std::future_status info_wait_result = info_qos_future.wait_for(std::chrono::seconds(3));
+        info_qos_thread_run = false;
+        info_qos_thread.join();
+        auto info_qos = (info_wait_result == std::future_status::ready) ?
+                    info_qos_future.get() : rclcpp::SensorDataQoS();
 
-      info_sub_ = this->create_subscription<sensor_msgs::msg::CameraInfo>(
-          info_sub_topic_name, info_qos, std::bind(&GpuImgProc::cameraInfoCallback, this, std::placeholders::_1));
+        rectified_pub_ = this->create_publisher<sensor_msgs::msg::Image>(
+          "image_rect", img_qos);
+        rect_compressed_pub_ = this->create_publisher<sensor_msgs::msg::CompressedImage>(
+            "image_rect/compressed", img_qos);
+
+        info_sub_ = this->create_subscription<sensor_msgs::msg::CameraInfo>(
+            info_sub_topic_name, info_qos, std::bind(&GpuImgProc::cameraInfoCallback, this, std::placeholders::_1));
     }
 }
 
