@@ -80,7 +80,6 @@ JetsonCompressor::JetsonCompressor(std::string name)
 
 JetsonCompressor::~JetsonCompressor() {
     delete encoder_;
-    buffer_->deallocateMemory();
 
     nppiFree(dev_image_);
     for (auto& p : dev_yuv_) {
