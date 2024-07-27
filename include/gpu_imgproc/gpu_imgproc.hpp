@@ -17,6 +17,7 @@ public:
 private:
     void imageCallback(const sensor_msgs::msg::Image::SharedPtr msg);
     void cameraInfoCallback(const sensor_msgs::msg::CameraInfo::SharedPtr msg);
+    void determineQosCallback(bool do_rectify);
 
 #if NPP_AVAILABLE
     std::shared_ptr<Rectifier::NPPRectifier> npp_rectifier_;
@@ -44,6 +45,8 @@ private:
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr rectified_pub_;
     rclcpp::Publisher<sensor_msgs::msg::CompressedImage>::SharedPtr compressed_pub_;
     rclcpp::Publisher<sensor_msgs::msg::CompressedImage>::SharedPtr rect_compressed_pub_;
+
+    rclcpp::TimerBase::SharedPtr qos_request_timer_;
 
     Rectifier::Implementation rectifier_impl_;
     Rectifier::MappingImpl mapping_impl_;
