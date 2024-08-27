@@ -201,7 +201,7 @@ void GpuImgProc::imageCallback(const sensor_msgs::msg::Image::SharedPtr msg) {
                 rect_compressed_pub_->publish(*rect_comp_img);
             });
     } else {
-        std::cout << "Not rectifying image" << std::endl;
+        RCLCPP_DEBUG(this->get_logger(), "Not rectifying image");
     }
 
     std::future<void> compressed_msg =
