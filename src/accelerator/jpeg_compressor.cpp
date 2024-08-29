@@ -178,7 +178,6 @@ CompressedImage::UniquePtr JetsonCompressor::compress(const Image &msg, int qual
 }
 
 void JetsonCompressor::setCudaStream(cuda::stream::handle_t &raw_cuda_stream) {
-  stream_.~stream_t();
   stream_ = cuda::stream::wrap(cuda::device::current::get().id(),
                                cuda::context::current::get().handle(),
                                raw_cuda_stream);
