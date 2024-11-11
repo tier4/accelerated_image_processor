@@ -2,7 +2,7 @@
 
 #include <sensor_msgs/msg/image.hpp>
 #include <sensor_msgs/msg/camera_info.hpp>
-
+#include "type_adapters/image_container.hpp"
 #ifdef OPENCV_AVAILABLE
 #include <opencv2/core.hpp>
 #endif
@@ -16,6 +16,8 @@
 
 using CameraInfo = sensor_msgs::msg::CameraInfo;
 using Image = sensor_msgs::msg::Image;
+using ImageContainer = autoware::type_adaptation::type_adapters::ImageContainer;
+using ImageContainerUniquePtr = autoware::type_adaptation::type_adapters::ImageContainerUniquePtr;
 
 namespace Rectifier {
 
@@ -44,6 +46,7 @@ public:
     cudaStream_t& GetCudaStream() {return stream_;}
 
     Image::UniquePtr rectify(const Image &msg);
+    ImageContainerUniquePtr rectify(const ImageContainer &msg);
 private:
     Npp32f *pxl_map_x_;
     Npp32f *pxl_map_y_;
@@ -66,6 +69,7 @@ public:
     ~OpenCVRectifierCPU();
 
     Image::UniquePtr rectify(const Image &msg);
+    ImageContainerUniquePtr rectify(const ImageContainer &msg);
 private:
     cv::Mat map_x_;
     cv::Mat map_y_;
@@ -83,6 +87,7 @@ public:
     ~OpenCVRectifierGPU();
 
     Image::UniquePtr rectify(const Image &msg);
+    ImageContainerUniquePtr rectify(const ImageContainer &msg);
 private:
     cv::cuda::GpuMat map_x_;
     cv::cuda::GpuMat map_y_;

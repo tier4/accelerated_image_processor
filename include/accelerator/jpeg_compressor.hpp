@@ -2,6 +2,8 @@
 
 #include <sensor_msgs/msg/image.hpp>
 #include <sensor_msgs/msg/compressed_image.hpp>
+#include "type_adapters/image_container.hpp"
+#include "type_adapters/compressed_image_container.hpp"
 #include <string>
 
 #ifdef TURBOJPEG_AVAILABLE
@@ -24,7 +26,10 @@ class NvJPEGEncoder;
 namespace JpegCompressor {
 using Image = sensor_msgs::msg::Image;
 using CompressedImage = sensor_msgs::msg::CompressedImage;
-
+using ImageContainer = autoware::type_adaptation::type_adapters::ImageContainer;
+using CompressedImageContainer = autoware::type_adaptation::type_adapters::CompressedImageContainer;
+using ImageContainerUniquePtr = autoware::type_adaptation::type_adapters::ImageContainerUniquePtr;
+using CompressedImageContainerUniquePtr = autoware::type_adaptation::type_adapters::CompressedImageContainerUniquePtr;
 enum class ImageFormat {
     RGB,
     BGR
@@ -37,6 +42,7 @@ public:
     ~CPUCompressor();
 
     CompressedImage::UniquePtr compress(const Image &msg, int quality = 90, int format = TJPF_RGB, int sampling = TJ_420);
+    CompressedImage::UniquePtr compress(const ImageContainer &msg, int quality = 90, int format = TJPF_RGB, int sampling = TJ_420);
 private:
     tjhandle handle_;
     unsigned char *jpegBuf_;
@@ -51,6 +57,7 @@ public:
     ~JetsonCompressor();
 
     CompressedImage::UniquePtr compress(const Image &msg, int quality = 90, ImageFormat format = ImageFormat::RGB);
+    CompressedImage::UniquePtr compress(const ImageContainer &msg, int quality = 90, int format = TJPF_RGB, int sampling = TJ_420);
     void setCudaStream(cuda::stream::handle_t &raw_cuda_stream);
 private:
     NvJPEGEncoder *encoder_;
@@ -75,6 +82,7 @@ public:
     ~NVJPEGCompressor();
 
     CompressedImage::UniquePtr compress(const Image &msg, int quality = 90, ImageFormat format = ImageFormat::RGB);
+    CompressedImage::UniquePtr compress(const ImageContainer &msg, int quality = 90, ImageFormat format = ImageFormat::RGB);
     void setCudaStream(const cudaStream_t &raw_cuda_stream);
 
 private:

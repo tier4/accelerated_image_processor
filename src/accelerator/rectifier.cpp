@@ -253,6 +253,23 @@ Image::UniquePtr NPPRectifier::rectify(const Image &msg) {
 
     return result;
 }
+ImageContainerUniquePtr NPPRectifier::rectify(const ImageContainer &msg) {
+    nppSetStream(msg.cuda_stream()->stream());
+    ImageContainerUniquePtr result = std::make_unique<ImageContainer>(
+        msg.header(), msg.height(), msg.width(), msg.encoding(), msg.step(), msg.cuda_stream()
+    );
+    
+    NppiRect src_roi = {0, 0, (int)msg.width(), (int)msg.height()};
+    NppiSize src_size = {(int)msg.width(), (int)msg.height()};
+    NppiSize dst_roi_size = {(int)msg.width(), (int)msg.height()};
+
+    NppiInterpolationMode interpolation = NPPI_INTER_LINEAR;
+
+    CHECK_NPP(nppiRemap_8u_C3R(
+        src_, src_size, src_step_, src_roi,
+        pxl_map_x_, pxl_map_x_step_, pxl_map_y_, pxl_map_y_step_,
+        result->cuda_mem(), dst_step_, dst_roi_size, interpolation));
+}
 #endif
 
 #ifdef OPENCV_AVAILABLE
@@ -286,6 +303,18 @@ Image::UniquePtr OpenCVRectifierCPU::rectify(const Image &msg) {
 
     cv::remap(src, dst, map_x_, map_y_, cv::INTER_LINEAR);
 
+    return result;
+}
+
+ImageContainerUniquePtr OpenCVRectifierCPU::rectify(const ImageContainer &msg) {
+    RCLCPP_ERROR(
+        rclcpp::get_logger("v4l2_camera"),
+        "OpenCVRectifierCPU does not support dealing with image container on GPU");
+
+    sensor_msgs::msg::Image image_msg;
+    msg.get_sensor_msgs_image(image_msg);
+    std::unique_ptr<sensor_msgs::msg::Image> image = rectify(image_msg);
+    ImageContainerUniquePtr result = std::make_unique<ImageContainer>(std::move(image));
     return result;
 }
 #endif
@@ -335,6 +364,18 @@ Image::UniquePtr OpenCVRectifierGPU::rectify(const Image &msg) {
     // std::string filename = "rectified_" + std::to_string(msg.header.stamp.sec) + "_" + std::to_string(msg.header.stamp.nanosec) + ".png";
     // imwrite(filename, image);
 
+    return result;
+}
+
+ImageContainerUniquePtr OpenCVRectifierGPU::rectify(const ImageContainer &msg) {
+    RCLCPP_ERROR(
+        rclcpp::get_logger("v4l2_camera"),
+        "OpenCVRectifierCPU does not support dealing with image container on GPU");
+
+    sensor_msgs::msg::Image image_msg;
+    msg.get_sensor_msgs_image(image_msg);
+    std::unique_ptr<sensor_msgs::msg::Image> image = rectify(image_msg);
+    ImageContainerUniquePtr result = std::make_unique<ImageContainer>(std::move(image));
     return result;
 }
 #endif

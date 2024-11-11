@@ -5,7 +5,17 @@
 
 #include "accelerator/rectifier.hpp"
 #include "accelerator/jpeg_compressor.hpp"
+#include "type_adapters/image_container.hpp"
+#include "type_adapters/compressed_image_container.hpp"
 // #include <sensor_msgs/msg/compressed_image.hpp>
+
+RCLCPP_USING_CUSTOM_TYPE_AS_ROS_MESSAGE_TYPE(
+  autoware::type_adaptation::type_adapters::ImageContainer,
+  sensor_msgs::msg::Image);
+
+RCLCPP_USING_CUSTOM_TYPE_AS_ROS_MESSAGE_TYPE(
+  autoware::type_adaptation::type_adapters::CompressedImageContainer,
+  sensor_msgs::msg::CompressedImage);
 
 namespace gpu_imgproc {
 
@@ -15,8 +25,13 @@ public:
     virtual ~GpuImgProc();
 
 private:
+    using ImageContainer = autoware::type_adaptation::type_adapters::ImageContainer;
+    using CompressedImageContainer = autoware::type_adaptation::type_adapters::CompressedImageContainer;
+    using ImageContainerUniquePtr = autoware::type_adaptation::type_adapters::ImageContainerUniquePtr;
+    using CompressedImageContainerUniquePtr = autoware::type_adaptation::type_adapters::CompressedImageContainerUniquePtr;
     void imageCallback(const sensor_msgs::msg::Image::SharedPtr msg);
     void cameraInfoCallback(const sensor_msgs::msg::CameraInfo::SharedPtr msg);
+    void gpuImageCallback(std::shared_ptr<ImageContainer> msg);
     void determineQosCallback(bool do_rectify);
 
 #if NPP_AVAILABLE
@@ -40,9 +55,11 @@ private:
 #endif
 
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr img_sub_;
+    rclcpp::Subscription<ImageContainer>::SharedPtr gpu_image_sub_;
     rclcpp::Subscription<sensor_msgs::msg::CameraInfo>::SharedPtr info_sub_;
 
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr rectified_pub_;
+    rclcpp::Publisher<ImageContainer>::SharedPtr gpu_rectified_pub_;
     rclcpp::Publisher<sensor_msgs::msg::CompressedImage>::SharedPtr compressed_pub_;
     rclcpp::Publisher<sensor_msgs::msg::CompressedImage>::SharedPtr rect_compressed_pub_;
 
@@ -51,6 +68,7 @@ private:
     Rectifier::Implementation rectifier_impl_;
     Rectifier::MappingImpl mapping_impl_;
     bool rectifier_active_;
+    bool type_adaptation_active_;
     double alpha_;
     int32_t jpeg_quality_;
 };
