@@ -16,7 +16,7 @@ GpuImgProc::GpuImgProc(const rclcpp::NodeOptions & options)
     alpha_ = this->declare_parameter<double>("alpha", 0.0);
     jpeg_quality_ = this->declare_parameter<int32_t>("jpeg_quality", 60);
     bool do_rectify = this->declare_parameter<bool>("do_rectify", true);
-    type_adaptation_active_ = this->declare_parameter<bool>("type_adaption_active_", true);
+    type_adaptation_active_ = this->declare_parameter<bool>("type_adaption_active", true);
 
     // RCLCPP_INFO(this->get_logger(), "Subscribing to %s", image_raw_topic.c_str());
     // RCLCPP_INFO(this->get_logger(), "Subscribing to %s", camera_info_topic.c_str());
@@ -146,7 +146,7 @@ void GpuImgProc::determineQosCallback(bool do_rectify) {
         gpu_image_sub_ = this->create_subscription<ImageContainer>(
             img_sub_topic_name, img_qos, std::bind(&GpuImgProc::gpuImageCallback, this, std::placeholders::_1));
     }
-    {
+    else {
         img_sub_ = this->create_subscription<sensor_msgs::msg::Image>(
             img_sub_topic_name, img_qos, std::bind(&GpuImgProc::imageCallback, this, std::placeholders::_1));
     }
@@ -275,8 +275,7 @@ void GpuImgProc::gpuImageCallback(std::shared_ptr<ImageContainer> msg) {
                 // If this SIGSEGV issue will be resolved somehow, it's better to switch back to
                 // publishing topics via unique_ptr for more efficiency.
 
-                // rectified_pub_->publish(std::move(rect_img));
-                gpu_rectified_pub_->publish(*rect_img);
+                gpu_rectified_pub_->publish(std::move(rect_img));
                 rect_compressed_pub_->publish(std::move(rect_comp_img));
             });
     } else {

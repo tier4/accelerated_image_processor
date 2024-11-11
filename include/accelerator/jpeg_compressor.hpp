@@ -57,7 +57,7 @@ public:
     ~JetsonCompressor();
 
     CompressedImage::UniquePtr compress(const Image &msg, int quality = 90, ImageFormat format = ImageFormat::RGB);
-    CompressedImage::UniquePtr compress(const ImageContainer &msg, int quality = 90, int format = TJPF_RGB, int sampling = TJ_420);
+    CompressedImage::UniquePtr compress(const ImageContainer &msg, int quality = 90, ImageFormat format = ImageFormat::RGB);
     void setCudaStream(cuda::stream::handle_t &raw_cuda_stream);
 private:
     NvJPEGEncoder *encoder_;
