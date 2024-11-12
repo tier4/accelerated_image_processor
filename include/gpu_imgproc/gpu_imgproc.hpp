@@ -9,14 +9,6 @@
 #include "type_adapters/compressed_image_container.hpp"
 // #include <sensor_msgs/msg/compressed_image.hpp>
 
-RCLCPP_USING_CUSTOM_TYPE_AS_ROS_MESSAGE_TYPE(
-  autoware::type_adaptation::type_adapters::ImageContainer,
-  sensor_msgs::msg::Image);
-
-RCLCPP_USING_CUSTOM_TYPE_AS_ROS_MESSAGE_TYPE(
-  autoware::type_adaptation::type_adapters::CompressedImageContainer,
-  sensor_msgs::msg::CompressedImage);
-
 namespace gpu_imgproc {
 
 class GpuImgProc : public rclcpp::Node {
