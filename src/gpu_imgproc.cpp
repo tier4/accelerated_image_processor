@@ -240,7 +240,7 @@ void GpuImgProc::imageCallback(const sensor_msgs::msg::Image::SharedPtr msg) {
     compressed_msg.wait();
 }
 
-void GpuImgProc::gpuImageCallback(std::shared_ptr<ImageContainer> msg) {
+void GpuImgProc::gpuImageCallback(const std::shared_ptr<ImageContainer> msg) {
     RCLCPP_DEBUG(this->get_logger(), "Received image");
 
     std::future<void> rectified_msg;

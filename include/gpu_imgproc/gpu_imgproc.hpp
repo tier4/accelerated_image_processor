@@ -23,7 +23,7 @@ private:
     using CompressedImageContainerUniquePtr = autoware::type_adaptation::type_adapters::CompressedImageContainerUniquePtr;
     void imageCallback(const sensor_msgs::msg::Image::SharedPtr msg);
     void cameraInfoCallback(const sensor_msgs::msg::CameraInfo::SharedPtr msg);
-    void gpuImageCallback(std::shared_ptr<ImageContainer> msg);
+    void gpuImageCallback(const std::shared_ptr<ImageContainer> msg);
     void determineQosCallback(bool do_rectify);
 
 #if NPP_AVAILABLE
