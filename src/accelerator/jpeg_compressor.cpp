@@ -132,11 +132,7 @@ CompressedImage::UniquePtr JetsonCompressor::compress(const Image &msg, int qual
       // Synchronize CUDA device to ensure memory allocation is complete
       std::this_thread::sleep_for(std::chrono::milliseconds(300));
       cudaError_t cudaStatus = cudaDeviceSynchronize();
-      if (cudaStatus != cudaSuccess) {
-          // Handle error
-          fprintf(stderr, "cudaDeviceSynchronize failed: %s\n", cudaGetErrorString(cudaStatus));
-          // You may want to throw an exception or handle the error appropriately
-      }
+      CHECK_CUDA(cudaStatus);
     }
 
     TEST_ERROR(cudaMemcpy2DAsync(static_cast<void*>(dev_image_), dev_image_step_bytes_,
