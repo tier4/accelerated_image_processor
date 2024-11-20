@@ -1,12 +1,14 @@
 #include <cstdio>
 #include <cstring>
-
+#include <chrono>
+#include <thread>
 #include <rclcpp/rclcpp.hpp>
 
 #include "accelerator/jpeg_compressor.hpp"
 
 #if defined(JETSON_AVAILABLE) || defined(NVJPEG_AVAILABLE)
 #include <nppi_color_conversion.h>
+#include <cuda_runtime.h>
 #endif
 
 #define TEST_ERROR(cond, str) if(cond) { \
@@ -126,6 +128,15 @@ CompressedImage::UniquePtr JetsonCompressor::compress(const Image &msg, int qual
       TEST_ERROR(buffer_->allocateMemory() != 0, "NvBuffer allocation failed");
 
       encoder_->setCropRect(0, 0, width, height);
+
+      // Synchronize CUDA device to ensure memory allocation is complete
+      std::this_thread::sleep_for(std::chrono::milliseconds(300));
+      cudaError_t cudaStatus = cudaDeviceSynchronize();
+      if (cudaStatus != cudaSuccess) {
+          // Handle error
+          fprintf(stderr, "cudaDeviceSynchronize failed: %s\n", cudaGetErrorString(cudaStatus));
+          // You may want to throw an exception or handle the error appropriately
+      }
     }
 
     TEST_ERROR(cudaMemcpy2DAsync(static_cast<void*>(dev_image_), dev_image_step_bytes_,
