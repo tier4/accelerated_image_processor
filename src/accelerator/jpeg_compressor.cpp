@@ -204,7 +204,7 @@ NVJPEGCompressor::~NVJPEGCompressor() {
     CHECK_CUDA(cudaStreamDestroy(stream_));
 }
 
-CompressedImage::UniquePtr NVJPEGCompressor::compress(const Image &msg, int quality, ImageFormat format) {
+CompressedImage::UniquePtr NVJPEGCompressor::compress(const Image &msg, int quality, [[maybe_unused]] ImageFormat format) {
     #warning TODO: implement format conversion or get rid of the parameter
     CompressedImage::UniquePtr compressed_msg = std::make_unique<CompressedImage>();
     compressed_msg->header = msg.header;
