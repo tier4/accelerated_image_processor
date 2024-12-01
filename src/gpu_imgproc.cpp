@@ -110,7 +110,7 @@ void GpuImgProc::determineQosCallback(bool do_rectify) {
         } else if (qos_list.size() > 1) {
             RCLCPP_ERROR(this->get_logger(),
                          "Multiple publisher for %s are detected. Cannot determine proper QoS",
-                         topic_name);
+                         topic_name.c_str());
             return false;
         } else {
             RCLCPP_INFO_STREAM(this->get_logger(),
