@@ -84,7 +84,7 @@ static void compute_maps_opencv(const CameraInfo &info, float *map_x, float *map
         }
     }
 
-    for (int col=0; col<info.d.size(); col++) {
+    for (std::size_t col=0; col<info.d.size(); col++) {
         distortion_coefficients.at<double>(col) = info.d[col];
     }
 
