@@ -204,16 +204,23 @@ NVJPEGCompressor::~NVJPEGCompressor() {
     CHECK_CUDA(cudaStreamDestroy(stream_));
 }
 
-CompressedImage::UniquePtr NVJPEGCompressor::compress(const Image &msg, int quality, [[maybe_unused]] ImageFormat format) {
-    #warning TODO: implement format conversion or get rid of the parameter
+CompressedImage::UniquePtr NVJPEGCompressor::compress(const Image &msg, int quality, ImageFormat format) {
     CompressedImage::UniquePtr compressed_msg = std::make_unique<CompressedImage>();
     compressed_msg->header = msg.header;
     compressed_msg->format = "jpeg";
 
     nvjpegEncoderParamsSetQuality(params_, quality, stream_);
 
+    nvjpegInputFormat_t input_format;
+    if (format == ImageFormat::RGB) {
+        input_format = NVJPEG_INPUT_RGBI;
+    } else if (format == ImageFormat::BGR) {
+        input_format = NVJPEG_INPUT_BGRI;
+    } else {
+        std::cerr << "Specified ImageFormat is not supported" << std::endl;
+    }
     setNVImage(msg);
-    CHECK_NVJPEG(nvjpegEncodeImage(handle_, state_, params_, &nv_image_, NVJPEG_INPUT_RGBI,
+    CHECK_NVJPEG(nvjpegEncodeImage(handle_, state_, params_, &nv_image_, input_format,
                                    msg.width, msg.height, stream_));
 
     unsigned long out_buf_size = 0;
