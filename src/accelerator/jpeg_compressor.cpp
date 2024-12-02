@@ -12,19 +12,20 @@
 #define TEST_ERROR(cond, str) if(cond) { \
                                         fprintf(stderr, "%s\n", str); }
 
-#define CHECK_CUDA(status) \
-    if (status != cudaSuccess) { \
-        RCLCPP_ERROR(rclcpp::get_logger("v4l2_camera"), "CUDA error: %s (%s:%d)", cudaGetErrorName(status), __FILE__, __LINE__); \
+#define CHECK_CUDA(status)       \
+    if (status != cudaSuccess) {                                        \
+        std::cerr << "CUDA error: " << cudaGetErrorName(status)         \
+                  << " (" << __FILE__ << ", " << __LINE__ << ")" << std::endl; \
     }
 
-#define CHECK_NVJPEG(call)                                                                      \
-    {                                                                                           \
-        nvjpegStatus_t _e = (call);                                                             \
-        if (_e != NVJPEG_STATUS_SUCCESS) {                                                      \
-            RCLCPP_ERROR(rclcpp::get_logger("v4l2_camera"), "NVJPEG failure: '#%d' at %s:%d",   \
-                         _e, __FILE__, __LINE__);                                               \
-            exit(1);                                                                            \
-        }                                                                                       \
+#define CHECK_NVJPEG(call)                                              \
+    {                                                                   \
+        nvjpegStatus_t _e = (call);                                     \
+        if (_e != NVJPEG_STATUS_SUCCESS) {                              \
+            std::cerr << "NVJPEG failure: \'#" << _e << "\' at "        \
+                      << __FILE__<< ":" << __LINE__ << std::endl;       \
+            exit(1);                                                    \
+        }                                                               \
     }
 
 namespace JpegCompressor {
