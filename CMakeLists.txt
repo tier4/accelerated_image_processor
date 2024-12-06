@@ -25,6 +25,7 @@ endif()
 
 find_package(CUDA)
 find_package(NVJPEG)
+find_package(autoware_type_adapters)
 find_library(CUDART_LIBRARY cudart ${CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES})
 find_library(CULIBOS culibos ${CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES})
 if (${NVJPEG_FOUND} AND CUDART_LIBRARY AND CULIBOS)
@@ -150,6 +151,10 @@ if (JETSON)
           rectifier
           jpeg_compressor
           )
+  
+  ament_target_dependencies(accelerated_image_processor
+    autoware_type_adapters
+  )
 
   rclcpp_components_register_node(accelerated_image_processor
           PLUGIN "gpu_imgproc::GpuImgProc"
