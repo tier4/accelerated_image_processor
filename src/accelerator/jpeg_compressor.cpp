@@ -15,19 +15,20 @@
 #define TEST_ERROR(cond, str) if(cond) { \
                                         fprintf(stderr, "%s\n", str); }
 
-#define CHECK_CUDA(status) \
-    if (status != cudaSuccess) { \
-        RCLCPP_ERROR(rclcpp::get_logger("v4l2_camera"), "CUDA error: %s (%s:%d)", cudaGetErrorName(status), __FILE__, __LINE__); \
+#define CHECK_CUDA(status)       \
+    if (status != cudaSuccess) {                                        \
+        std::cerr << "CUDA error: " << cudaGetErrorName(status)         \
+                  << " (" << __FILE__ << ", " << __LINE__ << ")" << std::endl; \
     }
 
-#define CHECK_NVJPEG(call)                                                                      \
-    {                                                                                           \
-        nvjpegStatus_t _e = (call);                                                             \
-        if (_e != NVJPEG_STATUS_SUCCESS) {                                                      \
-            RCLCPP_ERROR(rclcpp::get_logger("v4l2_camera"), "NVJPEG failure: '#%d' at %s:%d",   \
-                         _e, __FILE__, __LINE__);                                               \
-            exit(1);                                                                            \
-        }                                                                                       \
+#define CHECK_NVJPEG(call)                                              \
+    {                                                                   \
+        nvjpegStatus_t _e = (call);                                     \
+        if (_e != NVJPEG_STATUS_SUCCESS) {                              \
+            std::cerr << "NVJPEG failure: \'#" << _e << "\' at "        \
+                      << __FILE__<< ":" << __LINE__ << std::endl;       \
+            exit(1);                                                    \
+        }                                                               \
     }
 
 namespace JpegCompressor {
@@ -330,15 +331,22 @@ NVJPEGCompressor::~NVJPEGCompressor() {
 }
 
 CompressedImage::UniquePtr NVJPEGCompressor::compress(const Image &msg, int quality, ImageFormat format) {
-    #warning TODO: implement format conversion or get rid of the parameter
     CompressedImage::UniquePtr compressed_msg = std::make_unique<CompressedImage>();
     compressed_msg->header = msg.header;
     compressed_msg->format = "jpeg";
 
     nvjpegEncoderParamsSetQuality(params_, quality, stream_);
 
+    nvjpegInputFormat_t input_format;
+    if (format == ImageFormat::RGB) {
+        input_format = NVJPEG_INPUT_RGBI;
+    } else if (format == ImageFormat::BGR) {
+        input_format = NVJPEG_INPUT_BGRI;
+    } else {
+        std::cerr << "Specified ImageFormat is not supported" << std::endl;
+    }
     setNVImage(msg);
-    CHECK_NVJPEG(nvjpegEncodeImage(handle_, state_, params_, &nv_image_, NVJPEG_INPUT_RGBI,
+    CHECK_NVJPEG(nvjpegEncodeImage(handle_, state_, params_, &nv_image_, input_format,
                                    msg.width, msg.height, stream_));
 
     unsigned long out_buf_size = 0;

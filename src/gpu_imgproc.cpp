@@ -111,7 +111,7 @@ void GpuImgProc::determineQosCallback(bool do_rectify) {
         } else if (qos_list.size() > 1) {
             RCLCPP_ERROR(this->get_logger(),
                          "Multiple publisher for %s are detected. Cannot determine proper QoS",
-                         topic_name);
+                         topic_name.c_str());
             return false;
         } else {
             RCLCPP_INFO_STREAM(this->get_logger(),
@@ -180,28 +180,38 @@ void GpuImgProc::determineQosCallback(bool do_rectify) {
 void GpuImgProc::imageCallback(const sensor_msgs::msg::Image::SharedPtr msg) {
     RCLCPP_DEBUG(this->get_logger(), "Received image");
 
+    JpegCompressor::ImageFormat image_format;
+    if (msg->encoding == "rgb8") {
+      image_format = JpegCompressor::ImageFormat::RGB;
+    } else if (msg->encoding == "bgr8") {
+      image_format = JpegCompressor::ImageFormat::BGR;
+    } else {
+      RCLCPP_ERROR_STREAM(this->get_logger(),
+                          "Image encoding (" << msg->encoding << ") is not supported.");
+    }
+
     std::future<void> rectified_msg;
     if (rectifier_active_) {
         RCLCPP_DEBUG(this->get_logger(), "Rectifying image");
         rectified_msg =
-            std::async(std::launch::async, [this, msg]() {
+            std::async(std::launch::async, [this, msg, &image_format]() {
                 sensor_msgs::msg::Image::UniquePtr rect_img;
                 sensor_msgs::msg::CompressedImage::UniquePtr rect_comp_img;
                 if (false) {
 #ifdef NPP_AVAILABLE
                 } else if (rectifier_impl_ == Rectifier::Implementation::NPP) {
                     rect_img = npp_rectifier_->rectify(*msg);
-                    rect_comp_img = rect_compressor_->compress(*rect_img, jpeg_quality_);
+                    rect_comp_img = rect_compressor_->compress(*rect_img, jpeg_quality_, image_format);
 #endif
 #ifdef OPENCV_AVAILABLE
                 } else if (rectifier_impl_ == Rectifier::Implementation::OpenCV_CPU) {
                     rect_img = cv_cpu_rectifier_->rectify(*msg);
-                    rect_comp_img = rect_compressor_->compress(*rect_img, jpeg_quality_);
+                    rect_comp_img = rect_compressor_->compress(*rect_img, jpeg_quality_, image_format);
 #endif
 #ifdef OPENCV_CUDA_AVAILABLE
                 } else if (rectifier_impl_ == Rectifier::Implementation::OpenCV_GPU) {
                     rect_img = cv_gpu_rectifier_->rectify(*msg);
-                    rect_comp_img = rect_compressor_->compress(*rect_img, jpeg_quality_);
+                    rect_comp_img = rect_compressor_->compress(*rect_img, jpeg_quality_, image_format);
 #endif
                 } else {
                     RCLCPP_ERROR(this->get_logger(), "Invalid implementation");
@@ -222,9 +232,9 @@ void GpuImgProc::imageCallback(const sensor_msgs::msg::Image::SharedPtr msg) {
     }
 
     std::future<void> compressed_msg =
-            std::async(std::launch::async, [this, msg]() {
+        std::async(std::launch::async, [this, msg, &image_format]() {
                 sensor_msgs::msg::CompressedImage::UniquePtr comp_img;
-                comp_img = raw_compressor_->compress(*msg, jpeg_quality_);
+                comp_img = raw_compressor_->compress(*msg, jpeg_quality_, image_format);
                 // XXX: As of 2023/Nov, publishing the topic via unique_ptr here may cause
                 // SIGSEGV during cyclonedds process, so the topics are published via passing by value.
                 // If this SIGSEGV issue will be resolved somehow, it's better to switch back to

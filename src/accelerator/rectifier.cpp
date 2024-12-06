@@ -27,20 +27,22 @@
 
 
 #define CHECK_NPP(status) \
-    if (status != NPP_SUCCESS) { \
-        RCLCPP_ERROR(rclcpp::get_logger("v4l2_camera"), "NPP error: %d (%s:%d)", status, __FILE__, __LINE__); \
+    if (status != NPP_SUCCESS) {                                        \
+        std::cerr << "NPP error: " << status                            \
+                  << " (" <<  __FILE__ << ":" << __LINE__ << ")" << std::endl; \
     }
 
 #define CHECK_CUDA(status) \
-    if (status != cudaSuccess) { \
-        RCLCPP_ERROR(rclcpp::get_logger("v4l2_camera"), "CUDA error: %s (%s:%d)", cudaGetErrorName(status), __FILE__, __LINE__); \
+    if (status != cudaSuccess) {                                        \
+        std::cerr << "CUDA error: " << cudaGetErrorName(status)         \
+                  << " (" << __FILE__ << ":" <<  __LINE__ << ")" << std::endl; \
     }
 
 namespace Rectifier {
 
 static void compute_maps(int width, int height, const double *D, const double *P,
                   float *map_x, float *map_y) {
-    RCLCPP_WARN(rclcpp::get_logger("v4l2_camera"), "No support for alpha in non-OpenCV mapping");
+    std::cout <<  "No support for alpha in non-OpenCV mapping" << std::endl;
 
     double fx = P[0];
     double fy = P[5];
@@ -84,7 +86,7 @@ static void compute_maps_opencv(const CameraInfo &info, float *map_x, float *map
         }
     }
 
-    for (int col=0; col<info.d.size(); col++) {
+    for (std::size_t col=0; col<info.d.size(); col++) {
         distortion_coefficients.at<double>(col) = info.d[col];
     }
 
@@ -115,23 +117,23 @@ NPPRectifier::NPPRectifier(int width, int height,
 
     pxl_map_x_ = nppiMalloc_32f_C1(width, height, &pxl_map_x_step_);
     if (pxl_map_x_ == nullptr) {
-        RCLCPP_ERROR(rclcpp::get_logger("v4l2_camera"), "Failed to allocate GPU memory");
+        std::cerr <<  "Failed to allocate GPU memory" << std::endl;
         return;
     }
     pxl_map_y_ = nppiMalloc_32f_C1(width, height, &pxl_map_y_step_);
     if (pxl_map_y_ == nullptr) {
-        RCLCPP_ERROR(rclcpp::get_logger("v4l2_camera"), "Failed to allocate GPU memory");
+        std::cerr <<  "Failed to allocate GPU memory" << std::endl;
         return;
     }
 
     src_ = nppiMalloc_8u_C3(width, height, &src_step_);
     if (src_ == nullptr) {
-      RCLCPP_ERROR(rclcpp::get_logger("v4l2_camera"), "Failed to allocate GPU memory");
+        std::cerr <<  "Failed to allocate GPU memory" << std::endl;
       return;
     }
     dst_ = nppiMalloc_8u_C3(width, height, &dst_step_);
     if (dst_ == nullptr) {
-      RCLCPP_ERROR(rclcpp::get_logger("v4l2_camera"), "Failed to allocate GPU memory");
+        std::cerr <<  "Failed to allocate GPU memory" << std::endl;
       return;
     }
 
@@ -146,23 +148,23 @@ NPPRectifier::NPPRectifier(const CameraInfo& info, MappingImpl impl, double alph
 
     pxl_map_x_ = nppiMalloc_32f_C1(info.width, info.height, &pxl_map_x_step_);
     if (pxl_map_x_ == nullptr) {
-        RCLCPP_ERROR(rclcpp::get_logger("v4l2_camera"), "Failed to allocate GPU memory");
+        std::cerr <<  "Failed to allocate GPU memory" << std::endl;
         return;
     }
     pxl_map_y_ = nppiMalloc_32f_C1(info.width, info.height, &pxl_map_y_step_);
     if (pxl_map_y_ == nullptr) {
-        RCLCPP_ERROR(rclcpp::get_logger("v4l2_camera"), "Failed to allocate GPU memory");
+        std::cerr <<  "Failed to allocate GPU memory" << std::endl;
         return;
     }
 
     src_ = nppiMalloc_8u_C3(info.width, info.height, &src_step_);
     if (src_ == nullptr) {
-      RCLCPP_ERROR(rclcpp::get_logger("v4l2_camera"), "Failed to allocate GPU memory");
+        std::cerr << "Failed to allocate GPU memory" << std::endl;
       return;
     }
     dst_ = nppiMalloc_8u_C3(info.width, info.height, &dst_step_);
     if (dst_ == nullptr) {
-      RCLCPP_ERROR(rclcpp::get_logger("v4l2_camera"), "Failed to allocate GPU memory");
+        std::cerr << "Failed to allocate GPU memory" << std::endl;
       return;
     }
 

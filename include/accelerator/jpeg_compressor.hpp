@@ -6,6 +6,11 @@
 #include "type_adapters/compressed_image_container.hpp"
 #include <string>
 
+// This needs to be included before other CUDA headers in some environments
+#if defined(JETSON_AVAILABLE) || defined(NVJPEG_AVAILABLE)
+#include <cuda_runtime.h>
+#endif
+
 #ifdef TURBOJPEG_AVAILABLE
 #include <turbojpeg.h>
 #endif
