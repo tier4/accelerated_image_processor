@@ -1,11 +1,13 @@
 #pragma once
 
+#include <optional>
 #include <rclcpp/rclcpp.hpp>
 // #include <rcl_interfaces/msg/parameter.hpp>
 
 #include "accelerator/rectifier.hpp"
 #include "accelerator/jpeg_compressor.hpp"
 // #include <sensor_msgs/msg/compressed_image.hpp>
+#include "gpu_imgproc/task_queue.hpp"
 
 namespace gpu_imgproc {
 
@@ -53,6 +55,13 @@ private:
     bool rectifier_active_;
     double alpha_;
     int32_t jpeg_quality_;
+    bool do_rectify_;
+
+    size_t max_task_queue_length_;
+    std::optional<util::TaskQueue> rectify_task_queue_;
+    std::optional<std::thread> rectify_worker_;
+    std::optional<util::TaskQueue> compress_task_queue_;
+    std::optional<std::thread> compress_worker_;
 };
 
 
