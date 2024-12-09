@@ -237,22 +237,20 @@ CompressedImage::UniquePtr NVJPEGCompressor::compress(const Image &msg, int qual
 }
 
 void NVJPEGCompressor::setNVImage(const Image &msg) {
-    unsigned char *p = nullptr;
-    CHECK_CUDA(cudaMallocAsync((void **)&p, msg.data.size(), stream_));
-    if (nv_image_.channel[0] != NULL) {
-        CHECK_CUDA(cudaFreeAsync(nv_image_.channel[0], stream_));
+    if (nv_image_.channel[0] == nullptr) {
+        CHECK_CUDA(cudaMallocAsync((void **)&nv_image_.channel[0], msg.data.size(), stream_));
     }
 
-    CHECK_CUDA(cudaMemcpyAsync(p, msg.data.data(), msg.data.size(), cudaMemcpyHostToDevice, stream_));
+    CHECK_CUDA(cudaMemsetAsync(nv_image_.channel[0], 0, msg.data.size(), stream_));
+
+    CHECK_CUDA(cudaMemcpyAsync(nv_image_.channel[0], msg.data.data(), msg.data.size(),
+                               cudaMemcpyHostToDevice, stream_));
 
     // int channels = image.size() / (image.width * image.height);
     int channels = 3;
 
-    std::memset(&nv_image_, 0, sizeof(nv_image_));
-
     // Assuming RGBI/BGRI
     nv_image_.pitch[0] = msg.width * channels;
-    nv_image_.channel[0] = p;
 }
 
 void NVJPEGCompressor::setCudaStream(const cudaStream_t &raw_cuda_stream) {
