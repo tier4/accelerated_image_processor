@@ -7,6 +7,7 @@
 
 #if defined(JETSON_AVAILABLE) || defined(NVJPEG_AVAILABLE)
 #include <nppi_color_conversion.h>
+#include <nppi_data_exchange_and_initialization.h>
 #endif
 
 #define TEST_ERROR(cond, str) if(cond) { \
@@ -135,15 +136,16 @@ CompressedImage::UniquePtr JetsonCompressor::compress(const Image &msg, int qual
                                  msg.height, cudaMemcpyHostToDevice, stream_.handle()) != cudaSuccess,
                "2D memory allocation failed");
     NppiSize roi = {static_cast<int>(msg.width), static_cast<int>(msg.height)};
-    if (format == ImageFormat::RGB) {
-        TEST_ERROR(nppiRGBToYUV420_8u_C3P3R_Ctx(dev_image_, dev_image_step_bytes_,
-                                                dev_yuv_.data(), dev_yuv_step_bytes_.data(), roi,
-                                                npp_stream_context_) != NPP_SUCCESS,
-                   "failed to convert rgb8 to yuv420");
-    } else {
-      // XXX: need to BGR -> RGB
-      std::cerr << "not supported" << std::endl;
+    if (format == ImageFormat::BGR) {
+        const int order[3] = {2, 1, 0};
+        TEST_ERROR(nppiSwapChannels_8u_C3IR_Ctx(dev_image_, dev_image_step_bytes_, roi, order, npp_stream_context_) != NPP_SUCCESS,
+                "failed to convert bgr8 to rgb8"
+        );
     }
+    TEST_ERROR(nppiRGBToYUV420_8u_C3P3R_Ctx(dev_image_, dev_image_step_bytes_,
+                                            dev_yuv_.data(), dev_yuv_step_bytes_.data(), roi,
+                                            npp_stream_context_) != NPP_SUCCESS,
+                "failed to convert rgb8 to yuv420");
 
     NvBuffer::NvBufferPlane &plane_y = buffer_->planes[0];
     NvBuffer::NvBufferPlane &plane_u = buffer_->planes[1];
