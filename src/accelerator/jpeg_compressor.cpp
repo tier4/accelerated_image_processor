@@ -135,17 +135,21 @@ CompressedImage::UniquePtr JetsonCompressor::compress(const Image &msg, int qual
                                  msg.step * sizeof(Npp8u),
                                  msg.height, cudaMemcpyHostToDevice, stream_.handle()) != cudaSuccess,
                "2D memory allocation failed");
+
     NppiSize roi = {static_cast<int>(msg.width), static_cast<int>(msg.height)};
     if (format == ImageFormat::BGR) {
-        const int order[3] = {2, 1, 0};
-        TEST_ERROR(nppiSwapChannels_8u_C3IR_Ctx(dev_image_, dev_image_step_bytes_, roi, order, npp_stream_context_) != NPP_SUCCESS,
-                "failed to convert bgr8 to rgb8"
-        );
+      // Inplace conversion from BGR to RGB
+      const int order[3] = {2, 1, 0};
+      TEST_ERROR(nppiSwapChannels_8u_C3IR_Ctx(dev_image_, dev_image_step_bytes_,
+                                              roi, order, npp_stream_context_) != NPP_SUCCESS,
+                 "failed to convert bgr8 to rgb8"
+                );
     }
+
     TEST_ERROR(nppiRGBToYUV420_8u_C3P3R_Ctx(dev_image_, dev_image_step_bytes_,
                                             dev_yuv_.data(), dev_yuv_step_bytes_.data(), roi,
                                             npp_stream_context_) != NPP_SUCCESS,
-                "failed to convert rgb8 to yuv420");
+               "failed to convert rgb8 to yuv420");
 
     NvBuffer::NvBufferPlane &plane_y = buffer_->planes[0];
     NvBuffer::NvBufferPlane &plane_u = buffer_->planes[1];
@@ -167,6 +171,7 @@ CompressedImage::UniquePtr JetsonCompressor::compress(const Image &msg, int qual
     size_t out_buf_size = width * height * 3 / 2;
     unsigned char * out_data = new unsigned char[out_buf_size];
 
+    // encodeFromBuffer only support YUV420
     TEST_ERROR(
         encoder_->encodeFromBuffer(buffer_.value(), JCS_YCbCr, &out_data,
                                    out_buf_size, quality),
