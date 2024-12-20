@@ -107,6 +107,7 @@ if (JETSON)
     ${SYS_ROOT}/usr/lib/aarch64-linux-gnu/tegra)
   target_link_libraries(jpeg_compressor
     ${CUDA_nppicc_LIBRARY}
+    ${CUDA_nppidei_LIBRARY}
     ${LIBJPEGTURBO_LIBRARIES}
     nvjpeg
     cuda-api-wrappers::runtime-and-driver
