@@ -20,7 +20,7 @@ typedef enum ColorSpaceStandard {
     ColorSpaceStandard_BT2020C = 10
 } ColorSpaceStandard;
 
-cudaError_t cudaRGB8ToBGR8(uint8_t * input, int width, int height, int step);
+cudaError_t BGR8ToRGB8(uint8_t * input, int width, int height, int step, cudaStream_t stream);
 
 cudaError_t cudaBGRToYUV420(uint8_t * input, uint8_t * output, int width, int height, cudaStream_t stream=cudaStreamLegacy, int matrix = 0);
 cudaError_t cudaRGBToYUV420(uint8_t * input, uint8_t * output, int width, int height, cudaStream_t stream=cudaStreamLegacy, int matrix = 0);

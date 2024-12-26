@@ -18,7 +18,7 @@
 // {
 inline __device__ __host__ int iDivUp(int a, int b) {return (a % b != 0) ? (a / b + 1) : (a / b);}
 
-__global__ void RGB8ToBGR8(uint8_t * input, int width, int height, int step)
+__global__ void BGR8ToRGB8_kernel(uint8_t * input, int width, int height, int step)
 {
   //2D Index of current thread
   const int x_index = blockIdx.x * blockDim.x + threadIdx.x;
@@ -28,13 +28,13 @@ __global__ void RGB8ToBGR8(uint8_t * input, int width, int height, int step)
   if ((x_index < width) && (y_index < height)) {
     //Location of colored pixel in input
     const int color_tid = y_index * step + (3 * x_index);
-    const unsigned char t = input[color_tid + 0];
-    input[color_tid + 0] = input[color_tid + 2];
+    const unsigned char t = input[color_tid + 0];  // B
+    input[color_tid + 0] = input[color_tid + 2];   // G
     input[color_tid + 2] = t;
   }
 }
 
-cudaError_t cudaRGB8ToBGR8(uint8_t * input, int width, int height, int step)
+cudaError_t BGR8ToRGB8(uint8_t * input, int width, int height, int step, cudaStream_t stream)
 {
   if (!input) {
     return cudaErrorInvalidDevicePointer;
@@ -43,7 +43,7 @@ cudaError_t cudaRGB8ToBGR8(uint8_t * input, int width, int height, int step)
   const dim3 blockDim(16, 16);
   const dim3 gridDim(iDivUp(width, blockDim.x), iDivUp(height, blockDim.y));
 
-  RGB8ToBGR8 << < gridDim, blockDim >> > (input, width, height, step);
+  BGR8ToRGB8_kernel << < gridDim, blockDim, 0, stream >> > (input, width, height, step);
 
   return cudaGetLastError();
 }

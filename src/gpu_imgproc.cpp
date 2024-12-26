@@ -15,7 +15,10 @@ GpuImgProc::GpuImgProc(const rclcpp::NodeOptions & options)
     bool use_opencv_map_init = this->declare_parameter<bool>("use_opencv_map_init", false);
     alpha_ = this->declare_parameter<double>("alpha", 0.0);
     jpeg_quality_ = this->declare_parameter<int32_t>("jpeg_quality", 60);
-    bool do_rectify = this->declare_parameter<bool>("do_rectify", true);
+    do_rectify_ = this->declare_parameter<bool>("do_rectify", true);
+    // NOTE: too short `max_task_queue_length_` may cause topic drop, while too large one may cause 100% system memory usage under many cameras/high framerate conditions
+    max_task_queue_length_ = static_cast<size_t>(
+        this->declare_parameter<int64_t>("max_task_queue_length", 10));
 
     // RCLCPP_INFO(this->get_logger(), "Subscribing to %s", image_raw_topic.c_str());
     // RCLCPP_INFO(this->get_logger(), "Subscribing to %s", camera_info_topic.c_str());
@@ -92,12 +95,18 @@ GpuImgProc::GpuImgProc(const rclcpp::NodeOptions & options)
 
     // Query QoS using timer to adapt to the case of image publisher starts after this consturctor
     qos_request_timer_ = rclcpp::create_timer(this, this->get_clock(), std::chrono::milliseconds(100),
-                                              [do_rectify, this]()
-                                              {this->determineQosCallback(do_rectify);});
+                                              [this]()
+                                              {this->determineQosCallback(do_rectify_);});
 }
 
 GpuImgProc::~GpuImgProc() {
     RCLCPP_INFO(this->get_logger(), "Shutting down node gpu_imgproc");
+    if (do_rectify_) {
+      rectify_task_queue_->stop();
+      rectify_worker_->join();
+    }
+    compress_task_queue_->stop();
+    compress_worker_->join();
 }
 
 void GpuImgProc::determineQosCallback(bool do_rectify) {
@@ -142,6 +151,8 @@ void GpuImgProc::determineQosCallback(bool do_rectify) {
 
     compressed_pub_ = this->create_publisher<sensor_msgs::msg::CompressedImage>(
         "image_raw/compressed", img_qos);
+    compress_task_queue_.emplace(max_task_queue_length_);
+    compress_worker_.emplace(&util::TaskQueue::run, &compress_task_queue_.value());
 
     img_sub_ = this->create_subscription<sensor_msgs::msg::Image>(
         img_sub_topic_name, img_qos, std::bind(&GpuImgProc::imageCallback, this, std::placeholders::_1));
@@ -151,6 +162,8 @@ void GpuImgProc::determineQosCallback(bool do_rectify) {
           "image_rect", img_qos);
       rect_compressed_pub_ = this->create_publisher<sensor_msgs::msg::CompressedImage>(
           "image_rect/compressed", img_qos);
+      rectify_task_queue_.emplace(max_task_queue_length_);
+      rectify_worker_.emplace(&util::TaskQueue::run, &rectify_task_queue_.value());
 
       info_sub_ = this->create_subscription<sensor_msgs::msg::CameraInfo>(
           info_sub_topic_name, info_qos, std::bind(&GpuImgProc::cameraInfoCallback, this, std::placeholders::_1));
@@ -173,11 +186,9 @@ void GpuImgProc::imageCallback(const sensor_msgs::msg::Image::SharedPtr msg) {
                           "Image encoding (" << msg->encoding << ") is not supported.");
     }
 
-    std::future<void> rectified_msg;
     if (rectifier_active_) {
         RCLCPP_DEBUG(this->get_logger(), "Rectifying image");
-        rectified_msg =
-            std::async(std::launch::async, [this, msg, &image_format]() {
+        rectify_task_queue_->addTask([this, msg, image_format]() {
                 sensor_msgs::msg::Image::UniquePtr rect_img;
                 sensor_msgs::msg::CompressedImage::UniquePtr rect_comp_img;
                 if (false) {
@@ -214,8 +225,7 @@ void GpuImgProc::imageCallback(const sensor_msgs::msg::Image::SharedPtr msg) {
         RCLCPP_DEBUG(this->get_logger(), "Not rectifying image");
     }
 
-    std::future<void> compressed_msg =
-        std::async(std::launch::async, [this, msg, &image_format]() {
+    compress_task_queue_->addTask([this, msg, image_format]() {
                 sensor_msgs::msg::CompressedImage::UniquePtr comp_img;
                 comp_img = raw_compressor_->compress(*msg, jpeg_quality_, image_format);
                 // XXX: As of 2023/Nov, publishing the topic via unique_ptr here may cause
@@ -226,11 +236,6 @@ void GpuImgProc::imageCallback(const sensor_msgs::msg::Image::SharedPtr msg) {
                 // compressed_pub_->publish(std::move(comp_img));
                 compressed_pub_->publish(*comp_img);
             });
-
-    if (rectifier_active_) {
-        rectified_msg.wait();
-    }
-    compressed_msg.wait();
 }
 
 void GpuImgProc::cameraInfoCallback(const sensor_msgs::msg::CameraInfo::SharedPtr msg) {
