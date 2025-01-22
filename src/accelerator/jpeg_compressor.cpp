@@ -65,7 +65,12 @@ CompressedImage::UniquePtr CPUCompressor::compress(const Image &msg, int quality
                             quality,
                             TJFLAG_FASTDCT);
 
+#if defined(LIBJPEG_TURBO_VERSION) && (LIBJPEG_TURBO_VERSION >= 2)
     TEST_ERROR(tjres != 0, tjGetErrorStr2(handle_));
+#else
+    TEST_ERROR(tjres != 0, tjGetErrorStr());
+#endif
+
 
     compressed_msg->data.resize(size_);
     memcpy(compressed_msg->data.data(), jpegBuf_, size_);
