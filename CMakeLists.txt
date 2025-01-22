@@ -108,7 +108,7 @@ if (JETSON)
   target_link_libraries(jpeg_compressor
     ${CUDA_nppicc_LIBRARY}
     ${CUDA_nppidei_LIBRARY}
-    ${LIBJPEGTURBO_LIBRARIES}
+    <$<BOOL:${LibJpegTurbo_FOUND}:${LIBJPEGTURBO_LIBRARIES}>
     nvjpeg
     cuda-api-wrappers::runtime-and-driver
     color_space
@@ -176,8 +176,8 @@ else()
   )
   target_link_libraries(jpeg_compressor
     ${CUDA_nppicc_LIBRARY}
-    ${LibJpegTurbo_LIBRARY}
-    ${NVJPEG_LIBRARY}
+    $<$<BOOL:${LibJpegTurbo_FOUND}>:${LibJpegTurbo_LIBRARY}>
+    $<$<BOOL:${NVJPEG_FOUND}>:${NVJPEG_LIBRARY}>
     ${CUDART_LIBRARY}
     ${CULIBOS}
     # nvjpeg
