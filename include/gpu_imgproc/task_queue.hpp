@@ -48,7 +48,7 @@ protected:
     std::queue<std::function<void()>> tasks_;
     std::mutex mutex_;
     std::condition_variable condition_;
-    bool request_stop_ = false;
+    bool request_stop_{false};
     size_t queue_length_;
 };
 
