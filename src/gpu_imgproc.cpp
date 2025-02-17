@@ -18,7 +18,7 @@ GpuImgProc::GpuImgProc(const rclcpp::NodeOptions & options)
     do_rectify_ = this->declare_parameter<bool>("do_rectify", true);
     // NOTE: too short `max_task_queue_length_` may cause topic drop, while too large one may cause 100% system memory usage under many cameras/high framerate conditions
     max_task_queue_length_ = static_cast<size_t>(
-        this->declare_parameter<int64_t>("max_task_queue_length", 10));
+        this->declare_parameter<int64_t>("max_task_queue_length", 5));
 
     // RCLCPP_INFO(this->get_logger(), "Subscribing to %s", image_raw_topic.c_str());
     // RCLCPP_INFO(this->get_logger(), "Subscribing to %s", camera_info_topic.c_str());
