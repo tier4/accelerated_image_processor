@@ -49,7 +49,7 @@ protected:
     std::mutex mutex_;
     std::condition_variable condition_;
     bool request_stop_{false};
-    size_t queue_length_;
+    std::size_t queue_length_;
 };
 
 }  // namespace util
