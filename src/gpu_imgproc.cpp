@@ -1,5 +1,4 @@
 #include "gpu_imgproc/gpu_imgproc.hpp"
-#include <rclcpp_components/register_node_macro.hpp>
 
 #include <future>
 
@@ -15,6 +14,11 @@ GpuImgProc::GpuImgProc(const rclcpp::NodeOptions & options)
     std::string rect_impl = this->declare_parameter<std::string>("rect_impl", "npp");
     bool use_opencv_map_init = this->declare_parameter<bool>("use_opencv_map_init", false);
     alpha_ = this->declare_parameter<double>("alpha", 0.0);
+    jpeg_quality_ = this->declare_parameter<int32_t>("jpeg_quality", 60);
+    do_rectify_ = this->declare_parameter<bool>("do_rectify", true);
+    // NOTE: too short `max_task_queue_length_` may cause topic drop, while too large one may cause 100% system memory usage under many cameras/high framerate conditions
+    max_task_queue_length_ = static_cast<size_t>(
+        this->declare_parameter<int64_t>("max_task_queue_length", 5));
 
     // RCLCPP_INFO(this->get_logger(), "Subscribing to %s", image_raw_topic.c_str());
     // RCLCPP_INFO(this->get_logger(), "Subscribing to %s", camera_info_topic.c_str());
@@ -89,70 +93,149 @@ GpuImgProc::GpuImgProc(const rclcpp::NodeOptions & options)
     return;
 #endif
 
-    rectified_pub_ = this->create_publisher<sensor_msgs::msg::Image>(
-        "image_rect", 10);
-    compressed_pub_ = this->create_publisher<sensor_msgs::msg::CompressedImage>(
-        "image_raw/compressed", 10);
-    rect_compressed_pub_ = this->create_publisher<sensor_msgs::msg::CompressedImage>(
-        "image_rect/compressed", 10);
-
-    img_sub_ = this->create_subscription<sensor_msgs::msg::Image>(
-        "image_raw", 10, std::bind(&GpuImgProc::imageCallback, this, std::placeholders::_1));
-    
-    info_sub_ = this->create_subscription<sensor_msgs::msg::CameraInfo>(
-        "camera_info", 10, std::bind(&GpuImgProc::cameraInfoCallback, this, std::placeholders::_1));
+    // Query QoS using timer to adapt to the case of image publisher starts after this consturctor
+    qos_request_timer_ = rclcpp::create_timer(this, this->get_clock(), std::chrono::milliseconds(100),
+                                              [this]()
+                                              {this->determineQosCallback(do_rectify_);});
 }
 
 GpuImgProc::~GpuImgProc() {
     RCLCPP_INFO(this->get_logger(), "Shutting down node gpu_imgproc");
+    if (do_rectify_) {
+      rectify_task_queue_->stop();
+      rectify_worker_->join();
+    }
+    compress_task_queue_->stop();
+    compress_worker_->join();
+}
+
+void GpuImgProc::determineQosCallback(bool do_rectify) {
+    // Query QoS to publisher to align the QoS for the topics to be published
+    auto get_qos =  [this](std::string& topic_name, rclcpp::QoS& qos) -> bool {
+        auto qos_list = this->get_publishers_info_by_topic(topic_name);
+        if (qos_list.size() < 1) {
+            RCLCPP_INFO_STREAM(this->get_logger(), "Waiting for" << topic_name << " ...");
+            return false;
+        } else if (qos_list.size() > 1) {
+            RCLCPP_ERROR(this->get_logger(),
+                         "Multiple publisher for %s are detected. Cannot determine proper QoS",
+                         topic_name.c_str());
+            return false;
+        } else {
+            RCLCPP_INFO_STREAM(this->get_logger(),
+                               "QoS for " << topic_name << " is acquired.");
+            qos = qos_list[0].qos_profile();
+            return true;
+        }
+    };
+
+    std::string img_sub_topic_name = this->get_node_topics_interface()->resolve_topic_name(
+        "image_raw", false);
+    std::string info_sub_topic_name = this->get_node_topics_interface()->resolve_topic_name(
+        "camera_info", false);
+
+    // Query QoS to publisher to align the QoS for the topics to be published
+    rclcpp::QoS img_qos(1);
+    if (!get_qos(img_sub_topic_name, img_qos)) {
+        // Publisher is not ready yet
+        return;
+    }
+
+    rclcpp::QoS info_qos(1);
+    if (do_rectify) {
+        if (!get_qos(info_sub_topic_name, info_qos)) {
+            // Publisher is not ready yet
+            return;
+        }
+    }
+
+    compressed_pub_ = this->create_publisher<sensor_msgs::msg::CompressedImage>(
+        "image_raw/compressed", img_qos);
+    compress_task_queue_.emplace(max_task_queue_length_);
+    compress_worker_.emplace(&util::TaskQueue::run, &compress_task_queue_.value());
+
+    img_sub_ = this->create_subscription<sensor_msgs::msg::Image>(
+        img_sub_topic_name, img_qos, std::bind(&GpuImgProc::imageCallback, this, std::placeholders::_1));
+
+    if (do_rectify) {
+      rectified_pub_ = this->create_publisher<sensor_msgs::msg::Image>(
+          "image_rect", img_qos);
+      rect_compressed_pub_ = this->create_publisher<sensor_msgs::msg::CompressedImage>(
+          "image_rect/compressed", img_qos);
+      rectify_task_queue_.emplace(max_task_queue_length_);
+      rectify_worker_.emplace(&util::TaskQueue::run, &rectify_task_queue_.value());
+
+      info_sub_ = this->create_subscription<sensor_msgs::msg::CameraInfo>(
+          info_sub_topic_name, info_qos, std::bind(&GpuImgProc::cameraInfoCallback, this, std::placeholders::_1));
+    }
+
+    // Once all queries receive sufficient results, stop the timer
+    qos_request_timer_->cancel();
 }
 
 void GpuImgProc::imageCallback(const sensor_msgs::msg::Image::SharedPtr msg) {
     RCLCPP_DEBUG(this->get_logger(), "Received image");
 
-    std::future<void> rectified_msg;
+    JpegCompressor::ImageFormat image_format;
+    if (msg->encoding == "rgb8") {
+      image_format = JpegCompressor::ImageFormat::RGB;
+    } else if (msg->encoding == "bgr8") {
+      image_format = JpegCompressor::ImageFormat::BGR;
+    } else {
+      RCLCPP_ERROR_STREAM(this->get_logger(),
+                          "Image encoding (" << msg->encoding << ") is not supported.");
+    }
+
     if (rectifier_active_) {
         RCLCPP_DEBUG(this->get_logger(), "Rectifying image");
-        rectified_msg =
-            std::async(std::launch::async, [this, msg]() {
+        rectify_task_queue_->addTask([this, msg, image_format]() {
                 sensor_msgs::msg::Image::UniquePtr rect_img;
                 sensor_msgs::msg::CompressedImage::UniquePtr rect_comp_img;
                 if (false) {
 #ifdef NPP_AVAILABLE
                 } else if (rectifier_impl_ == Rectifier::Implementation::NPP) {
                     rect_img = npp_rectifier_->rectify(*msg);
-                    rect_comp_img = rect_compressor_->compress(*rect_img, 60);
+                    rect_comp_img = rect_compressor_->compress(*rect_img, jpeg_quality_, image_format);
 #endif
-#ifdef OPENCV_AVAILABLE                            
+#ifdef OPENCV_AVAILABLE
                 } else if (rectifier_impl_ == Rectifier::Implementation::OpenCV_CPU) {
                     rect_img = cv_cpu_rectifier_->rectify(*msg);
-                    rect_comp_img = rect_compressor_->compress(*rect_img, 60);
+                    rect_comp_img = rect_compressor_->compress(*rect_img, jpeg_quality_, image_format);
 #endif
 #ifdef OPENCV_CUDA_AVAILABLE
                 } else if (rectifier_impl_ == Rectifier::Implementation::OpenCV_GPU) {
                     rect_img = cv_gpu_rectifier_->rectify(*msg);
-                    rect_comp_img = rect_compressor_->compress(*rect_img, 60);
+                    rect_comp_img = rect_compressor_->compress(*rect_img, jpeg_quality_, image_format);
 #endif
                 } else {
                     RCLCPP_ERROR(this->get_logger(), "Invalid implementation");
                     return;
                 }
-                rectified_pub_->publish(std::move(rect_img));
-                rect_compressed_pub_->publish(std::move(rect_comp_img));
+                // XXX: As of 2023/Nov, publishing the topic via unique_ptr here may cause
+                // SIGSEGV during cyclonedds process, so the topics are published via passing by value.
+                // If this SIGSEGV issue will be resolved somehow, it's better to switch back to
+                // publishing topics via unique_ptr for more efficiency.
+
+                // rectified_pub_->publish(std::move(rect_img));
+                // rect_compressed_pub_->publish(std::move(rect_comp_img));
+                rectified_pub_->publish(*rect_img);
+                rect_compressed_pub_->publish(*rect_comp_img);
             });
     } else {
-        std::cout << "Not rectifying image" << std::endl;
+        RCLCPP_DEBUG(this->get_logger(), "Not rectifying image");
     }
 
-    std::future<void> compressed_msg =
-        std::async(std::launch::async, [this, msg]() {
-            compressed_pub_->publish(std::move(raw_compressor_->compress(*msg, 60)));
-        });
-    
-    if (rectifier_active_) {
-        rectified_msg.wait();
-    }
-    compressed_msg.wait();
+    compress_task_queue_->addTask([this, msg, image_format]() {
+                sensor_msgs::msg::CompressedImage::UniquePtr comp_img;
+                comp_img = raw_compressor_->compress(*msg, jpeg_quality_, image_format);
+                // XXX: As of 2023/Nov, publishing the topic via unique_ptr here may cause
+                // SIGSEGV during cyclonedds process, so the topics are published via passing by value.
+                // If this SIGSEGV issue will be resolved somehow, it's better to switch back to
+                // publishing topics via unique_ptr for more efficiency.
+
+                // compressed_pub_->publish(std::move(comp_img));
+                compressed_pub_->publish(*comp_img);
+            });
 }
 
 void GpuImgProc::cameraInfoCallback(const sensor_msgs::msg::CameraInfo::SharedPtr msg) {
@@ -171,6 +254,12 @@ void GpuImgProc::cameraInfoCallback(const sensor_msgs::msg::CameraInfo::SharedPt
             if (npp_rectifier_) {
                 RCLCPP_INFO(this->get_logger(), "Initialized NPP rectifier");
                 rectifier_active_ = true;
+#if JETSON_AVAILABLE || NVJPEG_AVAILABLE
+                // Use the same stream for rectifier
+                // because compression process depends on rectified result
+                auto stream = npp_rectifier_->GetCudaStream();
+                rect_compressor_->setCudaStream(stream);
+#endif
             } else {
                 RCLCPP_ERROR(this->get_logger(), "Failed to initialize NPP rectifier");
                 return;
@@ -185,7 +274,7 @@ void GpuImgProc::cameraInfoCallback(const sensor_msgs::msg::CameraInfo::SharedPt
             RCLCPP_INFO(this->get_logger(), "Initializing OpenCV CPU rectifier");
             cv_cpu_rectifier_ = std::make_shared<Rectifier::OpenCVRectifierCPU>(*msg, mapping_impl_, alpha_);
             if (cv_cpu_rectifier_) {
-                RCLCPP_INFO(this->get_logger(), "Initialized OpenCV GPU rectifier");
+                RCLCPP_INFO(this->get_logger(), "Initialized OpenCV CPU rectifier");
                 rectifier_active_ = true;
             } else {
                 RCLCPP_ERROR(this->get_logger(), "Failed to initialize OpenCV rectifier");
@@ -195,7 +284,7 @@ void GpuImgProc::cameraInfoCallback(const sensor_msgs::msg::CameraInfo::SharedPt
 #else
             RCLCPP_ERROR(this->get_logger(), "OpenCV not enabled");
             return;
-#endif 
+#endif
         case Rectifier::Implementation::OpenCV_GPU:
 #ifdef OPENCV_CUDA_AVAILABLE
             RCLCPP_INFO(this->get_logger(), "Initializing OpenCV GPU rectifier");
@@ -222,6 +311,8 @@ void GpuImgProc::cameraInfoCallback(const sensor_msgs::msg::CameraInfo::SharedPt
         info_sub_.reset();
     }
 }
-
-RCLCPP_COMPONENTS_REGISTER_NODE(GpuImgProc)
 } // namespace gpu_imgproc
+
+#include <rclcpp_components/register_node_macro.hpp>
+
+RCLCPP_COMPONENTS_REGISTER_NODE(gpu_imgproc::GpuImgProc)

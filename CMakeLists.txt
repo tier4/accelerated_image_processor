@@ -13,9 +13,9 @@ endif ()
 
 ament_auto_find_build_dependencies()
 
-# Default to C++14
+# Default to C++17
 if(NOT CMAKE_CXX_STANDARD)
-  set(CMAKE_CXX_STANDARD 14)
+  set(CMAKE_CXX_STANDARD 17)
 endif()
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
@@ -107,6 +107,7 @@ if (JETSON)
     ${SYS_ROOT}/usr/lib/aarch64-linux-gnu/tegra)
   target_link_libraries(jpeg_compressor
     ${CUDA_nppicc_LIBRARY}
+    ${CUDA_nppidei_LIBRARY}
     ${LIBJPEGTURBO_LIBRARIES}
     nvjpeg
     cuda-api-wrappers::runtime-and-driver
@@ -152,7 +153,7 @@ if (JETSON)
           )
 
   rclcpp_components_register_node(accelerated_image_processor
-          PLUGIN "GpuImgProc"
+          PLUGIN "gpu_imgproc::GpuImgProc"
           EXECUTABLE accelerated_image_processor_node
           )
 
@@ -215,7 +216,7 @@ else()
           )
 
   rclcpp_components_register_node(accelerated_image_processor
-          PLUGIN "GpuImgProc"
+          PLUGIN "gpu_imgproc::GpuImgProc"
           EXECUTABLE accelerated_image_processor_node
           )
 

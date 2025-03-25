@@ -27,20 +27,22 @@
 
 
 #define CHECK_NPP(status) \
-    if (status != NPP_SUCCESS) { \
-        RCLCPP_ERROR(rclcpp::get_logger("v4l2_camera"), "NPP error: %d (%s:%d)", status, __FILE__, __LINE__); \
+    if (status != NPP_SUCCESS) {                                        \
+        std::cerr << "NPP error: " << status                            \
+                  << " (" <<  __FILE__ << ":" << __LINE__ << ")" << std::endl; \
     }
 
 #define CHECK_CUDA(status) \
-    if (status != cudaSuccess) { \
-        RCLCPP_ERROR(rclcpp::get_logger("v4l2_camera"), "CUDA error: %s (%s:%d)", cudaGetErrorName(status), __FILE__, __LINE__); \
+    if (status != cudaSuccess) {                                        \
+        std::cerr << "CUDA error: " << cudaGetErrorName(status)         \
+                  << " (" << __FILE__ << ":" <<  __LINE__ << ")" << std::endl; \
     }
 
 namespace Rectifier {
 
 static void compute_maps(int width, int height, const double *D, const double *P,
                   float *map_x, float *map_y) {
-    RCLCPP_WARN(rclcpp::get_logger("v4l2_camera"), "No support for alpha in non-OpenCV mapping");
+    std::cout <<  "No support for alpha in non-OpenCV mapping" << std::endl;
 
     double fx = P[0];
     double fy = P[5];
@@ -76,7 +78,7 @@ static void compute_maps(int width, int height, const double *D, const double *P
 #ifdef OPENCV_AVAILABLE
 static void compute_maps_opencv(const CameraInfo &info, float *map_x, float *map_y, double alpha = 0.0) {
     cv::Mat camera_intrinsics(3, 3, CV_64F);
-    cv::Mat distortion_coefficients(1, 5, CV_64F);
+    cv::Mat distortion_coefficients(1, info.d.size(), CV_64F);
 
     for (int row=0; row<3; row++) {
         for (int col=0; col<3; col++) {
@@ -84,7 +86,7 @@ static void compute_maps_opencv(const CameraInfo &info, float *map_x, float *map
         }
     }
 
-    for (int col=0; col<5; col++) {
+    for (std::size_t col=0; col<info.d.size(); col++) {
         distortion_coefficients.at<double>(col) = info.d[col];
     }
 
@@ -95,7 +97,7 @@ static void compute_maps_opencv(const CameraInfo &info, float *map_x, float *map
 
     cv::Mat m1(info.height, info.width, CV_32FC1, map_x);
     cv::Mat m2(info.height, info.width, CV_32FC1, map_y);
-    
+
     cv::initUndistortRectifyMap(camera_intrinsics,
         distortion_coefficients,
         cv::Mat(),
@@ -111,19 +113,32 @@ NPPRectifier::NPPRectifier(int width, int height,
                            const Npp32f *map_x, const Npp32f *map_y)
     : pxl_map_x_(nullptr), pxl_map_y_(nullptr) {
     cudaStreamCreateWithFlags(&stream_, cudaStreamNonBlocking);
+    nppSetStream(stream_);
 
     pxl_map_x_ = nppiMalloc_32f_C1(width, height, &pxl_map_x_step_);
     if (pxl_map_x_ == nullptr) {
-        RCLCPP_ERROR(rclcpp::get_logger("v4l2_camera"), "Failed to allocate GPU memory");
+        std::cerr <<  "Failed to allocate GPU memory" << std::endl;
         return;
     }
     pxl_map_y_ = nppiMalloc_32f_C1(width, height, &pxl_map_y_step_);
     if (pxl_map_y_ == nullptr) {
-        RCLCPP_ERROR(rclcpp::get_logger("v4l2_camera"), "Failed to allocate GPU memory");
+        std::cerr <<  "Failed to allocate GPU memory" << std::endl;
         return;
     }
-    CHECK_CUDA(cudaMemcpy2D(pxl_map_x_, pxl_map_x_step_, map_x, width * sizeof(float), width * sizeof(float), height, cudaMemcpyHostToDevice));
-    CHECK_CUDA(cudaMemcpy2D(pxl_map_y_, pxl_map_y_step_, map_y, width * sizeof(float), width * sizeof(float), height, cudaMemcpyHostToDevice));
+
+    src_ = nppiMalloc_8u_C3(width, height, &src_step_);
+    if (src_ == nullptr) {
+        std::cerr <<  "Failed to allocate GPU memory" << std::endl;
+      return;
+    }
+    dst_ = nppiMalloc_8u_C3(width, height, &dst_step_);
+    if (dst_ == nullptr) {
+        std::cerr <<  "Failed to allocate GPU memory" << std::endl;
+      return;
+    }
+
+    CHECK_CUDA(cudaMemcpy2DAsync(pxl_map_x_, pxl_map_x_step_, map_x, width * sizeof(float), width * sizeof(float), height, cudaMemcpyHostToDevice, stream_));
+    CHECK_CUDA(cudaMemcpy2DAsync(pxl_map_y_, pxl_map_y_step_, map_y, width * sizeof(float), width * sizeof(float), height, cudaMemcpyHostToDevice, stream_));
 }
 
 NPPRectifier::NPPRectifier(const CameraInfo& info, MappingImpl impl, double alpha) {
@@ -133,13 +148,24 @@ NPPRectifier::NPPRectifier(const CameraInfo& info, MappingImpl impl, double alph
 
     pxl_map_x_ = nppiMalloc_32f_C1(info.width, info.height, &pxl_map_x_step_);
     if (pxl_map_x_ == nullptr) {
-        RCLCPP_ERROR(rclcpp::get_logger("v4l2_camera"), "Failed to allocate GPU memory");
+        std::cerr <<  "Failed to allocate GPU memory" << std::endl;
         return;
     }
     pxl_map_y_ = nppiMalloc_32f_C1(info.width, info.height, &pxl_map_y_step_);
     if (pxl_map_y_ == nullptr) {
-        RCLCPP_ERROR(rclcpp::get_logger("v4l2_camera"), "Failed to allocate GPU memory");
+        std::cerr <<  "Failed to allocate GPU memory" << std::endl;
         return;
+    }
+
+    src_ = nppiMalloc_8u_C3(info.width, info.height, &src_step_);
+    if (src_ == nullptr) {
+        std::cerr << "Failed to allocate GPU memory" << std::endl;
+      return;
+    }
+    dst_ = nppiMalloc_8u_C3(info.width, info.height, &dst_step_);
+    if (dst_ == nullptr) {
+        std::cerr << "Failed to allocate GPU memory" << std::endl;
+      return;
     }
 
     std::cout << "Rectifying image with " << info.width << "x" << info.height << " pixels" << std::endl;
@@ -160,8 +186,8 @@ NPPRectifier::NPPRectifier(const CameraInfo& info, MappingImpl impl, double alph
 
     std::cout << "Copying rectification map to GPU" << std::endl;
 
-    CHECK_CUDA(cudaMemcpy2D(pxl_map_x_, pxl_map_x_step_, map_x, info.width * sizeof(float), info.width * sizeof(float), info.height, cudaMemcpyHostToDevice));
-    CHECK_CUDA(cudaMemcpy2D(pxl_map_y_, pxl_map_y_step_, map_y, info.width * sizeof(float), info.width * sizeof(float), info.height, cudaMemcpyHostToDevice));
+    CHECK_CUDA(cudaMemcpy2DAsync(pxl_map_x_, pxl_map_x_step_, map_x, info.width * sizeof(float), info.width * sizeof(float), info.height, cudaMemcpyHostToDevice, stream_));
+    CHECK_CUDA(cudaMemcpy2DAsync(pxl_map_y_, pxl_map_y_step_, map_y, info.width * sizeof(float), info.width * sizeof(float), info.height, cudaMemcpyHostToDevice, stream_));
 
     delete[] map_x;
     delete[] map_y;
@@ -176,10 +202,19 @@ NPPRectifier::~NPPRectifier() {
         nppiFree(pxl_map_y_);
     }
 
+    if (src_ != nullptr) {
+      nppiFree(src_);
+    }
+
+    if (dst_ != nullptr) {
+      nppiFree(dst_);
+    }
+
     cudaStreamDestroy(stream_);
 }
 
 Image::UniquePtr NPPRectifier::rectify(const Image &msg) {
+    nppSetStream(stream_);
     Image::UniquePtr result = std::make_unique<Image>();
     result->header = msg.header;
     result->height = msg.height;
@@ -193,31 +228,30 @@ Image::UniquePtr NPPRectifier::rectify(const Image &msg) {
     NppiRect src_roi = {0, 0, (int)msg.width, (int)msg.height};
     NppiSize src_size = {(int)msg.width, (int)msg.height};
     NppiSize dst_roi_size = {(int)msg.width, (int)msg.height};
-    int src_step;
-    int dst_step;
 
-    Npp8u *src = nppiMalloc_8u_C3(msg.width, msg.height, &src_step);
-    Npp8u *dst = nppiMalloc_8u_C3(msg.width, msg.height, &dst_step);
-
-    CHECK_CUDA(cudaMemcpy2D(src, src_step, msg.data.data(), msg.step, msg.width * 3, msg.height, cudaMemcpyHostToDevice));
+    CHECK_CUDA(cudaMemcpy2DAsync(src_, src_step_, msg.data.data(), msg.step, msg.width * 3, msg.height, cudaMemcpyHostToDevice, stream_));
 
     NppiInterpolationMode interpolation = NPPI_INTER_LINEAR;
 
     CHECK_NPP(nppiRemap_8u_C3R(
-        src, src_size, src_step, src_roi,
+        src_, src_size, src_step_, src_roi,
         pxl_map_x_, pxl_map_x_step_, pxl_map_y_, pxl_map_y_step_,
-        dst, dst_step, dst_roi_size, interpolation));
+        dst_, dst_step_, dst_roi_size, interpolation));
 
-    CHECK_CUDA(cudaMemcpy2D(result->data.data(), result->step, dst, dst_step, msg.width * 3, msg.height, cudaMemcpyDeviceToHost));
+    CHECK_CUDA(cudaMemcpy2DAsync(static_cast<void*>(result->data.data()),
+                                 result->step,
+                                 static_cast<const void*>(dst_),
+                                 dst_step_,
+                                 msg.width * 3 * sizeof(Npp8u),  // in byte
+                                 msg.height,
+                                 cudaMemcpyDeviceToHost,
+                                 stream_));
 
     // cv::Mat image(msg.height, msg.width, CV_8UC3, result->data.data(), result->step);
     // cv::cvtColor(image, image, cv::COLOR_RGB2BGR);
     // // save with timestamp
     // std::string filename = "rectified_" + std::to_string(msg.header.stamp.sec) + "_" + std::to_string(msg.header.stamp.nanosec) + ".png";
     // imwrite(filename, image);
-
-    nppiFree(src);
-    nppiFree(dst);
 
     return result;
 }

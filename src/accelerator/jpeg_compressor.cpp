@@ -7,24 +7,26 @@
 
 #if defined(JETSON_AVAILABLE) || defined(NVJPEG_AVAILABLE)
 #include <nppi_color_conversion.h>
+#include <nppi_data_exchange_and_initialization.h>
 #endif
 
 #define TEST_ERROR(cond, str) if(cond) { \
                                         fprintf(stderr, "%s\n", str); }
 
-#define CHECK_CUDA(status) \
-    if (status != cudaSuccess) { \
-        RCLCPP_ERROR(rclcpp::get_logger("v4l2_camera"), "CUDA error: %s (%s:%d)", cudaGetErrorName(status), __FILE__, __LINE__); \
+#define CHECK_CUDA(status)       \
+    if (status != cudaSuccess) {                                        \
+        std::cerr << "CUDA error: " << cudaGetErrorName(status)         \
+                  << " (" << __FILE__ << ", " << __LINE__ << ")" << std::endl; \
     }
 
-#define CHECK_NVJPEG(call)                                                                      \
-    {                                                                                           \
-        nvjpegStatus_t _e = (call);                                                             \
-        if (_e != NVJPEG_STATUS_SUCCESS) {                                                      \
-            RCLCPP_ERROR(rclcpp::get_logger("v4l2_camera"), "NVJPEG failure: '#%d' at %s:%d",   \
-                         _e, __FILE__, __LINE__);                                               \
-            exit(1);                                                                            \
-        }                                                                                       \
+#define CHECK_NVJPEG(call)                                              \
+    {                                                                   \
+        nvjpegStatus_t _e = (call);                                     \
+        if (_e != NVJPEG_STATUS_SUCCESS) {                              \
+            std::cerr << "NVJPEG failure: \'#" << _e << "\' at "        \
+                      << __FILE__<< ":" << __LINE__ << std::endl;       \
+            exit(1);                                                    \
+        }                                                               \
     }
 
 namespace JpegCompressor {
@@ -73,12 +75,18 @@ CompressedImage::UniquePtr CPUCompressor::compress(const Image &msg, int quality
 #endif
 
 #ifdef JETSON_AVAILABLE
-JetsonCompressor::JetsonCompressor(std::string name) {
+JetsonCompressor::JetsonCompressor(std::string name)
+        : stream_(cuda::device::current::get().create_stream(cuda::stream::sync)) {
     encoder_ = NvJPEGEncoder::createJPEGEncoder(name.c_str());
 }
 
 JetsonCompressor::~JetsonCompressor() {
     delete encoder_;
+
+    nppiFree(dev_image_);
+    for (auto& p : dev_yuv_) {
+      nppiFree(p);
+    }
 }
 
 CompressedImage::UniquePtr JetsonCompressor::compress(const Image &msg, int quality, ImageFormat format) {
@@ -91,53 +99,96 @@ CompressedImage::UniquePtr JetsonCompressor::compress(const Image &msg, int qual
     const auto &img = msg.data;
 
     if (image_size < img.size()) {
-      dev_image = cuda::memory::device::make_unique<uint8_t[]>(img.size());
-      yuv_size =
-          width * height +
-          (static_cast<size_t>(width / 2) * static_cast<size_t>(height / 2)) * 2;
-      host_yuv = cuda::memory::host::make_unique<uint8_t[]>(yuv_size);
-      dev_yuv = cuda::memory::device::make_unique<uint8_t[]>(yuv_size);
+      // Allocate Npp8u buffers
+      dev_image_ = nppiMalloc_8u_C3(width, height, &dev_image_step_bytes_);
       image_size = img.size();
+
+      dev_yuv_[0] = nppiMalloc_8u_C1(width, height, &dev_yuv_step_bytes_[0]); // Y
+      dev_yuv_[1] = nppiMalloc_8u_C1(width/2, height/2, &dev_yuv_step_bytes_[1]); // U
+      dev_yuv_[2] = nppiMalloc_8u_C1(width/2, height/2, &dev_yuv_step_bytes_[2]); // V
+
+      // Fill elements of  nppStreamContext
+      {
+        npp_stream_context_.hStream = stream_.handle();
+        cudaGetDevice(&npp_stream_context_.nCudaDeviceId);
+        cudaDeviceProp dev_prop;
+        cudaGetDeviceProperties(&dev_prop, npp_stream_context_.nCudaDeviceId);
+        npp_stream_context_.nMultiProcessorCount = dev_prop.multiProcessorCount;
+        npp_stream_context_.nMaxThreadsPerMultiProcessor = dev_prop.maxThreadsPerMultiProcessor;
+        npp_stream_context_.nMaxThreadsPerBlock = dev_prop.maxThreadsPerBlock;
+        npp_stream_context_.nSharedMemPerBlock = dev_prop.sharedMemPerBlock;
+        cudaDeviceGetAttribute(&npp_stream_context_.nCudaDevAttrComputeCapabilityMajor,
+                               cudaDevAttrComputeCapabilityMajor, npp_stream_context_.nCudaDeviceId);
+        cudaDeviceGetAttribute(&npp_stream_context_.nCudaDevAttrComputeCapabilityMinor,
+                               cudaDevAttrComputeCapabilityMinor, npp_stream_context_.nCudaDeviceId);
+        cudaStreamGetFlags(npp_stream_context_.hStream, &npp_stream_context_.nStreamFlags);
+      }
+
+      buffer_.emplace(V4L2_PIX_FMT_YUV420M, width, height, 0);
+      TEST_ERROR(buffer_->allocateMemory() != 0, "NvBuffer allocation failed");
+
+      encoder_->setCropRect(0, 0, width, height);
     }
 
-    cuda::memory::copy(dev_image.get(), img.data(), img.size());
+    TEST_ERROR(cudaMemcpy2DAsync(static_cast<void*>(dev_image_), dev_image_step_bytes_,
+                                 static_cast<const void*>(img.data()), msg.step,
+                                 msg.step * sizeof(Npp8u),
+                                 msg.height, cudaMemcpyHostToDevice, stream_.handle()) != cudaSuccess,
+               "2D memory allocation failed");
 
-    if (format == ImageFormat::RGB) {
-        TEST_ERROR(cudaRGBToYUV420(dev_image.get(), dev_yuv.get(), width, height) !=
-                cudaSuccess, "failed to convert rgb8 to yuv420");
-    } else {
-        TEST_ERROR(cudaBGRToYUV420(dev_image.get(), dev_yuv.get(), width, height) !=
-                cudaSuccess, "failed to convert bgr8 to yuv420");
+    NppiSize roi = {static_cast<int>(msg.width), static_cast<int>(msg.height)};
+    if (format == ImageFormat::BGR) {
+      // Inplace conversion from BGR to RGB
+      const int order[3] = {2, 1, 0};
+      TEST_ERROR(nppiSwapChannels_8u_C3IR_Ctx(dev_image_, dev_image_step_bytes_,
+                                              roi, order, npp_stream_context_) != NPP_SUCCESS,
+                 "failed to convert bgr8 to rgb8"
+                );
     }
 
-    cuda::memory::copy(host_yuv.get(), dev_yuv.get(), yuv_size);
+    TEST_ERROR(nppiRGBToYUV420_8u_C3P3R_Ctx(dev_image_, dev_image_step_bytes_,
+                                            dev_yuv_.data(), dev_yuv_step_bytes_.data(), roi,
+                                            npp_stream_context_) != NPP_SUCCESS,
+               "failed to convert rgb8 to yuv420");
 
-    NvBuffer buffer(V4L2_PIX_FMT_YUV420M, width, height, 0);
-    TEST_ERROR(buffer.allocateMemory() != 0, "NvBuffer allocation failed");
-
-    auto image_data = reinterpret_cast<int8_t *>(host_yuv.get());
-
-    for (uint32_t i = 0; i < buffer.n_planes; ++i) {
-        NvBuffer::NvBufferPlane &plane = buffer.planes[i];
-        plane.bytesused = plane.fmt.stride * plane.fmt.height;
-        memcpy(plane.data, image_data, plane.bytesused);
-        image_data += plane.bytesused;
-    }
+    NvBuffer::NvBufferPlane &plane_y = buffer_->planes[0];
+    NvBuffer::NvBufferPlane &plane_u = buffer_->planes[1];
+    NvBuffer::NvBufferPlane &plane_v = buffer_->planes[2];
+    TEST_ERROR(cudaMemcpy2DAsync(plane_y.data, plane_y.fmt.stride,
+                                 dev_yuv_[0], dev_yuv_step_bytes_[0], width, height,
+                                 cudaMemcpyDeviceToHost, stream_.handle()) != cudaSuccess,
+               "memory copy from Device to Host for Y plane failed");
+    TEST_ERROR(cudaMemcpy2DAsync(plane_u.data, plane_u.fmt.stride,
+                                 dev_yuv_[1], dev_yuv_step_bytes_[1], width/2, height/2,
+                                 cudaMemcpyDeviceToHost, stream_.handle()) != cudaSuccess,
+               "memory copy from Device to Host for U plane failed");
+    TEST_ERROR(cudaMemcpy2DAsync(plane_v.data, plane_v.fmt.stride,
+                                 dev_yuv_[2], dev_yuv_step_bytes_[2], width/2, height/2,
+                                 cudaMemcpyDeviceToHost, stream_.handle()) != cudaSuccess,
+               "memory copy from Device to Host for V plane failed");
+    stream_.synchronize();
 
     size_t out_buf_size = width * height * 3 / 2;
-    compressed_msg->data.resize(out_buf_size);
-    auto out_data = compressed_msg->data.data();
+    unsigned char * out_data = new unsigned char[out_buf_size];
 
+    // encodeFromBuffer only support YUV420
     TEST_ERROR(
-        encoder_->encodeFromBuffer(buffer, JCS_YCbCr, &out_data,
+        encoder_->encodeFromBuffer(buffer_.value(), JCS_YCbCr, &out_data,
                                    out_buf_size, quality),
         "NvJpeg Encoder Error");
 
-    buffer.deallocateMemory();
+    compressed_msg->data.resize(static_cast<size_t>(out_buf_size / sizeof(uint8_t)));
+    memcpy(compressed_msg->data.data(), out_data, out_buf_size);
 
-    compressed_msg->data.resize(out_buf_size);
-    
+    delete[] out_data;
+    out_data = nullptr;
     return compressed_msg;
+}
+
+void JetsonCompressor::setCudaStream(cuda::stream::handle_t &raw_cuda_stream) {
+  stream_ = cuda::stream::wrap(cuda::device::current::get().id(),
+                               cuda::context::current::get().handle(),
+                               raw_cuda_stream);
 }
 #endif
 
@@ -162,17 +213,24 @@ NVJPEGCompressor::~NVJPEGCompressor() {
 }
 
 CompressedImage::UniquePtr NVJPEGCompressor::compress(const Image &msg, int quality, ImageFormat format) {
-    #warning TODO: implement format conversion or get rid of the parameter
     CompressedImage::UniquePtr compressed_msg = std::make_unique<CompressedImage>();
     compressed_msg->header = msg.header;
     compressed_msg->format = "jpeg";
 
     nvjpegEncoderParamsSetQuality(params_, quality, stream_);
 
+    nvjpegInputFormat_t input_format;
+    if (format == ImageFormat::RGB) {
+        input_format = NVJPEG_INPUT_RGBI;
+    } else if (format == ImageFormat::BGR) {
+        input_format = NVJPEG_INPUT_BGRI;
+    } else {
+        std::cerr << "Specified ImageFormat is not supported" << std::endl;
+    }
     setNVImage(msg);
-    CHECK_NVJPEG(nvjpegEncodeImage(handle_, state_, params_, &nv_image_, NVJPEG_INPUT_RGBI,
+    CHECK_NVJPEG(nvjpegEncodeImage(handle_, state_, params_, &nv_image_, input_format,
                                    msg.width, msg.height, stream_));
-    
+
     unsigned long out_buf_size = 0;
 
     CHECK_NVJPEG(nvjpegEncodeRetrieveBitstream(handle_, state_, NULL, &out_buf_size, stream_));
@@ -186,22 +244,25 @@ CompressedImage::UniquePtr NVJPEGCompressor::compress(const Image &msg, int qual
 }
 
 void NVJPEGCompressor::setNVImage(const Image &msg) {
-    unsigned char *p = nullptr;
-    CHECK_CUDA(cudaMallocAsync((void **)&p, msg.data.size(), stream_));
-    if (nv_image_.channel[0] != NULL) {
-        CHECK_CUDA(cudaFreeAsync(nv_image_.channel[0], stream_));
+    if (nv_image_.channel[0] == nullptr) {
+        CHECK_CUDA(cudaMallocAsync((void **)&nv_image_.channel[0], msg.data.size(), stream_));
     }
 
-    CHECK_CUDA(cudaMemcpyAsync(p, msg.data.data(), msg.data.size(), cudaMemcpyHostToDevice, stream_));
+    CHECK_CUDA(cudaMemsetAsync(nv_image_.channel[0], 0, msg.data.size(), stream_));
+
+    CHECK_CUDA(cudaMemcpyAsync(nv_image_.channel[0], msg.data.data(), msg.data.size(),
+                               cudaMemcpyHostToDevice, stream_));
 
     // int channels = image.size() / (image.width * image.height);
     int channels = 3;
 
-    std::memset(&nv_image_, 0, sizeof(nv_image_));
-
     // Assuming RGBI/BGRI
     nv_image_.pitch[0] = msg.width * channels;
-    nv_image_.channel[0] = p;
+}
+
+void NVJPEGCompressor::setCudaStream(const cudaStream_t &raw_cuda_stream) {
+    CHECK_CUDA(cudaStreamDestroy(stream_));
+    stream_ = raw_cuda_stream;
 }
 #endif
 

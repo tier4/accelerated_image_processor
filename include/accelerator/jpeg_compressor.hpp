@@ -4,6 +4,11 @@
 #include <sensor_msgs/msg/compressed_image.hpp>
 #include <string>
 
+// This needs to be included before other CUDA headers in some environments
+#if defined(JETSON_AVAILABLE) || defined(NVJPEG_AVAILABLE)
+#include <cuda_runtime.h>
+#endif
+
 #ifdef TURBOJPEG_AVAILABLE
 #include <turbojpeg.h>
 #endif
@@ -11,6 +16,8 @@
 #ifdef JETSON_AVAILABLE
 #include <NvJpegEncoder.h>
 #include <cuda/api.hpp>
+#include "color_space.hpp"
+#include <nppi_support_functions.h>
 #endif
 
 #ifdef NVJPEG_AVAILABLE
@@ -49,13 +56,20 @@ public:
     ~JetsonCompressor();
 
     CompressedImage::UniquePtr compress(const Image &msg, int quality = 90, ImageFormat format = ImageFormat::RGB);
+    void setCudaStream(cuda::stream::handle_t &raw_cuda_stream);
 private:
     NvJPEGEncoder *encoder_;
     size_t image_size{};
     size_t yuv_size{};
-    cuda::memory::device::unique_ptr<uint8_t[]> dev_image;
-    cuda::memory::host::unique_ptr<uint8_t[]> host_yuv;
-    cuda::memory::device::unique_ptr<uint8_t[]> dev_yuv;
+    Npp8u *dev_image_;
+    std::array<Npp8u*, 3> dev_yuv_;
+    std::array<void*, 3> host_yuv_;
+    int dev_image_step_bytes_;
+    std::array<int, 3> dev_yuv_step_bytes_;
+
+    cuda::stream_t stream_;
+    NppStreamContext npp_stream_context_;
+    std::optional<NvBuffer> buffer_;
 };
 #endif
 
@@ -66,6 +80,8 @@ public:
     ~NVJPEGCompressor();
 
     CompressedImage::UniquePtr compress(const Image &msg, int quality = 90, ImageFormat format = ImageFormat::RGB);
+    void setCudaStream(const cudaStream_t &raw_cuda_stream);
+
 private:
     // void setNVJPEGParams(int quality, ImageFormat format);
     void setNVImage(const Image &msg);
@@ -77,7 +93,7 @@ private:
     nvjpegInputFormat_t input_format_;
     nvjpegChromaSubsampling_t subsampling_;
     nvjpegImage_t nv_image_;
-}; 
+};
 #endif
 
 } // namespace JpegCompressor

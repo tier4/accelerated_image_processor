@@ -33,12 +33,15 @@ enum class MappingImpl {
 #if NPP_AVAILABLE
 class NPPRectifier {
 public:
+    cudaStream_t stream_;
+
     NPPRectifier(int width, int height,
                  const Npp32f *map_x, const Npp32f *map_y);
     NPPRectifier(const CameraInfo &info,
                  MappingImpl impl = MappingImpl::NPP,
                  double alpha = 0.0);
     ~NPPRectifier();
+    cudaStream_t& GetCudaStream() {return stream_;}
 
     Image::UniquePtr rectify(const Image &msg);
 private:
@@ -47,7 +50,10 @@ private:
     int pxl_map_x_step_;
     int pxl_map_y_step_;
     int interpolation_;
-    cudaStream_t stream_;
+    Npp8u *src_;
+    Npp8u *dst_;
+    int src_step_;
+    int dst_step_;
 };
 #endif
 
