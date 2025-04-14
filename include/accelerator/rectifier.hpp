@@ -3,9 +3,7 @@
 #include <sensor_msgs/msg/image.hpp>
 #include <sensor_msgs/msg/camera_info.hpp>
 
-#ifdef OPENCV_AVAILABLE
 #include <opencv2/core.hpp>
-#endif
 #ifdef OPENCV_CUDA_AVAILABLE
 #include <opencv2/core/cuda.hpp>
 #endif
@@ -38,7 +36,6 @@ public:
     NPPRectifier(int width, int height,
                  const Npp32f *map_x, const Npp32f *map_y);
     NPPRectifier(const CameraInfo &info,
-                 MappingImpl impl = MappingImpl::NPP,
                  double alpha = 0.0);
     ~NPPRectifier();
     cudaStream_t& GetCudaStream() {return stream_;}
@@ -57,11 +54,9 @@ private:
 };
 #endif
 
-#ifdef OPENCV_AVAILABLE
 class OpenCVRectifierCPU {
 public:
     OpenCVRectifierCPU(const CameraInfo &info,
-                       MappingImpl impl = MappingImpl::OpenCV,
                        double alpha = 0.0);
     ~OpenCVRectifierCPU();
 
@@ -78,7 +73,6 @@ private:
 class OpenCVRectifierGPU {
 public:
     OpenCVRectifierGPU(const CameraInfo &info,
-                       MappingImpl impl = MappingImpl::OpenCV,
                        double alpha = 0.0);
     ~OpenCVRectifierGPU();
 
