@@ -8,7 +8,6 @@
 #include <nppi_support_functions.h>
 #endif
 
-#ifdef OPENCV_AVAILABLE
 #include <image_geometry/pinhole_camera_model.h>
 #include <cv_bridge/cv_bridge.h>
 #include <opencv2/imgcodecs.hpp>
@@ -23,8 +22,6 @@
 #include <opencv2/flann.hpp>
 #include <opencv2/core.hpp>
 #endif
-#endif
-
 
 #define CHECK_NPP(status) \
     if (status != NPP_SUCCESS) {                                        \
@@ -40,6 +37,8 @@
 
 namespace Rectifier {
 
+[[deprecated("Use compute_maps_opencv instead")]]
+[[maybe_unused]]
 static void compute_maps(int width, int height, const double *D, const double *P,
                   float *map_x, float *map_y) {
     std::cout <<  "No support for alpha in non-OpenCV mapping" << std::endl;
@@ -75,8 +74,7 @@ static void compute_maps(int width, int height, const double *D, const double *P
     }
 }
 
-#ifdef OPENCV_AVAILABLE
-static void compute_maps_opencv(const CameraInfo &info, float *map_x, float *map_y, double alpha = 0.0) {
+static CameraInfo compute_maps_opencv(const CameraInfo &info, float *map_x, float *map_y, double alpha = 0.0) {
     cv::Mat camera_intrinsics(3, 3, CV_64F);
     cv::Mat distortion_coefficients(1, info.d.size(), CV_64F);
 
@@ -100,13 +98,26 @@ static void compute_maps_opencv(const CameraInfo &info, float *map_x, float *map
 
     cv::initUndistortRectifyMap(camera_intrinsics,
         distortion_coefficients,
-        cv::Mat(),
+        cv::Mat::eye(3, 3, CV_64F),
         new_intrinsics,
         cv::Size(info.width, info.height),
         CV_32FC1,
         m1, m2);
+
+    // Copy the original camera info and update only D and K
+    CameraInfo camera_info_rect(info);
+    // After undistortion, the result will be as if it is captured with a camera using
+    // the camera with new_intrinsics and zero distortion
+    camera_info_rect.d.assign(info.d.size(), 0.);
+    for (std::size_t row = 0; row < 3; row++) {
+        for (std::size_t col = 0; col < 3; col++) {
+            camera_info_rect.k[row * 3 + col] = new_intrinsics.at<double>(row, col);
+            camera_info_rect.p[row * 4 + col] = new_intrinsics.at<double>(row, col);
+        }
+    }
+
+    return camera_info_rect;
 }
-#endif
 
 #if NPP_AVAILABLE
 NPPRectifier::NPPRectifier(int width, int height,
@@ -141,7 +152,7 @@ NPPRectifier::NPPRectifier(int width, int height,
     CHECK_CUDA(cudaMemcpy2DAsync(pxl_map_y_, pxl_map_y_step_, map_y, width * sizeof(float), width * sizeof(float), height, cudaMemcpyHostToDevice, stream_));
 }
 
-NPPRectifier::NPPRectifier(const CameraInfo& info, MappingImpl impl, double alpha) {
+NPPRectifier::NPPRectifier(const CameraInfo& info, double alpha) {
     cudaStreamCreateWithFlags(&stream_, cudaStreamNonBlocking);
 
     nppSetStream(stream_);
@@ -175,14 +186,7 @@ NPPRectifier::NPPRectifier(const CameraInfo& info, MappingImpl impl, double alph
     float *map_x = new float[info.width * info.height];
     float *map_y = new float[info.width * info.height];
 
-#ifdef OPENCV_AVAILABLE
-    if (impl == MappingImpl::OpenCV)
-        compute_maps_opencv(info, map_x, map_y, alpha);
-    else
-#endif
-    compute_maps(info.width, info.height,
-                 info.d.data(), info.p.data(),
-                 map_x, map_y);
+    camera_info_rect_ = compute_maps_opencv(info, map_x, map_y, alpha);
 
     std::cout << "Copying rectification map to GPU" << std::endl;
 
@@ -257,17 +261,11 @@ Image::UniquePtr NPPRectifier::rectify(const Image &msg) {
 }
 #endif
 
-#ifdef OPENCV_AVAILABLE
-OpenCVRectifierCPU::OpenCVRectifierCPU(const CameraInfo &info, MappingImpl impl, double alpha) {
+OpenCVRectifierCPU::OpenCVRectifierCPU(const CameraInfo &info, double alpha) {
     map_x_ = cv::Mat(info.height, info.width, CV_32FC1);
     map_y_ = cv::Mat(info.height, info.width, CV_32FC1);
 
-    if (impl == MappingImpl::OpenCV)
-        compute_maps_opencv(info, map_x_.ptr<float>(), map_y_.ptr<float>(), alpha);
-    else
-        compute_maps(info.width, info.height,
-                     info.d.data(), info.p.data(),
-                     map_x_.ptr<float>(), map_y_.ptr<float>());
+    camera_info_rect_ = compute_maps_opencv(info, map_x_.ptr<float>(), map_y_.ptr<float>(), alpha);
 }
 
 OpenCVRectifierCPU::~OpenCVRectifierCPU() {}
@@ -290,19 +288,13 @@ Image::UniquePtr OpenCVRectifierCPU::rectify(const Image &msg) {
 
     return result;
 }
-#endif
 
 #ifdef OPENCV_CUDA_AVAILABLE
-OpenCVRectifierGPU::OpenCVRectifierGPU(const CameraInfo &info, MappingImpl impl, double alpha) {
+OpenCVRectifierGPU::OpenCVRectifierGPU(const CameraInfo &info, double alpha) {
     cv::Mat map_x(info.height, info.width, CV_32FC1);
     cv::Mat map_y(info.height, info.width, CV_32FC1);
 
-    if (impl == MappingImpl::OpenCV)
-        compute_maps_opencv(info, map_x.ptr<float>(), map_y.ptr<float>(), alpha);
-    else
-        compute_maps(info.width, info.height,
-                     info.d.data(), info.p.data(),
-                     map_x.ptr<float>(), map_y.ptr<float>());
+    camera_info_rect_ = compute_maps_opencv(info, map_x.ptr<float>(), map_y.ptr<float>(), alpha);
 
     map_x_ = cv::cuda::GpuMat(map_x);
     map_y_ = cv::cuda::GpuMat(map_y);

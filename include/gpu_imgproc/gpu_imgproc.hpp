@@ -24,9 +24,7 @@ private:
 #if NPP_AVAILABLE
     std::shared_ptr<Rectifier::NPPRectifier> npp_rectifier_;
 #endif
-#ifdef OPENCV_AVAILABLE
     std::shared_ptr<Rectifier::OpenCVRectifierCPU> cv_cpu_rectifier_;
-#endif
 #ifdef OPENCV_CUDA_AVAILABLE
     std::shared_ptr<Rectifier::OpenCVRectifierGPU> cv_gpu_rectifier_;
 #endif
@@ -47,11 +45,11 @@ private:
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr rectified_pub_;
     rclcpp::Publisher<sensor_msgs::msg::CompressedImage>::SharedPtr compressed_pub_;
     rclcpp::Publisher<sensor_msgs::msg::CompressedImage>::SharedPtr rect_compressed_pub_;
+    rclcpp::Publisher<sensor_msgs::msg::CameraInfo>::SharedPtr info_rect_pub_;
 
     rclcpp::TimerBase::SharedPtr qos_request_timer_;
 
     Rectifier::Implementation rectifier_impl_;
-    Rectifier::MappingImpl mapping_impl_;
     bool rectifier_active_;
     double alpha_;
     int32_t jpeg_quality_;
