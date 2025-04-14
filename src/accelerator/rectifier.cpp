@@ -74,7 +74,7 @@ static void compute_maps(int width, int height, const double *D, const double *P
     }
 }
 
-static void compute_maps_opencv(const CameraInfo &info, float *map_x, float *map_y, double alpha = 0.0) {
+static CameraInfo compute_maps_opencv(const CameraInfo &info, float *map_x, float *map_y, double alpha = 0.0) {
     cv::Mat camera_intrinsics(3, 3, CV_64F);
     cv::Mat distortion_coefficients(1, info.d.size(), CV_64F);
 
@@ -98,11 +98,25 @@ static void compute_maps_opencv(const CameraInfo &info, float *map_x, float *map
 
     cv::initUndistortRectifyMap(camera_intrinsics,
         distortion_coefficients,
-        cv::Mat(),
+        cv::Mat::eye(3, 3, CV_64F),
         new_intrinsics,
         cv::Size(info.width, info.height),
         CV_32FC1,
         m1, m2);
+
+    // Copy the original camera info and update only D and K
+    CameraInfo camera_info_rect(info);
+    // After undistortion, the result will be as if it is captured with a camera using
+    // the camera with new_intrinsics and zero distortion
+    camera_info_rect.d.assign(info.d.size(), 0.);
+    for (std::size_t row = 0; row < 3; row++) {
+        for (std::size_t col = 0; col < 3; col++) {
+            camera_info_rect.k[row * 3 + col] = new_intrinsics.at<double>(row, col);
+            camera_info_rect.p[row * 4 + col] = new_intrinsics.at<double>(row, col);
+        }
+    }
+
+    return camera_info_rect;
 }
 
 #if NPP_AVAILABLE
@@ -172,7 +186,7 @@ NPPRectifier::NPPRectifier(const CameraInfo& info, double alpha) {
     float *map_x = new float[info.width * info.height];
     float *map_y = new float[info.width * info.height];
 
-    compute_maps_opencv(info, map_x, map_y, alpha);
+    camera_info_rect_ = compute_maps_opencv(info, map_x, map_y, alpha);
 
     std::cout << "Copying rectification map to GPU" << std::endl;
 
@@ -251,7 +265,7 @@ OpenCVRectifierCPU::OpenCVRectifierCPU(const CameraInfo &info, double alpha) {
     map_x_ = cv::Mat(info.height, info.width, CV_32FC1);
     map_y_ = cv::Mat(info.height, info.width, CV_32FC1);
 
-    compute_maps_opencv(info, map_x_.ptr<float>(), map_y_.ptr<float>(), alpha);
+    camera_info_rect_ = compute_maps_opencv(info, map_x_.ptr<float>(), map_y_.ptr<float>(), alpha);
 }
 
 OpenCVRectifierCPU::~OpenCVRectifierCPU() {}
@@ -280,7 +294,7 @@ OpenCVRectifierGPU::OpenCVRectifierGPU(const CameraInfo &info, double alpha) {
     cv::Mat map_x(info.height, info.width, CV_32FC1);
     cv::Mat map_y(info.height, info.width, CV_32FC1);
 
-    compute_maps_opencv(info, map_x.ptr<float>(), map_y.ptr<float>(), alpha);
+    camera_info_rect_ = compute_maps_opencv(info, map_x.ptr<float>(), map_y.ptr<float>(), alpha);
 
     map_x_ = cv::cuda::GpuMat(map_x);
     map_y_ = cv::cuda::GpuMat(map_y);

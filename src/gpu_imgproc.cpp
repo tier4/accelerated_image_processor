@@ -161,6 +161,8 @@ void GpuImgProc::determineQosCallback(bool do_rectify) {
 
       info_sub_ = this->create_subscription<sensor_msgs::msg::CameraInfo>(
           info_sub_topic_name, info_qos, std::bind(&GpuImgProc::cameraInfoCallback, this, std::placeholders::_1));
+      info_rect_pub_ = this->create_publisher<sensor_msgs::msg::CameraInfo>(
+          "camera_info_rect", info_qos);
     }
 
     // Once all queries receive sufficient results, stop the timer
@@ -185,21 +187,23 @@ void GpuImgProc::imageCallback(const sensor_msgs::msg::Image::SharedPtr msg) {
         rectify_task_queue_->addTask([this, msg, image_format]() {
                 sensor_msgs::msg::Image::UniquePtr rect_img;
                 sensor_msgs::msg::CompressedImage::UniquePtr rect_comp_img;
+                sensor_msgs::msg::CameraInfo rect_info;
                 if (false) {
 #ifdef NPP_AVAILABLE
                 } else if (rectifier_impl_ == Rectifier::Implementation::NPP) {
                     rect_img = npp_rectifier_->rectify(*msg);
                     rect_comp_img = rect_compressor_->compress(*rect_img, jpeg_quality_, image_format);
+                    rect_info = npp_rectifier_->GetCameraInfoRect();
 #endif
-#ifdef OPENCV_AVAILABLE
                 } else if (rectifier_impl_ == Rectifier::Implementation::OpenCV_CPU) {
                     rect_img = cv_cpu_rectifier_->rectify(*msg);
                     rect_comp_img = rect_compressor_->compress(*rect_img, jpeg_quality_, image_format);
-#endif
+                    rect_info = cv_cpu_rectifier_->GetCameraInfoRect();
 #ifdef OPENCV_CUDA_AVAILABLE
                 } else if (rectifier_impl_ == Rectifier::Implementation::OpenCV_GPU) {
                     rect_img = cv_gpu_rectifier_->rectify(*msg);
                     rect_comp_img = rect_compressor_->compress(*rect_img, jpeg_quality_, image_format);
+                    rect_info = cv_gpu_rectifier_->GetCameraInfoRect();
 #endif
                 } else {
                     RCLCPP_ERROR(this->get_logger(), "Invalid implementation");
@@ -214,6 +218,10 @@ void GpuImgProc::imageCallback(const sensor_msgs::msg::Image::SharedPtr msg) {
                 // rect_compressed_pub_->publish(std::move(rect_comp_img));
                 rectified_pub_->publish(*rect_img);
                 rect_compressed_pub_->publish(*rect_comp_img);
+
+                // updata header information camera info for rectified image
+                rect_info.header = rect_img->header;
+                info_rect_pub_->publish(std::move(rect_info));
             });
     } else {
         RCLCPP_DEBUG(this->get_logger(), "Not rectifying image");

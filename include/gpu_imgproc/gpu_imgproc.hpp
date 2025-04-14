@@ -45,6 +45,7 @@ private:
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr rectified_pub_;
     rclcpp::Publisher<sensor_msgs::msg::CompressedImage>::SharedPtr compressed_pub_;
     rclcpp::Publisher<sensor_msgs::msg::CompressedImage>::SharedPtr rect_compressed_pub_;
+    rclcpp::Publisher<sensor_msgs::msg::CameraInfo>::SharedPtr info_rect_pub_;
 
     rclcpp::TimerBase::SharedPtr qos_request_timer_;
 
