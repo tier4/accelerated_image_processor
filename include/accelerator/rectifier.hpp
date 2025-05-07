@@ -33,8 +33,7 @@ public:
     virtual ~RectifierBase() {}
     virtual Image::UniquePtr rectify(const Image &msg) = 0;
     CameraInfo GetCameraInfoRect(void) {
-        // return copy of the current camera info rect
-        return CameraInfo(camera_info_rect_);
+        return camera_info_rect_;
     }
 
 protected:
