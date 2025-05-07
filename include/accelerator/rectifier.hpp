@@ -2,6 +2,7 @@
 
 #include <sensor_msgs/msg/image.hpp>
 #include <sensor_msgs/msg/camera_info.hpp>
+#include <optional>
 
 #include <opencv2/core.hpp>
 #ifdef OPENCV_CUDA_AVAILABLE
@@ -32,12 +33,15 @@ class RectifierBase {
 public:
     virtual ~RectifierBase() {}
     virtual Image::UniquePtr rectify(const Image &msg) = 0;
+    bool IsCameraInfoReady() {
+        return camera_info_rect_.has_value();
+    }
     CameraInfo GetCameraInfoRect(void) {
-        return camera_info_rect_;
+        return camera_info_rect_.value();
     }
 
 protected:
-    CameraInfo camera_info_rect_{};
+    std::optional<CameraInfo> camera_info_rect_{std::nullopt};
 };
 
 #if NPP_AVAILABLE

@@ -191,16 +191,25 @@ void GpuImgProc::imageCallback(const sensor_msgs::msg::Image::SharedPtr msg) {
                 if (false) {
 #ifdef NPP_AVAILABLE
                 } else if (rectifier_impl_ == Rectifier::Implementation::NPP) {
+                    if (!npp_rectifier_->IsCameraInfoReady()) {
+                        return;
+                    }
                     rect_img = npp_rectifier_->rectify(*msg);
                     rect_comp_img = rect_compressor_->compress(*rect_img, jpeg_quality_, image_format);
                     rect_info = npp_rectifier_->GetCameraInfoRect();
 #endif
                 } else if (rectifier_impl_ == Rectifier::Implementation::OpenCV_CPU) {
+                    if (!cv_cpu_rectifier_->IsCameraInfoReady()) {
+                        return;
+                    }
                     rect_img = cv_cpu_rectifier_->rectify(*msg);
                     rect_comp_img = rect_compressor_->compress(*rect_img, jpeg_quality_, image_format);
                     rect_info = cv_cpu_rectifier_->GetCameraInfoRect();
 #ifdef OPENCV_CUDA_AVAILABLE
                 } else if (rectifier_impl_ == Rectifier::Implementation::OpenCV_GPU) {
+                    if (!cv_gpu_rectifier_->IsCameraInfoReady()) {
+                        return;
+                    }
                     rect_img = cv_gpu_rectifier_->rectify(*msg);
                     rect_comp_img = rect_compressor_->compress(*rect_img, jpeg_quality_, image_format);
                     rect_info = cv_gpu_rectifier_->GetCameraInfoRect();
