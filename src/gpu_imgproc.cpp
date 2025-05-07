@@ -12,7 +12,7 @@ GpuImgProc::GpuImgProc(const rclcpp::NodeOptions & options)
     // std::string camera_info_topic = this->declare_parameter<std::string>("camera_info_topic", "/camera/camera_info");
     // std::string image_rect_topic = this->declare_parameter<std::string>("image_rect_topic", "/camera/image_rect");
     std::string rect_impl = this->declare_parameter<std::string>("rect_impl", "npp");
-    bool use_opencv_map_init = this->declare_parameter<bool>("use_opencv_map_init", false);
+    bool use_opencv_map_init = this->declare_parameter<bool>("use_opencv_map_init", true);
     alpha_ = this->declare_parameter<double>("alpha", 0.0);
     jpeg_quality_ = this->declare_parameter<int32_t>("jpeg_quality", 60);
     do_rectify_ = this->declare_parameter<bool>("do_rectify", true);
@@ -28,12 +28,10 @@ GpuImgProc::GpuImgProc(const rclcpp::NodeOptions & options)
 #ifdef NPP_AVAILABLE
     available_impls += "npp";
 #endif
-#ifdef OPENCV_AVAILABLE
     if (available_impls != "") {
         available_impls += ", ";
     }
     available_impls += "opencv_cpu";
-#endif
 #ifdef OPENCV_CUDA_AVAILABLE
     if (available_impls != "") {
         available_impls += ", ";
@@ -56,11 +54,9 @@ GpuImgProc::GpuImgProc(const rclcpp::NodeOptions & options)
         RCLCPP_INFO(this->get_logger(), "Using NPP implementation for rectification");
         rectifier_impl_ = Rectifier::Implementation::NPP;
 #endif
-#ifdef OPENCV_AVAILABLE
     } else if (rect_impl == "opencv_cpu") {
         RCLCPP_INFO(this->get_logger(), "Using CPU OpenCV implementation for rectification");
         rectifier_impl_ = Rectifier::Implementation::OpenCV_CPU;
-#endif
 #ifdef OPENCV_CUDA_AVAILABLE
     } else if (rect_impl == "opencv_gpu") {
         RCLCPP_INFO(this->get_logger(), "Using GPU OpenCV implementation for rectification");
@@ -71,12 +67,10 @@ GpuImgProc::GpuImgProc(const rclcpp::NodeOptions & options)
         return;
     }
 
-    if (use_opencv_map_init) {
-        RCLCPP_INFO(this->get_logger(), "Using OpenCV map initialization");
-        mapping_impl_ = Rectifier::MappingImpl::OpenCV;
-    } else {
-        RCLCPP_INFO(this->get_logger(), "Using Non-OpenCV map initialization");
-        mapping_impl_ = Rectifier::MappingImpl::NPP;
+    if (!use_opencv_map_init) {
+      RCLCPP_WARN(this->get_logger(),
+                  "`use_opencv_map_init==false` is deprecated and no longer supported. "
+                  "`use_opencv_map_init==true` is used automatically.");
     }
 
 #ifdef JETSON_AVAILABLE
@@ -167,6 +161,8 @@ void GpuImgProc::determineQosCallback(bool do_rectify) {
 
       info_sub_ = this->create_subscription<sensor_msgs::msg::CameraInfo>(
           info_sub_topic_name, info_qos, std::bind(&GpuImgProc::cameraInfoCallback, this, std::placeholders::_1));
+      info_rect_pub_ = this->create_publisher<sensor_msgs::msg::CameraInfo>(
+          "camera_info_rect", info_qos);
     }
 
     // Once all queries receive sufficient results, stop the timer
@@ -191,21 +187,32 @@ void GpuImgProc::imageCallback(const sensor_msgs::msg::Image::SharedPtr msg) {
         rectify_task_queue_->addTask([this, msg, image_format]() {
                 sensor_msgs::msg::Image::UniquePtr rect_img;
                 sensor_msgs::msg::CompressedImage::UniquePtr rect_comp_img;
+                sensor_msgs::msg::CameraInfo rect_info;
                 if (false) {
 #ifdef NPP_AVAILABLE
                 } else if (rectifier_impl_ == Rectifier::Implementation::NPP) {
+                    if (!npp_rectifier_->IsCameraInfoReady()) {
+                        return;
+                    }
                     rect_img = npp_rectifier_->rectify(*msg);
                     rect_comp_img = rect_compressor_->compress(*rect_img, jpeg_quality_, image_format);
+                    rect_info = npp_rectifier_->GetCameraInfoRect();
 #endif
-#ifdef OPENCV_AVAILABLE
                 } else if (rectifier_impl_ == Rectifier::Implementation::OpenCV_CPU) {
+                    if (!cv_cpu_rectifier_->IsCameraInfoReady()) {
+                        return;
+                    }
                     rect_img = cv_cpu_rectifier_->rectify(*msg);
                     rect_comp_img = rect_compressor_->compress(*rect_img, jpeg_quality_, image_format);
-#endif
+                    rect_info = cv_cpu_rectifier_->GetCameraInfoRect();
 #ifdef OPENCV_CUDA_AVAILABLE
                 } else if (rectifier_impl_ == Rectifier::Implementation::OpenCV_GPU) {
+                    if (!cv_gpu_rectifier_->IsCameraInfoReady()) {
+                        return;
+                    }
                     rect_img = cv_gpu_rectifier_->rectify(*msg);
                     rect_comp_img = rect_compressor_->compress(*rect_img, jpeg_quality_, image_format);
+                    rect_info = cv_gpu_rectifier_->GetCameraInfoRect();
 #endif
                 } else {
                     RCLCPP_ERROR(this->get_logger(), "Invalid implementation");
@@ -220,6 +227,10 @@ void GpuImgProc::imageCallback(const sensor_msgs::msg::Image::SharedPtr msg) {
                 // rect_compressed_pub_->publish(std::move(rect_comp_img));
                 rectified_pub_->publish(*rect_img);
                 rect_compressed_pub_->publish(*rect_comp_img);
+
+                // updata header information camera info for rectified image
+                rect_info.header = rect_img->header;
+                info_rect_pub_->publish(std::move(rect_info));
             });
     } else {
         RCLCPP_DEBUG(this->get_logger(), "Not rectifying image");
@@ -250,7 +261,7 @@ void GpuImgProc::cameraInfoCallback(const sensor_msgs::msg::CameraInfo::SharedPt
         case Rectifier::Implementation::NPP:
 #if NPP_AVAILABLE
             RCLCPP_INFO(this->get_logger(), "Initializing NPP rectifier");
-            npp_rectifier_ = std::make_shared<Rectifier::NPPRectifier>(*msg, mapping_impl_, alpha_);
+            npp_rectifier_ = std::make_shared<Rectifier::NPPRectifier>(*msg, alpha_);
             if (npp_rectifier_) {
                 RCLCPP_INFO(this->get_logger(), "Initialized NPP rectifier");
                 rectifier_active_ = true;
@@ -270,9 +281,8 @@ void GpuImgProc::cameraInfoCallback(const sensor_msgs::msg::CameraInfo::SharedPt
             return;
 #endif
         case Rectifier::Implementation::OpenCV_CPU:
-#ifdef OPENCV_AVAILABLE
             RCLCPP_INFO(this->get_logger(), "Initializing OpenCV CPU rectifier");
-            cv_cpu_rectifier_ = std::make_shared<Rectifier::OpenCVRectifierCPU>(*msg, mapping_impl_, alpha_);
+            cv_cpu_rectifier_ = std::make_shared<Rectifier::OpenCVRectifierCPU>(*msg, alpha_);
             if (cv_cpu_rectifier_) {
                 RCLCPP_INFO(this->get_logger(), "Initialized OpenCV CPU rectifier");
                 rectifier_active_ = true;
@@ -281,14 +291,10 @@ void GpuImgProc::cameraInfoCallback(const sensor_msgs::msg::CameraInfo::SharedPt
                 return;
             }
             break;
-#else
-            RCLCPP_ERROR(this->get_logger(), "OpenCV not enabled");
-            return;
-#endif
         case Rectifier::Implementation::OpenCV_GPU:
 #ifdef OPENCV_CUDA_AVAILABLE
             RCLCPP_INFO(this->get_logger(), "Initializing OpenCV GPU rectifier");
-            cv_gpu_rectifier_ = std::make_shared<Rectifier::OpenCVRectifierGPU>(*msg, mapping_impl_, alpha_);
+            cv_gpu_rectifier_ = std::make_shared<Rectifier::OpenCVRectifierGPU>(*msg, alpha_);
             if (cv_gpu_rectifier_) {
                 RCLCPP_INFO(this->get_logger(), "Initialized OpenCV GPU rectifier");
                 rectifier_active_ = true;

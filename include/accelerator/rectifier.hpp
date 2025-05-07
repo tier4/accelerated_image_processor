@@ -2,10 +2,9 @@
 
 #include <sensor_msgs/msg/image.hpp>
 #include <sensor_msgs/msg/camera_info.hpp>
+#include <optional>
 
-#ifdef OPENCV_AVAILABLE
 #include <opencv2/core.hpp>
-#endif
 #ifdef OPENCV_CUDA_AVAILABLE
 #include <opencv2/core/cuda.hpp>
 #endif
@@ -30,20 +29,34 @@ enum class MappingImpl {
     OpenCV
 };
 
+class RectifierBase {
+public:
+    virtual ~RectifierBase() {}
+    virtual Image::UniquePtr rectify(const Image &msg) = 0;
+    bool IsCameraInfoReady() {
+        return camera_info_rect_.has_value();
+    }
+    CameraInfo GetCameraInfoRect(void) {
+        return camera_info_rect_.value();
+    }
+
+protected:
+    std::optional<CameraInfo> camera_info_rect_{std::nullopt};
+};
+
 #if NPP_AVAILABLE
-class NPPRectifier {
+class NPPRectifier : public RectifierBase {
 public:
     cudaStream_t stream_;
 
     NPPRectifier(int width, int height,
                  const Npp32f *map_x, const Npp32f *map_y);
     NPPRectifier(const CameraInfo &info,
-                 MappingImpl impl = MappingImpl::NPP,
                  double alpha = 0.0);
     ~NPPRectifier();
     cudaStream_t& GetCudaStream() {return stream_;}
 
-    Image::UniquePtr rectify(const Image &msg);
+    Image::UniquePtr rectify(const Image &msg) override;
 private:
     Npp32f *pxl_map_x_;
     Npp32f *pxl_map_y_;
@@ -57,32 +70,28 @@ private:
 };
 #endif
 
-#ifdef OPENCV_AVAILABLE
-class OpenCVRectifierCPU {
+class OpenCVRectifierCPU : public RectifierBase {
 public:
     OpenCVRectifierCPU(const CameraInfo &info,
-                       MappingImpl impl = MappingImpl::OpenCV,
                        double alpha = 0.0);
     ~OpenCVRectifierCPU();
 
-    Image::UniquePtr rectify(const Image &msg);
+    Image::UniquePtr rectify(const Image &msg) override;
 private:
     cv::Mat map_x_;
     cv::Mat map_y_;
     cv::Mat camera_intrinsics_;
     cv::Mat distortion_coeffs_;
 };
-#endif
 
 #ifdef OPENCV_CUDA_AVAILABLE
-class OpenCVRectifierGPU {
+class OpenCVRectifierGPU : public RectifierBase {
 public:
     OpenCVRectifierGPU(const CameraInfo &info,
-                       MappingImpl impl = MappingImpl::OpenCV,
                        double alpha = 0.0);
     ~OpenCVRectifierGPU();
 
-    Image::UniquePtr rectify(const Image &msg);
+    Image::UniquePtr rectify(const Image &msg) override;
 private:
     cv::cuda::GpuMat map_x_;
     cv::cuda::GpuMat map_y_;
