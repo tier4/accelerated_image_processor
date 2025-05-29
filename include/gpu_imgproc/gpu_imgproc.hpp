@@ -2,6 +2,10 @@
 
 #include <optional>
 #include <rclcpp/rclcpp.hpp>
+#include "cuda_blackboard/cuda_adaptation.hpp"
+#include "cuda_blackboard/cuda_blackboard_publisher.hpp"
+#include "cuda_blackboard/cuda_blackboard_subscriber.hpp"
+#include "cuda_blackboard/cuda_image.hpp"
 // #include <rcl_interfaces/msg/parameter.hpp>
 
 #include "accelerator/rectifier.hpp"
@@ -11,13 +15,16 @@
 
 namespace gpu_imgproc {
 
+using CudaImage = cuda_blackboard::CudaImage;
+using CudaBlackboardSubscriber = cuda_blackboard::CudaBlackboardSubscriber<CudaImage>;
+using CudaBlackboardPublisher  = cuda_blackboard::CudaBlackboardPublisher<CudaImage>;
 class GpuImgProc : public rclcpp::Node {
 public:
     explicit GpuImgProc(const rclcpp::NodeOptions & options);
     virtual ~GpuImgProc();
 
 private:
-    void imageCallback(const sensor_msgs::msg::Image::SharedPtr msg);
+    void imageCallback(std::shared_ptr<const CudaImage> msg);
     void cameraInfoCallback(const sensor_msgs::msg::CameraInfo::SharedPtr msg);
     void determineQosCallback(bool do_rectify);
 
@@ -41,10 +48,12 @@ private:
     std::shared_ptr<JpegCompressor::CPUCompressor> rect_compressor_;
 #endif
 
-    rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr img_sub_;
+    // rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr img_sub_;
+    std::shared_ptr<CudaBlackboardSubscriber> img_sub_;
     rclcpp::Subscription<sensor_msgs::msg::CameraInfo>::SharedPtr info_sub_;
 
-    rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr rectified_pub_;
+    // rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr rectified_pub_;
+    std::shared_ptr<CudaBlackboardPublisher> rectified_pub_;
     rclcpp::Publisher<sensor_msgs::msg::CompressedImage>::SharedPtr compressed_pub_;
     rclcpp::Publisher<sensor_msgs::msg::CompressedImage>::SharedPtr rect_compressed_pub_;
 

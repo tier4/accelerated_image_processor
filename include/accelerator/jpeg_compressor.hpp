@@ -2,6 +2,8 @@
 
 #include <sensor_msgs/msg/image.hpp>
 #include <sensor_msgs/msg/compressed_image.hpp>
+#include "cuda_blackboard/cuda_image.hpp"
+#include "cuda_blackboard/cuda_unique_ptr.hpp"
 #include <string>
 
 // This needs to be included before other CUDA headers in some environments
@@ -29,6 +31,7 @@ class NvJPEGEncoder;
 namespace JpegCompressor {
 using Image = sensor_msgs::msg::Image;
 using CompressedImage = sensor_msgs::msg::CompressedImage;
+using CudaImage = cuda_blackboard::CudaImage;
 
 enum class ImageFormat {
     RGB,
@@ -56,6 +59,7 @@ public:
     ~JetsonCompressor();
 
     CompressedImage::UniquePtr compress(const Image &msg, int quality = 90, ImageFormat format = ImageFormat::RGB);
+    CompressedImage::UniquePtr compress(const CudaImage  &msg, int quality = 90, ImageFormat format = ImageFormat::RGB);
     void setCudaStream(cuda::stream::handle_t &raw_cuda_stream);
 private:
     NvJPEGEncoder *encoder_;

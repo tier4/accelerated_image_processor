@@ -2,6 +2,8 @@
 
 #include <sensor_msgs/msg/image.hpp>
 #include <sensor_msgs/msg/camera_info.hpp>
+#include "cuda_blackboard/cuda_image.hpp"
+#include "cuda_blackboard/cuda_unique_ptr.hpp"
 
 #ifdef OPENCV_AVAILABLE
 #include <opencv2/core.hpp>
@@ -31,6 +33,7 @@ enum class MappingImpl {
 };
 
 #if NPP_AVAILABLE
+using CudaImage = cuda_blackboard::CudaImage;
 class NPPRectifier {
 public:
     cudaStream_t stream_;
@@ -43,7 +46,7 @@ public:
     ~NPPRectifier();
     cudaStream_t& GetCudaStream() {return stream_;}
 
-    Image::UniquePtr rectify(const Image &msg);
+    std::shared_ptr<CudaImage> rectify(const CudaImage  &msg);
 private:
     Npp32f *pxl_map_x_;
     Npp32f *pxl_map_y_;

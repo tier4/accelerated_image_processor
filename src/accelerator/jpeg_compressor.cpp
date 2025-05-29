@@ -94,6 +94,21 @@ JetsonCompressor::~JetsonCompressor() {
     }
 }
 
+CompressedImage::UniquePtr compress(const CudaImage  &msg, int quality = 90, ImageFormat format = ImageFormat::RGB) {
+    auto ros_image = std::make_unique<sensor_msgs::msg::Image>();
+    ros_image->encoding = cuda_msg->encoding;
+    ros_image->height = cuda_msg->height;
+    ros_image->width = cuda_msg->width;
+    ros_image->step = cuda_msg->step;
+    ros_image->is_bigendian = cuda_msg->is_bigendian;
+    ros_image->data.resize(cuda_msg->height * ros_image->step);
+    cudaMemcpy(
+    ros_image->data.data(), cuda_msg->data.get(), ros_image->height * ros_image->step,
+    cudaMemcpyDeviceToHost);
+    return compress(*ros_image, quality, format);
+
+}
+
 CompressedImage::UniquePtr JetsonCompressor::compress(const Image &msg, int quality, ImageFormat format) {
     CompressedImage::UniquePtr compressed_msg = std::make_unique<CompressedImage>();
     compressed_msg->header = msg.header;

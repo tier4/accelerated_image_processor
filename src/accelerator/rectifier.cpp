@@ -213,9 +213,9 @@ NPPRectifier::~NPPRectifier() {
     cudaStreamDestroy(stream_);
 }
 
-Image::UniquePtr NPPRectifier::rectify(const Image &msg) {
+std::shared_ptr<CudaImage> NPPRectifier::rectify(const CudaImage &msg) {
     nppSetStream(stream_);
-    Image::UniquePtr result = std::make_unique<Image>();
+    std::shared_ptr<CudaImage> result = std::make_shared<CudaImage>();
     result->header = msg.header;
     result->height = msg.height;
     result->width = msg.width;
@@ -223,29 +223,34 @@ Image::UniquePtr NPPRectifier::rectify(const Image &msg) {
     result->is_bigendian = msg.is_bigendian;
     result->step = msg.step;
 
-    result->data.resize(msg.data.size());
+    result->data = cuda_blackboard::make_unique<uint8_t[]>(msg.height * msg.step * sizeof(uint8_t));
 
     NppiRect src_roi = {0, 0, (int)msg.width, (int)msg.height};
     NppiSize src_size = {(int)msg.width, (int)msg.height};
     NppiSize dst_roi_size = {(int)msg.width, (int)msg.height};
 
-    CHECK_CUDA(cudaMemcpy2DAsync(src_, src_step_, msg.data.data(), msg.step, msg.width * 3, msg.height, cudaMemcpyHostToDevice, stream_));
+    // CHECK_CUDA(cudaMemcpy2DAsync(src_, src_step_, msg.data.data(), msg.step, msg.width * 3, msg.height, cudaMemcpyHostToDevice, stream_));
 
     NppiInterpolationMode interpolation = NPPI_INTER_LINEAR;
 
     CHECK_NPP(nppiRemap_8u_C3R(
-        src_, src_size, src_step_, src_roi,
+        msg.data.get(), src_size, msg.step, src_roi,
         pxl_map_x_, pxl_map_x_step_, pxl_map_y_, pxl_map_y_step_,
-        dst_, dst_step_, dst_roi_size, interpolation));
+        result->data.get(), msg.step, dst_roi_size, interpolation));
 
-    CHECK_CUDA(cudaMemcpy2DAsync(static_cast<void*>(result->data.data()),
-                                 result->step,
-                                 static_cast<const void*>(dst_),
-                                 dst_step_,
-                                 msg.width * 3 * sizeof(Npp8u),  // in byte
-                                 msg.height,
-                                 cudaMemcpyDeviceToHost,
-                                 stream_));
+    // CHECK_NPP(nppiRemap_8u_C3R(
+    //     src_, src_size, src_step_, src_roi,
+    //     pxl_map_x_, pxl_map_x_step_, pxl_map_y_, pxl_map_y_step_,
+    //     dst_, dst_step_, dst_roi_size, interpolation));
+
+    // CHECK_CUDA(cudaMemcpy2DAsync(static_cast<void*>(result->data.data()),
+    //                              result->step,
+    //                              static_cast<const void*>(dst_),
+    //                              dst_step_,
+    //                              msg.width * 3 * sizeof(Npp8u),  // in byte
+    //                              msg.height,
+    //                              cudaMemcpyDeviceToHost,
+    //                              stream_));
 
     // cv::Mat image(msg.height, msg.width, CV_8UC3, result->data.data(), result->step);
     // cv::cvtColor(image, image, cv::COLOR_RGB2BGR);
