@@ -202,7 +202,7 @@ void GpuImgProc::imageCallback(std::shared_ptr<const CudaImage> msg)
     RCLCPP_DEBUG(this->get_logger(), "Rectifying image");
     rectify_task_queue_->addTask([this, msg, image_format]() {
       // sensor_msgs::msg::Image::UniquePtr rect_img;
-      std::shared_ptr<CudaImage> rect_img;
+      std::unique_ptr<CudaImage> rect_img;
       sensor_msgs::msg::CompressedImage::UniquePtr rect_comp_img;
       if (false) {
 #ifdef NPP_AVAILABLE
@@ -221,8 +221,7 @@ void GpuImgProc::imageCallback(std::shared_ptr<const CudaImage> msg)
 
       // rectified_pub_->publish(std::move(rect_img));
       // rect_compressed_pub_->publish(std::move(rect_comp_img));
-      std::unique_ptr<const CudaImage> unique_rect_img = std::make_unique<CudaImage>(*rect_img);
-      rectified_pub_->publish(std::move(unique_rect_img));
+      rectified_pub_->publish(std::move(rect_img));
       rect_compressed_pub_->publish(*rect_comp_img);
     });
   } else {

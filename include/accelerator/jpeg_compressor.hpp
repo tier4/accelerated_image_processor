@@ -84,6 +84,7 @@ public:
     ~NVJPEGCompressor();
 
     CompressedImage::UniquePtr compress(const Image &msg, int quality = 90, ImageFormat format = ImageFormat::RGB);
+    CompressedImage::UniquePtr compress(const CudaImage &msg, int quality = 90, ImageFormat format = ImageFormat::RGB);
     void setCudaStream(const cudaStream_t &raw_cuda_stream);
 
 private:

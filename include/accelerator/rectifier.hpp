@@ -46,7 +46,7 @@ public:
     ~NPPRectifier();
     cudaStream_t& GetCudaStream() {return stream_;}
 
-    std::shared_ptr<CudaImage> rectify(const CudaImage  &msg);
+    std::unique_ptr<CudaImage> rectify(const CudaImage  &msg);
 private:
     Npp32f *pxl_map_x_;
     Npp32f *pxl_map_y_;

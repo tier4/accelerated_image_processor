@@ -94,16 +94,16 @@ JetsonCompressor::~JetsonCompressor() {
     }
 }
 
-CompressedImage::UniquePtr compress(const CudaImage  &msg, int quality = 90, ImageFormat format = ImageFormat::RGB) {
+CompressedImage::UniquePtr JetsonCompressor::compress(const CudaImage  &msg, int quality = 90, ImageFormat format = ImageFormat::RGB) {
     auto ros_image = std::make_unique<sensor_msgs::msg::Image>();
-    ros_image->encoding = cuda_msg->encoding;
-    ros_image->height = cuda_msg->height;
-    ros_image->width = cuda_msg->width;
-    ros_image->step = cuda_msg->step;
-    ros_image->is_bigendian = cuda_msg->is_bigendian;
-    ros_image->data.resize(cuda_msg->height * ros_image->step);
+    ros_image->encoding = msg.encoding;
+    ros_image->height = msg.height;
+    ros_image->width = msg.width;
+    ros_image->step = msg.step;
+    ros_image->is_bigendian = msg.is_bigendian;
+    ros_image->data.resize(msg.height * ros_image->step);
     cudaMemcpy(
-    ros_image->data.data(), cuda_msg->data.get(), ros_image->height * ros_image->step,
+    ros_image->data.data(), msg.data.get(), ros_image->height * ros_image->step,
     cudaMemcpyDeviceToHost);
     return compress(*ros_image, quality, format);
 
@@ -230,6 +230,20 @@ NVJPEGCompressor::~NVJPEGCompressor() {
     CHECK_NVJPEG(nvjpegEncoderStateDestroy(state_));
     CHECK_NVJPEG(nvjpegDestroy(handle_));
     CHECK_CUDA(cudaStreamDestroy(stream_));
+}
+
+CompressedImage::UniquePtr NVJPEGCompressor::compress(const CudaImage  &msg, int quality, ImageFormat format) {
+    auto ros_image = std::make_unique<sensor_msgs::msg::Image>();
+    ros_image->encoding = msg.encoding;
+    ros_image->height = msg.height;
+    ros_image->width = msg.width;
+    ros_image->step = msg.step;
+    ros_image->is_bigendian = msg.is_bigendian;
+    ros_image->data.resize(msg.height * ros_image->step);
+    cudaMemcpy(
+    ros_image->data.data(), msg.data.get(), ros_image->height * ros_image->step,
+    cudaMemcpyDeviceToHost);
+    return compress(*ros_image, quality, format);
 }
 
 CompressedImage::UniquePtr NVJPEGCompressor::compress(const Image &msg, int quality, ImageFormat format) {

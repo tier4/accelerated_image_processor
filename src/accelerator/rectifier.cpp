@@ -213,9 +213,9 @@ NPPRectifier::~NPPRectifier() {
     cudaStreamDestroy(stream_);
 }
 
-std::shared_ptr<CudaImage> NPPRectifier::rectify(const CudaImage &msg) {
+std::unique_ptr<CudaImage> NPPRectifier::rectify(const CudaImage &msg) {
     nppSetStream(stream_);
-    std::shared_ptr<CudaImage> result = std::make_shared<CudaImage>();
+    std::unique_ptr<CudaImage> result = std::make_unique<CudaImage>();
     result->header = msg.header;
     result->height = msg.height;
     result->width = msg.width;
