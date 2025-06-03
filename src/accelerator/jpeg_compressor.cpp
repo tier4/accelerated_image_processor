@@ -94,7 +94,7 @@ JetsonCompressor::~JetsonCompressor() {
     }
 }
 
-CompressedImage::UniquePtr JetsonCompressor::compress(const CudaImage  &msg, int quality = 90, ImageFormat format = ImageFormat::RGB) {
+CompressedImage::UniquePtr JetsonCompressor::compress(const CudaImage  &msg, int quality, ImageFormat format) {
     auto ros_image = std::make_unique<sensor_msgs::msg::Image>();
     ros_image->encoding = msg.encoding;
     ros_image->height = msg.height;
