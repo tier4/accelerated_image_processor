@@ -180,6 +180,7 @@ void GpuImgProc::imageCallback(const sensor_msgs::msg::Image::SharedPtr msg) {
     } else {
       RCLCPP_ERROR_STREAM(this->get_logger(),
                           "Image encoding (" << msg->encoding << ") is not supported.");
+      return;
     }
 
     if (rectifier_active_) {
