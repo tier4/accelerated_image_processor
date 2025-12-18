@@ -23,7 +23,7 @@ namespace accelerated_image_processor::common
 /**
  * @brief Enumeration of image formats.
  */
-enum ImageFormat { RGB, BGR };
+enum class ImageFormat : uint8_t { RGB, BGR };
 
 /**
  * @brief Structure representing an image.
