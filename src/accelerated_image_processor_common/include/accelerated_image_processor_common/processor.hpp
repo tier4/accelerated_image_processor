@@ -17,10 +17,10 @@
 #include "accelerated_image_processor_common/datatype.hpp"
 #include "accelerated_image_processor_common/parameter.hpp"
 
-#include <functional>
-#include <optional>
 #include <string>
+#include <type_traits>
 #include <utility>
+#include <variant>
 
 namespace accelerated_image_processor::common
 {
@@ -29,10 +29,42 @@ namespace accelerated_image_processor::common
  */
 class BaseProcessor
 {
-public:
-  // @brief Post-processing function type.
-  using PostProcessFn = std::function<void(common::Image &)>;
+private:
+  /**
+   * @brief A holder to wrap a invoking free function.
+   */
+  struct FreeFn
+  {
+    using invoker_t = void (*)(const Image &);
+    invoker_t invoker = nullptr;
+  };
 
+  /**
+   * @brief A holder to wrap a invoking member function.
+   */
+  struct MemberFn
+  {
+    using invoker_t = void (*)(void *, const Image &);
+    void * obj{};
+    invoker_t invoker = nullptr;
+  };
+
+  using FnStorage = std::variant<std::monostate, FreeFn, MemberFn>;
+
+  FnStorage storage_{std::monostate};  //!< Storage of the postprocess function.
+  ParameterMap parameters_;            //!< Parameters for the processor.
+
+  /**
+   * @brief Restore the member pointer from method_bits and invoke its method.
+   */
+  template <typename Obj, void (Obj::*Method)(const Image &)>
+  static void invoke_member(void * p, const Image & img)
+  {
+    auto * o = static_cast<Obj *>(p);
+    if (o) (o->*Method)(img);
+  }
+
+public:
   /**
    * @brief Constructor.
    */
@@ -41,24 +73,44 @@ public:
   virtual ~BaseProcessor() = default;
 
   /**
-   * @brief Register the post-processing function and return a reference to the current object.
-   * @param postprocess_fn The post-processing function.
+   * @brief Register a free function as the postprocess function.
+   * @param fn Free function for the postprocess function.
    */
-  void register_postprocess(const PostProcessFn & postprocess_fn)
+  template <typename F, std::enable_if_t<std::is_convertible_v<F, FreeFn::invoker_t>, int> = 0>
+  void register_postprocess(F fn)
   {
-    postprocess_fn_ = postprocess_fn;
+    storage_ = FreeFn{static_cast<FreeFn::invoker_t>(fn)};
+  }
+
+  /**
+   * @brief Register a member function as the postprocess function.
+   */
+  template <typename Obj, void (Obj::*Method)(const Image &)>
+  void register_postprocess(Obj * obj)
+  {
+    storage_ = MemberFn{obj, &invoke_member<Obj, Method>};
   }
 
   /**
    * @brief Process the input image.
    * @param image The input image.
    */
-  void process(common::Image & image)
+  void process(const Image & image)
   {
     auto processed = this->process_impl(image);
-    if (postprocess_fn_) {
-      postprocess_fn_.value()(processed);
-    }
+
+    std::visit(
+      [&processed](auto & f) {
+        using T = std::decay_t<decltype(f)>;
+        if constexpr (std::is_same_v<T, std::monostate>) {
+          // do nothing
+        } else if constexpr (std::is_same_v<T, FreeFn>) {
+          if (f.invoker) f.invoker(processed);
+        } else if constexpr (std::is_same_v<T, MemberFn>) {
+          if (f.invoker && f.obj) f.invoker(f.obj, processed);
+        }
+      },
+      storage_);
   };
 
   /**
@@ -101,10 +153,6 @@ protected:
    * @param image The input image.
    * @return The processed image.
    */
-  virtual common::Image process_impl(const common::Image & image) = 0;
-
-protected:
-  ParameterMap parameters_;                      // Parameters for the processor.
-  std::optional<PostProcessFn> postprocess_fn_;  //!< Optional post-processing function.
+  virtual Image process_impl(const Image & image) = 0;
 };
 }  // namespace accelerated_image_processor::common
