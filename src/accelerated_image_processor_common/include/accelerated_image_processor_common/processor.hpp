@@ -41,10 +41,13 @@ public:
   virtual ~BaseProcessor() = default;
 
   /**
-   * @brief Set the post-processing function and return a reference to the current object.
+   * @brief Register the post-processing function and return a reference to the current object.
    * @param postprocess_fn The post-processing function.
    */
-  void with_postprocess(const PostProcessFn & postprocess_fn) { postprocess_fn_ = postprocess_fn; }
+  void register_postprocess(const PostProcessFn & postprocess_fn)
+  {
+    postprocess_fn_ = postprocess_fn;
+  }
 
   /**
    * @brief Process the input image.
