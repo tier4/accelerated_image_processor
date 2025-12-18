@@ -16,6 +16,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <string>
 #include <vector>
 
 namespace accelerated_image_processor::common
@@ -30,16 +31,12 @@ enum class ImageFormat : uint8_t { RGB, BGR };
  */
 struct Image
 {
-  size_t height;              //!< Image height, that is, number of rows
-  size_t width;               //!< Image width, that is, number of columns
-  size_t step;                //!< Full row length in bytes
+  std::string frame_id;       //!< Camera frame ID
+  uint64_t timestamp;         //!< Timestamp at the image is captured
+  uint32_t height;            //!< Image height, that is, number of rows
+  uint32_t width;             //!< Image width, that is, number of columns
+  uint32_t step;              //!< Full row length in bytes
   ImageFormat format;         //!< Image format, either RGB or BGR
   std::vector<uint8_t> data;  //!< Actual matrix data, size is (step * height)
-
-  /**
-   * @brief Get the size of the image in bytes.
-   * @return The size of the image in bytes.
-   */
-  size_t size() const { return height * step; }
 };
 }  // namespace accelerated_image_processor::common
