@@ -51,8 +51,8 @@ private:
 
   using FnStorage = std::variant<std::monostate, FreeFn, MemberFn>;
 
-  FnStorage storage_{std::monostate};  //!< Storage of the postprocess function.
-  ParameterMap parameters_;            //!< Parameters for the processor.
+  FnStorage storage_{std::monostate{}};  //!< Storage of the postprocess function.
+  ParameterMap parameters_;              //!< Parameters for the processor.
 
   /**
    * @brief Restore the member pointer from method_bits and invoke its method.
