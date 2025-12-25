@@ -18,32 +18,26 @@ find_package(ament_cmake_auto REQUIRED)
 ament_auto_find_build_dependencies()
 
 # --- Jetson available? ---
+find_package(JPEG REQUIRED)
 if(EXISTS "/etc/nv_tegra_release")
   set(JETSON_FOUND TRUE)
   message("Jetson platform detected")
-  add_definitions(-DJETSON_AVAILABLE)
-  set(TEGRA_LIBJPEG ${SYS_ROOT}/usr/lib/aarch64-linux-gnu/tegra/libjpeg.so)
 else()
   set(JETSON_FOUND FALSE)
   message("Non-Jetson platform detected")
 endif()
 
 # --- nvJPEG available? ---
-find_package(CUDA)
 find_package(CUDAToolkit)
 find_package(NVJPEG)
-find_library(CULIBOS culibos ${CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES})
-if(${NVJPEG_FOUND} AND CULIBOS)
-  add_definitions(-DNVJPEG_AVAILABLE)
-else()
-  message("NVJPEG or its dependencies not found")
+if(${NVJPEG_FOUND})
+  message("NVJPEG found")
 endif()
 
 # --- LibJpegTurbo available? ---
 find_package(LibJpegTurbo)
 if(${LibJpegTurbo_FOUND})
   message("LibJpegTurbo found")
-  add_definitions(-DTURBOJPEG_AVAILABLE)
 endif()
 
 if(NOT JETSON_FOUND
@@ -52,45 +46,61 @@ if(NOT JETSON_FOUND
   message(FATAL_ERROR "No JPEG encoder found")
 endif()
 
-ament_auto_add_library(
+ament_auto_add_library(${PROJECT_NAME} SHARED src/builder.cpp src/jpeg.cpp)
+
+target_compile_definitions(
   ${PROJECT_NAME}
-  SHARED
-  src/builder.cpp
-  src/jpeg.cpp
-  $<$<BOOL:${JETSON_FOUND}>:/usr/src/jetson_multimedia_api/samples/common/classes/NvBuffer.cpp>
-  $<$<BOOL:${JETSON_FOUND}>:/usr/src/jetson_multimedia_api/samples/common/classes/NvElement.cpp>
-  $<$<BOOL:${JETSON_FOUND}>:/usr/src/jetson_multimedia_api/samples/common/classes/NvElementProfiler.cpp>
-  $<$<BOOL:${JETSON_FOUND}>:/usr/src/jetson_multimedia_api/samples/common/classes/NvJpegEncoder.cpp>
-  $<$<BOOL:${JETSON_FOUND}>:/usr/src/jetson_multimedia_api/samples/common/classes/NvLogging.cpp>
-)
+  PUBLIC $<$<BOOL:${JETSON_FOUND}>:JETSON_AVAILABLE>
+         $<$<BOOL:${NVJPEG_FOUND}>:NVJPEG_AVAILABLE>
+         $<$<BOOL:${LibJpegTurbo_FOUND}>:TURBOJPEG_AVAILABLE>)
+
 target_include_directories(
   ${PROJECT_NAME}
-  PUBLIC
-    $<$<BOOL:${CUDA_FOUND}>:${CUDA_INCLUDE_DIRS}>
-    $<$<BOOL:${CUDAToolkit_FOUND}>:${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}>
-    $<$<BOOL:${CUDAToolkit_FOUND}>:${CUDAToolkit_INCLUDE_DIRS}>
-    $<$<BOOL:${JETSON_FOUND}>:${SYS_ROOT}/usr/src/jetson_multimedia_api/include>
-    $<$<BOOL:${JETSON_FOUND}>:${SYS_ROOT}/usr/src/jetson_multimedia_api/include/libjpeg-8b>
-)
-target_link_directories(
-  ${PROJECT_NAME} PUBLIC ${SYS_ROOT}/lib/aarch64-linux-gnu
-  $<$<BOOL:${JETSON_FOUND}>:${SYS_ROOT}/usr/lib/aarch64-linux-gnu>
-  $<$<BOOL:${JETSON_FOUND}>:${SYS_ROOT}/usr/lib/aarch64-linux-gnu/tegra>)
+  PRIVATE $<$<BOOL:${CUDAToolkit_FOUND}>:${CUDAToolkit_INCLUDE_DIRS}>
+          $<$<BOOL:${NVJPEG_FOUND}>:${NVJPEG_INCLUDE_DIRS}>)
 target_link_libraries(
   ${PROJECT_NAME}
+  JPEG::JPEG
   $<$<BOOL:${LibJpegTurbo_FOUND}>:${LibJpegTurbo_LIBRARIES}>
-  $<$<BOOL:${NVJPEG_FOUND}>:${NVJPEG_LIBRARY}>
-  $<$<BOOL:${JETSON_FOUND}>:nvjpeg>
-  $<$<BOOL:${CUDAToolkit_FOUND}>:CUDA::cudart>
+  $<$<BOOL:${NVJPEG_FOUND}>:NVJPEG::nvjpeg>
+  $<$<TARGET_EXISTS:CUDA::nppc>:CUDA::nppc>
   $<$<TARGET_EXISTS:CUDA::nppicc>:CUDA::nppicc>
   $<$<TARGET_EXISTS:CUDA::nppidei>:CUDA::nppidei>
+  $<$<TARGET_EXISTS:CUDA::nppig>:CUDA::nppig>
   $<$<TARGET_EXISTS:CUDA::nppisu>:CUDA::nppisu>)
 
-ament_target_dependencies(${PROJECT_NAME} accelerated_image_processor_common)
+if(JETSON_FOUND)
+  target_include_directories(${PROJECT_NAME}
+                             PRIVATE /usr/src/jetson_multimedia_api/include)
+  add_library(
+    ${PROJECT_NAME}_jetson SHARED
+    /usr/src/jetson_multimedia_api/samples/common/classes/NvBuffer.cpp
+    /usr/src/jetson_multimedia_api/samples/common/classes/NvElement.cpp
+    /usr/src/jetson_multimedia_api/samples/common/classes/NvElementProfiler.cpp
+    /usr/src/jetson_multimedia_api/samples/common/classes/NvJpegEncoder.cpp
+    /usr/src/jetson_multimedia_api/samples/common/classes/NvLogging.cpp)
+  target_include_directories(
+    ${PROJECT_NAME}_jetson
+    PRIVATE ${SYS_ROOT}/usr/src/jetson_multimedia_api/include
+            ${SYS_ROOT}/usr/src/jetson_multimedia_api/include/libjpeg-8b)
+  target_link_directories(
+    ${PROJECT_NAME}_jetson PRIVATE ${SYS_ROOT}/lib/aarch64-linux-gnu
+    ${SYS_ROOT}/usr/lib/aarch64-linux-gnu
+    ${SYS_ROOT}/usr/lib/aarch64-linux-gnu/tegra)
+  target_link_libraries(${PROJECT_NAME} ${PROJECT_NAME}_jetson)
+endif()
 
 set_property(TARGET ${PROJECT_NAME} PROPERTY INTERFACE_INCLUDE_DIRECTORIES
                                              $<INSTALL_INTERFACE:include>)
-install(TARGETS ${PROJECT_NAME} EXPORT export_${PROJECT_NAME})
+ament_target_dependencies(${PROJECT_NAME} accelerated_image_processor_common)
+
+if(JETSON_FOUND)
+  install(TARGETS ${PROJECT_NAME} ${PROJECT_NAME}_jetson
+          EXPORT export_${PROJECT_NAME})
+else()
+  install(TARGETS ${PROJECT_NAME} EXPORT export_${PROJECT_NAME})
+endif()
+
 install(DIRECTORY include/${PROJECT_NAME}/ DESTINATION include)
 
 if(BUILD_TESTING)
@@ -100,31 +110,7 @@ if(BUILD_TESTING)
   foreach(test_file IN LISTS test_files)
     get_filename_component(test_file_name ${test_file} NAME)
     ament_auto_add_gtest(${test_file_name}_${PROJECT_NAME} ${test_file})
-    target_include_directories(
-      ${test_file_name}_${PROJECT_NAME}
-      PUBLIC
-        $<$<BOOL:${CUDA_FOUND}>:${CUDA_INCLUDE_DIRS}>
-        $<$<BOOL:${CUDAToolkit_FOUND}>:${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}>
-        $<$<BOOL:${CUDAToolkit_FOUND}>:${CUDAToolkit_INCLUDE_DIRS}>
-        $<$<BOOL:${JETSON_FOUND}>:${SYS_ROOT}/usr/src/jetson_multimedia_api/include>
-        $<$<BOOL:${JETSON_FOUND}>:${SYS_ROOT}/usr/src/jetson_multimedia_api/include/libjpeg-8b>
-    )
-    target_link_directories(
-      ${test_file_name}_${PROJECT_NAME}
-      PUBLIC
-      ${SYS_ROOT}/lib/aarch64-linux-gnu
-      $<$<BOOL:${JETSON_FOUND}>:${SYS_ROOT}/usr/lib/aarch64-linux-gnu>
-      $<$<BOOL:${JETSON_FOUND}>:${SYS_ROOT}/usr/lib/aarch64-linux-gnu/tegra>)
-    target_link_libraries(
-      ${test_file_name}_${PROJECT_NAME}
-      ${PROJECT_NAME}
-      $<$<BOOL:${LibJpegTurbo_FOUND}>:${LibJpegTurbo_LIBRARIES}>
-      $<$<BOOL:${NVJPEG_FOUND}>:${NVJPEG_LIBRARY}>
-      $<$<BOOL:${JETSON_FOUND}>:nvjpeg>
-      $<$<BOOL:${CUDAToolkit_FOUND}>:CUDA::cudart>
-      $<$<TARGET_EXISTS:CUDA::nppicc>:CUDA::nppicc>
-      $<$<TARGET_EXISTS:CUDA::nppidei>:CUDA::nppidei>
-      $<$<TARGET_EXISTS:CUDA::nppisu>:CUDA::nppisu>)
+    target_link_libraries(${test_file_name}_${PROJECT_NAME} ${PROJECT_NAME})
   endforeach()
 endif()
 

@@ -100,9 +100,8 @@ public:
 private:
   common::Image process_impl(const common::Image & image) override;
 
-  void initialize_nv_image(const common::Image);
+  void initialize_nv_image(const common::Image & image);
 
-  nvjpegEncoderHandle_t encoder_;          //!< NVJPEG encoder handle.
   cudaStream_t stream_;                    //!< CUDA stream for asynchronous operations.
   nvjpegHandle_t handle_;                  //!< NVJPEG handle for JPEG encoding.
   nvjpegEncoderState_t state_;             //!< NVJPEG encoder state.

@@ -41,7 +41,7 @@ if(NVJPEG_FOUND)
     cmake_policy(SET CMP0075 NEW)
   endif()
 
-  set(CMAKE_REQUIRED_INCLUDES_OLD ${CMAKE_REQUIRED_INCLUDES_OLD})
+  set(CMAKE_REQUIRED_INCLUDES_OLD ${CMAKE_REQUIRED_INCLUDES})
   list(APPEND CMAKE_REQUIRED_INCLUDES "${NVJPEG_INCLUDE_DIR}")
   list(APPEND CMAKE_REQUIRED_INCLUDES
        "${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}")
@@ -95,4 +95,23 @@ if(NVJPEG_FOUND)
   endif()
 else()
   message("nvJPEG NOT found")
+endif()
+
+if(NVJPEG_FOUND AND NOT TARGET NVJPEG::nvjpeg)
+  add_library(NVJPEG::nvjpeg UNKNOWN IMPORTED)
+  set_target_properties(
+    NVJPEG::nvjpeg
+    PROPERTIES IMPORTED_LOCATION "${NVJPEG_LIBRARY}"
+               INTERFACE_INCLUDE_DIRECTORIES "${NVJPEG_INCLUDE_DIR}")
+
+  find_library(NVJPEG_CUDART_STATIC cudart_static
+               PATHS ${CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES})
+  find_library(NVJPEG_CULIBOS culibos
+               PATHS ${CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES})
+
+  if(NVJPEG_LIBRARY MATCHES "nvjpeg_static" OR NVJPEG_LIBRARY MATCHES "\\.a$")
+    target_link_libraries(
+      NVJPEG::nvjpeg INTERFACE ${NVJPEG_CUDART_STATIC} ${NVJPEG_CULIBOS} dl m
+                               pthread rt)
+  endif()
 endif()

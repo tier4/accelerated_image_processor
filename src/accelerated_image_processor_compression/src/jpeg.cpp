@@ -155,23 +155,21 @@ NvJPEGCompressor::~NvJPEGCompressor()
 
 common::Image NvJPEGCompressor::process_impl(const common::Image & image)
 {
-  nvjpegEncoderParamsSetQuality(params_, quality, stream_);
+  nvjpegEncoderParamsSetQuality(params_, quality(), stream_);
 
-  nvjpegInputFormat_t input_format;
-  if (format == common::ImageFormat::RGB) {
-    input_format = NVJPEG_INPUT_RGBI;
-  } else if (format == common::ImageFormat::BGR) {
-    input_format = NVJPEG_INPUT_BGRI;
+  nvjpegInputFormat_t format;
+  if (image.format == common::ImageFormat::RGB) {
+    format = NVJPEG_INPUT_RGBI;
+  } else if (image.format == common::ImageFormat::BGR) {
+    format = NVJPEG_INPUT_BGRI;
   } else {
     throw std::runtime_error("Unsupported image format");
   }
   initialize_nv_image(image);
   CHECK_NVJPEG(nvjpegEncodeImage(
-    handle_, state_, params_, &nv_image_, input_format, image.width, image.height, stream_));
+    handle_, state_, params_, &nv_image_, format, image.width, image.height, stream_));
 
-  CHECK_NVJPEG(nvjpegEncodeRetrieveBitstream(handle_, state_, NULL, &out_buf_size, stream_));
-
-  size_t out_buffer_size;
+  size_t out_buffer_size = 0;
   CHECK_NVJPEG(nvjpegEncodeRetrieveBitstream(handle_, state_, NULL, &out_buffer_size, stream_));
 
   common::Image output;
@@ -189,6 +187,21 @@ common::Image NvJPEGCompressor::process_impl(const common::Image & image)
   CHECK_CUDA(cudaStreamSynchronize(stream_));
 
   return output;
+}
+
+void NvJPEGCompressor::initialize_nv_image(const common::Image & image)
+{
+  if (nv_image_.channel[0] == nullptr) {
+    CHECK_CUDA(cudaMallocAsync(
+      reinterpret_cast<void **>(&nv_image_.channel[0]), image.data.size(), stream_));
+  }
+  CHECK_CUDA(cudaMemsetAsync(nv_image_.channel[0], 0, image.data.size(), stream_));
+  CHECK_CUDA(cudaMemcpyAsync(
+    nv_image_.channel[0], image.data.data(), image.data.size(), cudaMemcpyHostToDevice, stream_));
+
+  constexpr int channels = 3;
+  // NOTE: assume image is RGBI/BGRI
+  nv_image_.pitch[0] = image.width * channels;
 }
 #endif  // NVJPEG_AVAILABLE
 
