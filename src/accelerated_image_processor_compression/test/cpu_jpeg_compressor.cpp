@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "accelerated_image_processor_compression/jpeg.hpp"
+#include "accelerated_image_processor_compression/jpeg_compressor.hpp"
 #include "test_utility.hpp"
 
 #include <gtest/gtest.h>
@@ -22,35 +22,35 @@ namespace accelerated_image_processor::compression
 {
 TEST_F(TestJPEGCompressor, CpuCompressionDefault)
 {
-  CpuJPEGCompressor compressor;
-  compressor.register_postprocess<TestJPEGCompressor, &TestJPEGCompressor::check>(this);
-  compressor.process(get_image());
+  auto compressor = make_cpujpeg_compressor();
+  compressor->register_postprocess<TestJPEGCompressor, &TestJPEGCompressor::check>(this);
+  compressor->process(get_image());
 }
 
 TEST_F(TestJPEGCompressor, CpuCompressionWithLowQuality)
 {
-  CpuJPEGCompressor compressor;
-  compressor.register_postprocess<TestJPEGCompressor, &TestJPEGCompressor::check>(this);
-  for (auto & [name, value] : compressor.parameters()) {
+  auto compressor = make_cpujpeg_compressor();
+  compressor->register_postprocess<TestJPEGCompressor, &TestJPEGCompressor::check>(this);
+  for (auto & [name, value] : compressor->parameters()) {
     if (name == "quality") {
       value = 10;
     }
   }
-  EXPECT_EQ(compressor.parameter_value<int>("quality"), 10);
-  compressor.process(get_image());
+  EXPECT_EQ(compressor->parameter_value<int>("quality"), 10);
+  compressor->process(get_image());
 }
 
 TEST_F(TestJPEGCompressor, CpuCompressionWithHighQuality)
 {
-  CpuJPEGCompressor compressor;
-  compressor.register_postprocess<TestJPEGCompressor, &TestJPEGCompressor::check>(this);
-  for (auto & [name, value] : compressor.parameters()) {
+  auto compressor = make_cpujpeg_compressor();
+  compressor->register_postprocess<TestJPEGCompressor, &TestJPEGCompressor::check>(this);
+  for (auto & [name, value] : compressor->parameters()) {
     if (name == "quality") {
       value = 90;
     }
   }
-  EXPECT_EQ(compressor.parameter_value<int>("quality"), 90);
-  compressor.process(get_image());
+  EXPECT_EQ(compressor->parameter_value<int>("quality"), 90);
+  compressor->process(get_image());
 }
 }  // namespace accelerated_image_processor::compression
 #else

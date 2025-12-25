@@ -14,7 +14,7 @@
 
 #include "accelerated_image_processor_compression/builder.hpp"
 
-#include "accelerated_image_processor_compression/jpeg.hpp"
+#include "accelerated_image_processor_compression/jpeg_compressor.hpp"
 
 #include <algorithm>
 #include <cctype>
@@ -64,11 +64,11 @@ std::unique_ptr<Compressor> create_compressor(CompressionType type)
   switch (type) {
     case CompressionType::JPEG:
 #ifdef JETSON_AVAILABLE
-      return std::make_unique<JetsonJPEGCompressor>();
+      return make_jetsonjpeg_compressor();
 #elif NVJPEG_AVAILABLE
-      return std::make_unique<NvJPEGCompressor>();
+      return make_nvjpeg_compressor();
 #elif TURBOJPEG_AVAILABLE
-      return std::make_unique<CpuJPEGCompressor>();
+      return make_cpujpeg_compressor();
 #else
       throw std::runtime_error("No JPEG compressor available");
 #endif

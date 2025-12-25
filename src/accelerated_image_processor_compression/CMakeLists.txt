@@ -18,7 +18,6 @@ find_package(ament_cmake_auto REQUIRED)
 ament_auto_find_build_dependencies()
 
 # --- Jetson available? ---
-find_package(JPEG REQUIRED)
 if(EXISTS "/etc/nv_tegra_release")
   set(JETSON_FOUND TRUE)
   message("Jetson platform detected")
@@ -46,21 +45,23 @@ if(NOT JETSON_FOUND
   message(FATAL_ERROR "No JPEG encoder found")
 endif()
 
-ament_auto_add_library(${PROJECT_NAME} SHARED src/builder.cpp src/jpeg.cpp)
+add_library(${PROJECT_NAME} SHARED src/builder.cpp src/jpeg_compressor/cpu.cpp
+                                   src/jpeg_compressor/nvjpeg.cpp)
 
 target_compile_definitions(
   ${PROJECT_NAME}
   PUBLIC $<$<BOOL:${JETSON_FOUND}>:JETSON_AVAILABLE>
          $<$<BOOL:${NVJPEG_FOUND}>:NVJPEG_AVAILABLE>
          $<$<BOOL:${LibJpegTurbo_FOUND}>:TURBOJPEG_AVAILABLE>)
-
+target_include_directories(
+  ${PROJECT_NAME} PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+                         $<INSTALL_INTERFACE:include>)
 target_include_directories(
   ${PROJECT_NAME}
   PRIVATE $<$<BOOL:${CUDAToolkit_FOUND}>:${CUDAToolkit_INCLUDE_DIRS}>
           $<$<BOOL:${NVJPEG_FOUND}>:${NVJPEG_INCLUDE_DIRS}>)
 target_link_libraries(
   ${PROJECT_NAME}
-  JPEG::JPEG
   $<$<BOOL:${LibJpegTurbo_FOUND}>:${LibJpegTurbo_LIBRARIES}>
   $<$<BOOL:${NVJPEG_FOUND}>:NVJPEG::nvjpeg>
   $<$<TARGET_EXISTS:CUDA::nppc>:CUDA::nppc>
@@ -68,31 +69,56 @@ target_link_libraries(
   $<$<TARGET_EXISTS:CUDA::nppidei>:CUDA::nppidei>
   $<$<TARGET_EXISTS:CUDA::nppig>:CUDA::nppig>
   $<$<TARGET_EXISTS:CUDA::nppisu>:CUDA::nppisu>)
+ament_target_dependencies(${PROJECT_NAME} accelerated_image_processor_common)
 
 if(JETSON_FOUND)
   target_include_directories(${PROJECT_NAME}
                              PRIVATE /usr/src/jetson_multimedia_api/include)
   add_library(
     ${PROJECT_NAME}_jetson SHARED
+    src/jpeg_compressor/jetson.cpp
     /usr/src/jetson_multimedia_api/samples/common/classes/NvBuffer.cpp
     /usr/src/jetson_multimedia_api/samples/common/classes/NvElement.cpp
     /usr/src/jetson_multimedia_api/samples/common/classes/NvElementProfiler.cpp
     /usr/src/jetson_multimedia_api/samples/common/classes/NvJpegEncoder.cpp
     /usr/src/jetson_multimedia_api/samples/common/classes/NvLogging.cpp)
+  target_compile_definitions(${PROJECT_NAME}_jetson PRIVATE JETSON_AVAILABLE)
+
+  ament_target_dependencies(${PROJECT_NAME}_jetson
+                            accelerated_image_processor_common)
   target_include_directories(
     ${PROJECT_NAME}_jetson
-    PRIVATE ${SYS_ROOT}/usr/src/jetson_multimedia_api/include
+    PRIVATE $<$<BOOL:${CUDAToolkit_FOUND}>:${CUDAToolkit_INCLUDE_DIRS}>
+            ${CMAKE_CURRENT_SOURCE_DIR}/include
+            ${SYS_ROOT}/usr/src/jetson_multimedia_api/include
             ${SYS_ROOT}/usr/src/jetson_multimedia_api/include/libjpeg-8b)
-  target_link_directories(
-    ${PROJECT_NAME}_jetson PRIVATE ${SYS_ROOT}/lib/aarch64-linux-gnu
-    ${SYS_ROOT}/usr/lib/aarch64-linux-gnu
-    ${SYS_ROOT}/usr/lib/aarch64-linux-gnu/tegra)
+  find_library(
+    JETSON_NVJPEG_LIB
+    NAMES nvjpeg
+    PATHS /usr/lib/aarch64-linux-gnu/tegra
+    NO_DEFAULT_PATH)
+  target_link_libraries(
+    ${PROJECT_NAME}_jetson
+    ${JETSON_NVJPEG_LIB}
+    CUDA::cudart
+    $<$<TARGET_EXISTS:CUDA::nppc>:CUDA::nppc>
+    $<$<TARGET_EXISTS:CUDA::nppicc>:CUDA::nppicc>
+    $<$<TARGET_EXISTS:CUDA::nppidei>:CUDA::nppidei>
+    $<$<TARGET_EXISTS:CUDA::nppig>:CUDA::nppig>
+    $<$<TARGET_EXISTS:CUDA::nppisu>:CUDA::nppisu>)
+
+  set(JETSON_LIB_DIRS
+      "/usr/lib/aarch64-linux-gnu/nvidia;/usr/lib/aarch64-linux-gnu/tegra")
+  set_target_properties(
+    ${PROJECT_NAME}_jetson PROPERTIES BUILD_RPATH "${JETSON_LIB_DIRS}"
+                                      INSTALL_RPATH "${JETSON_LIB_DIRS}")
+  target_link_options(${PROJECT_NAME}_jetson PRIVATE "-Wl,--disable-new-dtags")
+
   target_link_libraries(${PROJECT_NAME} ${PROJECT_NAME}_jetson)
 endif()
 
 set_property(TARGET ${PROJECT_NAME} PROPERTY INTERFACE_INCLUDE_DIRECTORIES
                                              $<INSTALL_INTERFACE:include>)
-ament_target_dependencies(${PROJECT_NAME} accelerated_image_processor_common)
 
 if(JETSON_FOUND)
   install(TARGETS ${PROJECT_NAME} ${PROJECT_NAME}_jetson
@@ -104,9 +130,8 @@ endif()
 install(DIRECTORY include/${PROJECT_NAME}/ DESTINATION include)
 
 if(BUILD_TESTING)
-  set(test_files
-      test/builder.cpp test/cpu_jpeg_compressor.cpp
-      test/jetson_jpeg_compressor.cpp test/nvjpeg_jpeg_compressor.cpp)
+  set(test_files test/builder.cpp test/cpu_jpeg_compressor.cpp
+                 test/jetson_jpeg_compressor.cpp test/nv_jpeg_compressor.cpp)
   foreach(test_file IN LISTS test_files)
     get_filename_component(test_file_name ${test_file} NAME)
     ament_auto_add_gtest(${test_file_name}_${PROJECT_NAME} ${test_file})

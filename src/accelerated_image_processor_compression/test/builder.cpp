@@ -14,7 +14,7 @@
 
 #include "accelerated_image_processor_compression/builder.hpp"
 
-#include "accelerated_image_processor_compression/jpeg.hpp"
+#include "accelerated_image_processor_compression/jpeg_compressor.hpp"
 
 #include <accelerated_image_processor_common/datatype.hpp>
 
@@ -22,16 +22,15 @@
 
 #include <memory>
 
-#ifdef JETSON_AVAILABLE
-using ExpectedJPEGCompressor = accelerated_image_processor::compression::JetsonJPEGCompressor;
-#elif NVJPEG_AVAILABLE
-using ExpectedJPEGCompressor = accelerated_image_processor::compression::NvJPEGCompressor;
-#else
-using ExpectedJPEGCompressor = accelerated_image_processor::compression::CpuJPEGCompressor;
-#endif
-
 namespace accelerated_image_processor::compression
 {
+#ifdef JETSON_AVAILABLE
+constexpr JpegBackend ExpectedJPEGBackend = JpegBackend::JETSON;
+#elif NVJPEG_AVAILABLE
+constexpr JpegBackend ExpectedJPEGBackend = JpegBackend::NVJPEG;
+#else
+constexpr JpegBackend ExpectedJPEGBackend = JpegBackend::CPU;
+#endif
 namespace
 {
 // @brief Check compressor type by dynamic_cast.
@@ -39,8 +38,10 @@ void check_compressor_type(const std::unique_ptr<Compressor> & compressor)
 {
   EXPECT_NE(compressor, nullptr);
 
-  auto ptr = dynamic_cast<ExpectedJPEGCompressor *>(compressor.get());
+  auto ptr = dynamic_cast<JPEGCompressor *>(compressor.get());
   EXPECT_NE(ptr, nullptr);
+
+  EXPECT_EQ(ptr->backend(), ExpectedJPEGBackend);
 }
 
 // @brief Dummy class to register postprocess function.
