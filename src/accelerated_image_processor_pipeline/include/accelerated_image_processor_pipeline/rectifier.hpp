@@ -30,7 +30,7 @@ class CpuRectifier;
 /**
  * @brief Rectifier backend.
  */
-enum class RectifierBackend : uint8_t { NPP, OPEN_CV_CUDA, CPU };
+enum class RectifierBackend : uint8_t { NPP, OPENCV_CUDA, CPU };
 
 /**
  * @brief Abstract base class for rectifiers.
