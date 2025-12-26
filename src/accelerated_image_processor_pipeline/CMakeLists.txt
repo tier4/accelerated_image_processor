@@ -53,7 +53,8 @@ target_link_libraries(
   $<$<BOOL:${NPP_FOUND}>:${CUDA_nppidei_LIBRARY}>
   $<$<BOOL:${NPP_FOUND}>:${CUDA_nppig_LIBRARY}>
   $<$<BOOL:${NPP_FOUND}>:${CUDA_nppicc_LIBRARY}>
-  $<$<BOOL:${NPP_FOUND}>:${CUDA_nppisu_LIBRARY}>)
+  $<$<BOOL:${NPP_FOUND}>:${CUDA_nppisu_LIBRARY}>
+  $<$<BOOL:${CUDAToolkit_FOUND}>:CUDA::cudart>)
 ament_target_dependencies(${PROJECT_NAME} accelerated_image_processor_common)
 
 set_property(TARGET ${PROJECT_NAME} PROPERTY INTERFACE_INCLUDE_DIRECTORIES
@@ -62,7 +63,13 @@ install(TARGETS ${PROJECT_NAME} EXPORT export_${PROJECT_NAME})
 install(DIRECTORY include/${PROJECT_NAME}/ DESTINATION include)
 
 if(BUILD_TESTING)
-
+  set(test_files test/builder.cpp test/cpu_rectifier.cpp test/npp_rectifier.cpp
+                 test/opencv_cuda_rectifier.cpp)
+  foreach(test_file IN LISTS test_files)
+    get_filename_component(test_file_name ${test_file} NAME)
+    ament_auto_add_gtest(${test_file_name}_${PROJECT_NAME} ${test_file})
+    target_link_libraries(${test_file_name}_${PROJECT_NAME} ${PROJECT_NAME})
+  endforeach()
 endif()
 
 ament_export_include_directories(include)

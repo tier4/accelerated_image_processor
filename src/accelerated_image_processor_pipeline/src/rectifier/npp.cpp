@@ -65,10 +65,12 @@ private:
   common::Image process_impl(const common::Image & image) override
   {
     common::Image result;
+    result.frame_id = image.frame_id;
+    result.timestamp = image.timestamp;
     result.height = image.height;
     result.width = image.width;
-    result.format = image.format;
     result.step = image.step;
+    result.format = image.format;
     result.data.resize(image.data.size());
 
     NppiRect src_roi = {0, 0, static_cast<int>(image.width), static_cast<int>(image.height)};
