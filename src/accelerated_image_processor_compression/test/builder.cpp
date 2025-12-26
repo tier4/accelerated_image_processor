@@ -25,12 +25,13 @@
 namespace accelerated_image_processor::compression
 {
 #ifdef JETSON_AVAILABLE
-constexpr JpegBackend ExpectedJPEGBackend = JpegBackend::JETSON;
+constexpr auto ExpectedJPEGBackend = JPEGBackend::JETSON;
 #elif NVJPEG_AVAILABLE
-constexpr JpegBackend ExpectedJPEGBackend = JpegBackend::NVJPEG;
+constexpr auto ExpectedJPEGBackend = JPEGBackend::NVJPEG;
 #else
-constexpr JpegBackend ExpectedJPEGBackend = JpegBackend::CPU;
+constexpr auto ExpectedJPEGBackend = JPEGBackend::CPU;
 #endif
+
 namespace
 {
 // @brief Check compressor type by dynamic_cast.

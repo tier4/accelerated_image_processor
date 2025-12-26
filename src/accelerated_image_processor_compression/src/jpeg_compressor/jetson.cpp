@@ -39,7 +39,7 @@ namespace accelerated_image_processor::compression
 class JetsonJPEGCompressor final : public JPEGCompressor
 {
 public:
-  JetsonJPEGCompressor() : JPEGCompressor()
+  JetsonJPEGCompressor() : JPEGCompressor(JPEGBackend::JETSON)
   {
     CHECK_CUDA(cudaStreamCreate(&stream_));
     encoder_ = NvJPEGEncoder::createJPEGEncoder("jpeg_encoder");
@@ -65,8 +65,6 @@ public:
       stream_ = nullptr;
     }
   }
-
-  JpegBackend backend() const override { return JpegBackend::JETSON; }
 
 private:
   common::Image process_impl(const common::Image & image) override

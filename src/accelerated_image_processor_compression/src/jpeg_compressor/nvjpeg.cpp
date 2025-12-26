@@ -35,7 +35,7 @@ namespace accelerated_image_processor::compression
 class NvJPEGCompressor final : public JPEGCompressor
 {
 public:
-  NvJPEGCompressor() : JPEGCompressor()
+  NvJPEGCompressor() : JPEGCompressor(JPEGBackend::NVJPEG)
   {
     CHECK_CUDA(cudaStreamCreate(&stream_));
     CHECK_NVJPEG(nvjpegCreateSimple(&handle_));
@@ -53,8 +53,6 @@ public:
     CHECK_NVJPEG(nvjpegDestroy(handle_));
     CHECK_CUDA(cudaStreamDestroy(stream_));
   }
-
-  JpegBackend backend() const override { return JpegBackend::NVJPEG; }
 
 private:
   common::Image process_impl(const common::Image & image) override

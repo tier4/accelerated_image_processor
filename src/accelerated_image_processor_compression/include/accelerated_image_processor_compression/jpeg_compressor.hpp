@@ -26,7 +26,10 @@ class JetsonJPEGCompressor;
 class NvJPEGCompressor;
 class CpuJPEGCompressor;
 
-enum class JpegBackend : uint8_t { JETSON, NVJPEG, CPU };
+/**
+ * @brief Enumeration of available JPEG compression backends.
+ */
+enum class JPEGBackend : uint8_t { JETSON, NVJPEG, CPU };
 
 /**
  * @brief Abstract base class for JPEG compressors.
@@ -34,8 +37,8 @@ enum class JpegBackend : uint8_t { JETSON, NVJPEG, CPU };
 class JPEGCompressor : public common::BaseProcessor
 {
 public:
-  explicit JPEGCompressor(common::ParameterMap dedicated_parameters = {})
-  : BaseProcessor(dedicated_parameters += {{"quality", 90}})
+  explicit JPEGCompressor(JPEGBackend backend, common::ParameterMap dedicated_parameters = {})
+  : BaseProcessor(dedicated_parameters += {{"quality", 90}}), backend_(backend)
   {
   }
 
@@ -46,7 +49,10 @@ public:
    */
   int quality() const { return this->parameter_value<int>("quality"); }
 
-  virtual JpegBackend backend() const = 0;
+  JPEGBackend backend() const { return backend_; }
+
+private:
+  const JPEGBackend backend_;  //!< Compression backend type.
 };
 //!< @brief Factory function to create a CPUJPEGCompressor.
 std::unique_ptr<JPEGCompressor> make_cpujpeg_compressor();

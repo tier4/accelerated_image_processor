@@ -32,7 +32,7 @@ namespace accelerated_image_processor::compression
 class CpuJPEGCompressor final : public JPEGCompressor
 {
 public:
-  CpuJPEGCompressor() : JPEGCompressor() { handle_ = tjInitCompress(); }
+  CpuJPEGCompressor() : JPEGCompressor(JPEGBackend::CPU) { handle_ = tjInitCompress(); }
   ~CpuJPEGCompressor() override
   {
     if (buffer_) {
@@ -41,8 +41,6 @@ public:
     }
     tjDestroy(handle_);
   }
-
-  JpegBackend backend() const override { return JpegBackend::CPU; }
 
 private:
   common::Image process_impl(const common::Image & image) override
