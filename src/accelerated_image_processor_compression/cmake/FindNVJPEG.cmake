@@ -22,11 +22,10 @@ find_library(
   PATHS ${NVJPEG_ROOT_DIR} ${CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES}
   PATH_SUFFIXES lib lib64)
 
-execute_process(
-  COMMAND grep NVJPEG_VER_MAJOR ${NVJPEG_INCLUDE_DIR}/nvjpeg.h
-  COMMAND sed "s;.*NVJPEG_VER_MAJOR \\(.*\\);\\1;"
-  OUTPUT_STRIP_TRAILING_WHITESPACE
-  OUTPUT_VARIABLE NVJPEG_VERSION)
+file(STRINGS "${NVJPEG_INCLUDE_DIR}/nvjpeg.h" NVJPEG_VERSION_LINE
+     REGEX "^[ \t]*#define[ \t]+NVJPEG_VER_MAJOR[ \t]+[0-9]+")
+string(REGEX REPLACE "^[ \t]*#define[ \t]+NVJPEG_VER_MAJOR[ \t]+([0-9]+).*"
+                     "\\1" NVJPEG_VERSION "${NVJPEG_VERSION_LINE}")
 
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(
