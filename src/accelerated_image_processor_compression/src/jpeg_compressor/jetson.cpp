@@ -17,8 +17,10 @@
 #include <accelerated_image_processor_common/datatype.hpp>
 #include <accelerated_image_processor_common/helper.hpp>
 
+#include <cstring>
 #include <memory>
 #include <optional>
+#include <string>
 
 #ifdef JETSON_AVAILABLE
 #include <NvJpegEncoder.h>
@@ -39,7 +41,7 @@ class JetsonJPEGCompressor final : public JPEGCompressor
 public:
   JetsonJPEGCompressor() : JPEGCompressor()
   {
-    cudaStreamCreate(&stream_);
+    CHECK_CUDA(cudaStreamCreate(&stream_));
     encoder_ = NvJPEGEncoder::createJPEGEncoder("jpeg_encoder");
   }
   ~JetsonJPEGCompressor() override
@@ -119,6 +121,8 @@ private:
     NvBuffer::NvBufferPlane & plane_y = buffer_->planes[0];
     NvBuffer::NvBufferPlane & plane_u = buffer_->planes[1];
     NvBuffer::NvBufferPlane & plane_v = buffer_->planes[2];
+
+    // Copy YUV planes into the NvBuffer CPU-mapped pointers.
     CHECK_CUDA(cudaMemcpy2DAsync(
       plane_y.data, plane_y.fmt.stride, yuv_d_[0], yuv_step_bytes_[0], image.width, image.height,
       cudaMemcpyDeviceToHost, stream_));
@@ -129,15 +133,15 @@ private:
       plane_v.data, plane_v.fmt.stride, yuv_d_[2], yuv_step_bytes_[2], image.width / 2,
       image.height / 2, cudaMemcpyDeviceToHost, stream_));
 
-    cudaStreamSynchronize(stream_);
+    // Ensure all copies are complete before touching NvBuffer metadata / encoding.
+    CHECK_CUDA(cudaStreamSynchronize(stream_));
 
-    size_t out_buf_size = 0;
-    unsigned char * out_data = nullptr;
+    size_t out_buf_size = image.width * image.height * 3 / 2;
+    unsigned char * out_data = new unsigned char[out_buf_size];
 
-    // encodeFromBuffer only support YUV420
     CHECK_ERROR(
       encoder_->encodeFromBuffer(buffer_.value(), JCS_YCbCr, &out_data, out_buf_size, quality()),
-      "NvJpeg Encoder Error");
+      "NvJPEGEncoder::encodeFromBuffer failed (non-zero return code)");
 
     common::Image output;
     output.frame_id = image.frame_id;
@@ -146,9 +150,11 @@ private:
     output.width = image.width;
     output.step = 0;  // 0 means this value is pointless because it's compressed
     output.format = image.format;
-    output.data.assign(out_data, out_data + out_buf_size);
+    output.data.resize(static_cast<size_t>(out_buf_size) / sizeof(uint8_t));
+    memcpy(output.data.data(), out_data, out_buf_size);
 
-    free(out_data);
+    delete[] out_data;
+    out_data = nullptr;
 
     return output;
   }
