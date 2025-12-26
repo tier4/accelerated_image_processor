@@ -27,5 +27,6 @@ namespace accelerated_image_processor::pipeline
  * @param alpha Scaling factor for rectification.
  * @return Camera information with rectified parameters.
  */
-CameraInfo compute_maps(const CameraInfo & info, float * map_x, float * map_y, double alpha);
+common::CameraInfo compute_maps(
+  const common::CameraInfo & info, float * map_x, float * map_y, double alpha);
 }  // namespace accelerated_image_processor::pipeline

@@ -92,7 +92,7 @@ private:
     return result;
   }
 
-  CameraInfo prepare_maps(const CameraInfo & camera_info) override
+  common::CameraInfo prepare_maps(const common::CameraInfo & camera_info) override
   {
     map_x_ = nppiMalloc_32f_C1(camera_info.width, camera_info.height, &map_x_step_);
     map_y_ = nppiMalloc_32f_C1(camera_info.width, camera_info.height, &map_y_step_);
@@ -103,7 +103,7 @@ private:
     float * map_x = new float[camera_info.width * camera_info.height];
     float * map_y = new float[camera_info.width * camera_info.height];
 
-    CameraInfo camera_info_rect = compute_maps(camera_info, map_x, map_y, alpha());
+    common::CameraInfo camera_info_rect = compute_maps(camera_info, map_x, map_y, alpha());
 
     // NOTE: This implementation currently computes maps on CPU, but does not upload them to the
     // NPP device buffers (map_x_, map_y_). Upload should be implemented before using remap.

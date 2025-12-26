@@ -49,7 +49,7 @@ private:
     return result;
   }
 
-  CameraInfo prepare_maps(const CameraInfo & camera_info) override
+  common::CameraInfo prepare_maps(const common::CameraInfo & camera_info) override
   {
     map_x_ = cv::Mat(camera_info.height, camera_info.width, CV_32FC1);
     map_y_ = cv::Mat(camera_info.height, camera_info.width, CV_32FC1);

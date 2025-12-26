@@ -19,7 +19,8 @@
 
 namespace accelerated_image_processor::pipeline
 {
-CameraInfo compute_maps(const CameraInfo & info, float * map_x, float * map_y, double alpha)
+common::CameraInfo compute_maps(
+  const common::CameraInfo & info, float * map_x, float * map_y, double alpha)
 {
   cv::Mat intrinsics(3, 3, CV_64F);
   cv::Mat distortion_coefficients(1, info.d.size(), CV_64F);
@@ -45,7 +46,7 @@ CameraInfo compute_maps(const CameraInfo & info, float * map_x, float * map_y, d
     cv::Size(info.width, info.height), CV_32FC1, m1, m2);
 
   // Copy the original camera info and update only D and K
-  CameraInfo camera_info_rect(info);
+  common::CameraInfo camera_info_rect(info);
   // After undistortion, the result will be as if it is captured with a camera using
   // the camera with new_intrinsics and zero distortion
   camera_info_rect.d.assign(info.d.size(), 0.);

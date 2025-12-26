@@ -54,12 +54,12 @@ private:
     return result;
   }
 
-  CameraInfo prepare_maps(const CameraInfo & camera_info) override
+  common::CameraInfo prepare_maps(const common::CameraInfo & camera_info) override
   {
     cv::Mat map_x(camera_info.height, camera_info.width, CV_32FC1);
     cv::Mat map_y(camera_info.height, camera_info.width, CV_32FC1);
 
-    CameraInfo camera_info_rect =
+    common::CameraInfo camera_info_rect =
       compute_maps_opencv(camera_info, map_x.ptr<float>(), map_y.ptr<float>(), this->alpha());
 
     map_x_ = cv::cuda::GpuMat(map_x);

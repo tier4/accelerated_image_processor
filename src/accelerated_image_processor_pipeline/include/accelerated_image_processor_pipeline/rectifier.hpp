@@ -14,32 +14,18 @@
 
 #pragma once
 
+#include <accelerated_image_processor_common/datatype.hpp>
 #include <accelerated_image_processor_common/parameter.hpp>
 #include <accelerated_image_processor_common/processor.hpp>
 
-#include <array>
 #include <memory>
 #include <optional>
-#include <vector>
 
 namespace accelerated_image_processor::pipeline
 {
 class NppRectifier;
 class OpenCvCudaRectifier;
 class CpuRectifier;
-
-/**
- * @brief Camera information.
- * @todo Implement CameraInfo to common package.
- */
-struct CameraInfo
-{
-  size_t height;             //!< Height of the image in pixels.
-  size_t width;              //!< Width of the image in pixels.
-  std::vector<double> d;     //!< Distortion coefficients.
-  std::array<double, 9> k;   //!< Intrinsic camera matrix.
-  std::array<double, 12> p;  //!< Extrinsic camera matrix.
-};
 
 /**
  * @brief Rectifier backend.
@@ -59,9 +45,12 @@ public:
 
   ~Rectifier() override = default;
 
-  void set_camera_info(const CameraInfo & camera_info) { camera_info_ = prepare_maps(camera_info); }
+  void set_camera_info(const common::CameraInfo & camera_info)
+  {
+    camera_info_ = prepare_maps(camera_info);
+  }
 
-  const CameraInfo & get_camera_info() const { return camera_info_.value(); }
+  const common::CameraInfo & get_camera_info() const { return camera_info_.value(); }
 
   double alpha() { return this->parameter_value<double>("alpha"); }
 
@@ -70,9 +59,9 @@ public:
   RectifierBackend backend() const { return backend_; }
 
 protected:
-  virtual CameraInfo prepare_maps(const CameraInfo & camera_info) = 0;
+  virtual common::CameraInfo prepare_maps(const common::CameraInfo & camera_info) = 0;
 
-  std::optional<CameraInfo> camera_info_{std::nullopt};  //!< Camera information.
+  std::optional<common::CameraInfo> camera_info_{std::nullopt};  //!< Camera information.
 
 private:
   const RectifierBackend backend_;
