@@ -16,23 +16,18 @@
 
 #include <accelerated_image_processor_common/parameter.hpp>
 #include <accelerated_image_processor_common/processor.hpp>
-#include <opencv2/core.hpp>
 
 #include <array>
+#include <memory>
 #include <optional>
 #include <vector>
 
-#ifdef NPP_AVAILABLE
-#include <cuda_runtime.h>
-#include <nppdefs.h>
-#endif
-
-#ifdef OPENCV_CUDA_AVAILABLE
-#include <opencv2/core/cuda.hpp>
-#endif
-
 namespace accelerated_image_processor::pipeline
 {
+class NppRectifier;
+class OpenCvCudaRectifier;
+class CpuRectifier;
+
 /**
  * @brief Camera information.
  * @todo Implement CameraInfo to common package.
@@ -73,66 +68,7 @@ protected:
   std::optional<CameraInfo> camera_info_{std::nullopt};  //!< Camera information.
 };
 
-#ifdef NPP_AVAILABLE
-/**
- * @brief Rectifier using NPP.
- */
-class NPPRectifier final : public Rectifier
-{
-public:
-  NPPRectifier();
-  ~NPPRectifier() override;
-
-private:
-  common::Image process_impl(const common::Image & image) override;
-
-  Npp32f * map_x_{nullptr};
-  Npp32f * map_y_{nullptr};
-  int map_x_step_;
-  int map_y_step_;
-  Npp8u * src_{nullptr};
-  Npp8u * dst_{nullptr};
-  int src_step_;
-  int dst_step_;
-  cudaStream_t stream_;
-};
-#endif  // NPP_AVAILABLE
-
-#ifdef OPENCV_CUDA_AVAIL
-/**
- * @brief Rectifier using OpenCV CUDA.
- */
-class OpenCVCUDARectifier final : public Rectifier
-{
-public:
-  OpenCVCUDARectifier();
-  ~OpenCVCUDARectifier() override = default;
-
-private:
-  common::Image process_impl(const common::Image & image) override;
-
-  CameraInfo prepare_maps(const CameraInfo & camera_info) override;
-
-  cv::cuda::GpuMat map_x_;
-  cv::cuda::GpuMat map_y_;
-};
-#endif  // OPENCV_CUDA_AVAILABLE
-
-/**
- * @brief Rectifier using OpenCV CPU.
- */
-class CpuRectifier final : public Rectifier
-{
-public:
-  CpuRectifier();
-  ~CpuRectifier() override = default;
-
-private:
-  common::Image process_impl(const common::Image & image) override;
-
-  CameraInfo prepare_maps(const CameraInfo & camera_info) override;
-
-  cv::Mat map_x_;
-  cv::Mat map_y_;
-};
+std::unique_ptr<Rectifier> make_npp_rectifier();
+std::unique_ptr<Rectifier> make_opencv_cuda_rectifier();
+std::unique_ptr<Rectifier> make_cpu_rectifier();
 }  // namespace accelerated_image_processor::pipeline

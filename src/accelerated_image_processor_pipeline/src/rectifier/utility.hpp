@@ -12,23 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "accelerated_image_processor_pipeline/builder.hpp"
+#pragma once
 
 #include "accelerated_image_processor_pipeline/rectifier.hpp"
 
-#include <memory>
-#include <utility>
-
 namespace accelerated_image_processor::pipeline
 {
-std::unique_ptr<Rectifier> create_rectifier()
-{
-#ifdef NPP_AVAILABLE
-  return make_npp_rectifier();
-#elif OPENCV_CUDA_AVAILABLE
-  return make_opencv_cuda_rectifier();
-#else
-  return make_cpu_rectifier();
-#endif
-}
+/**
+ * @brief Compute rectification maps.
+ *
+ * @param info Camera information.
+ * @param map_x Rectification map for x-coordinate.
+ * @param map_y Rectification map for y-coordinate.
+ * @param alpha Scaling factor for rectification.
+ * @return Camera information with rectified parameters.
+ */
+CameraInfo compute_maps(const CameraInfo & info, float * map_x, float * map_y, double alpha);
 }  // namespace accelerated_image_processor::pipeline
