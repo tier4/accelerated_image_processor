@@ -28,7 +28,7 @@ class SomeNode final : public rclcpp::Node
 public:
   explicit SomeNode(const rclcpp::NodeOptions & options) : Node("some_node", options)
   {
-    // Chose compression type
+    // Choose compression type
     compression::CompressionType type = compression::CompressionType::JPEG;
     compressor_ = compression::create_compressor<SomeNode, &SomeNode::publish>(type, this);
 

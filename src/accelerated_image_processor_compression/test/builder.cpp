@@ -34,7 +34,9 @@ constexpr auto ExpectedJPEGBackend = JPEGBackend::CPU;
 
 namespace
 {
-// @brief Check compressor type by dynamic_cast.
+/**
+ * @brief Check compressor type by dynamic_cast.
+ */
 void check_compressor_type(const std::unique_ptr<Compressor> & compressor)
 {
   EXPECT_NE(compressor, nullptr);
@@ -45,14 +47,20 @@ void check_compressor_type(const std::unique_ptr<Compressor> & compressor)
   EXPECT_EQ(ptr->backend(), ExpectedJPEGBackend);
 }
 
-// @brief Dummy class to register postprocess function.
+/**
+ * @brief Dummy class to register postprocess function.
+ */
 struct DummyClass
 {
-  // @brief Dummy free function for postprocess.
+  /**
+   * @brief Dummy free function for postprocess.
+   */
   void dummy_function(const common::Image &) {}
 };
 
-// @brief Dummy free function for postprocess.
+/**
+ * @brief Dummy free function for postprocess.
+ */
 void dummy_function(const common::Image &)
 {
 }
