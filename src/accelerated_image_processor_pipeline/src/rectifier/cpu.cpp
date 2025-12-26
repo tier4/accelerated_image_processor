@@ -28,7 +28,7 @@ namespace accelerated_image_processor::pipeline
 class CpuRectifier final : public Rectifier
 {
 public:
-  CpuRectifier() : Rectifier() {}
+  CpuRectifier() : Rectifier(RectifierBackend::CPU) {}
   ~CpuRectifier() override = default;
 
 private:

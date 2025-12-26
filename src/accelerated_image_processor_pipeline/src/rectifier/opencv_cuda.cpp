@@ -28,7 +28,7 @@ namespace accelerated_image_processor::pipeline
 class OpenCvCudaRectifier final : public Rectifier
 {
 public:
-  OpenCvCudaRectifier() : Rectifier() {}
+  OpenCvCudaRectifier() : Rectifier(RectifierBackend::OPENCV_CUDA) {}
   ~OpenCvCudaRectifier() override = default;
 
 private:

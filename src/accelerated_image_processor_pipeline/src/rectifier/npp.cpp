@@ -35,7 +35,7 @@ namespace accelerated_image_processor::pipeline
 class NppRectifier final : public Rectifier
 {
 public:
-  NppRectifier() : Rectifier()
+  NppRectifier() : Rectifier(RectifierBackend::NPP)
   {
     cudaStreamCreateWithFlags(&stream_, cudaStreamNonBlocking);
     nppSetStream(stream_);

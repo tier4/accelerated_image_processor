@@ -42,13 +42,18 @@ struct CameraInfo
 };
 
 /**
+ * @brief Rectifier backend.
+ */
+enum class RectifierBackend : uint8_t { NPP, OPEN_CV_CUDA, CPU };
+
+/**
  * @brief Abstract base class for rectifiers.
  */
 class Rectifier : public common::BaseProcessor
 {
 public:
-  explicit Rectifier(common::ParameterMap dedicated_parameters = {})
-  : BaseProcessor(dedicated_parameters += {{"alpha", 0.0}})
+  explicit Rectifier(RectifierBackend backend, common::ParameterMap dedicated_parameters = {})
+  : BaseProcessor(dedicated_parameters += {{"alpha", 0.0}}), backend_(backend)
   {
   }
 
@@ -62,10 +67,15 @@ public:
 
   bool is_ready() { return camera_info_.has_value(); }
 
+  RectifierBackend backend() const { return backend_; }
+
 protected:
   virtual CameraInfo prepare_maps(const CameraInfo & camera_info) = 0;
 
   std::optional<CameraInfo> camera_info_{std::nullopt};  //!< Camera information.
+
+private:
+  const RectifierBackend backend_;
 };
 
 std::unique_ptr<Rectifier> make_npp_rectifier();
