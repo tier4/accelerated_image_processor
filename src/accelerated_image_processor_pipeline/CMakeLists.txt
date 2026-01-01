@@ -60,7 +60,7 @@ ament_target_dependencies(${PROJECT_NAME} accelerated_image_processor_common)
 set_property(TARGET ${PROJECT_NAME} PROPERTY INTERFACE_INCLUDE_DIRECTORIES
                                              $<INSTALL_INTERFACE:include>)
 install(TARGETS ${PROJECT_NAME} EXPORT export_${PROJECT_NAME})
-install(DIRECTORY include/${PROJECT_NAME}/ DESTINATION include)
+install(DIRECTORY include/${PROJECT_NAME} DESTINATION include)
 
 if(BUILD_TESTING)
   set(test_files test/builder.cpp test/cpu_rectifier.cpp test/npp_rectifier.cpp
