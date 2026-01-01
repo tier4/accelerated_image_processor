@@ -14,6 +14,7 @@
 
 #pragma once
 
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <string>
@@ -38,5 +39,20 @@ struct Image
   uint32_t step;              //!< Full row length in bytes
   ImageFormat format;         //!< Image format, either RGB or BGR
   std::vector<uint8_t> data;  //!< Actual matrix data, size is (step * height)
+};
+
+/**
+ * @brief Camera information.
+ * @todo Implement CameraInfo to common package.
+ */
+struct CameraInfo
+{
+  std::string frame_id;      //!< Camera frame ID
+  uint64_t timestamp;        //!< Timestamp at the image is captured
+  uint32_t height;           //!< Image height, that is, number of rows
+  uint32_t width;            //!< Image width, that is, number of columns
+  std::vector<double> d;     //!< Distortion coefficients.
+  std::array<double, 9> k;   //!< Intrinsic camera matrix.
+  std::array<double, 12> p;  //!< Extrinsic camera matrix.
 };
 }  // namespace accelerated_image_processor::common
