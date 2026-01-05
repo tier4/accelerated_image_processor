@@ -63,7 +63,7 @@ target_include_directories(
 target_link_libraries(
   ${PROJECT_NAME}
   $<$<BOOL:${LibJpegTurbo_FOUND}>:${LibJpegTurbo_LIBRARIES}>
-  $<$<BOOL:${NVJPEG_FOUND}>:NVJPEG::nvjpeg>
+  $<$<TARGET_EXISTS:NVJPEG::nvjpeg>:NVJPEG::nvjpeg>
   $<$<TARGET_EXISTS:CUDA::nppc>:CUDA::nppc>
   $<$<TARGET_EXISTS:CUDA::nppicc>:CUDA::nppicc>
   $<$<TARGET_EXISTS:CUDA::nppidei>:CUDA::nppidei>
@@ -100,7 +100,7 @@ if(JETSON_FOUND)
   target_link_libraries(
     ${PROJECT_NAME}_jetson
     ${JETSON_NVJPEG_LIB}
-    CUDA::cudart
+    $<$<TARGET_EXISTS:CUDA::cudart>:CUDA::cudart>
     $<$<TARGET_EXISTS:CUDA::nppc>:CUDA::nppc>
     $<$<TARGET_EXISTS:CUDA::nppicc>:CUDA::nppicc>
     $<$<TARGET_EXISTS:CUDA::nppidei>:CUDA::nppidei>
@@ -127,7 +127,7 @@ else()
   install(TARGETS ${PROJECT_NAME} EXPORT export_${PROJECT_NAME})
 endif()
 
-install(DIRECTORY include/${PROJECT_NAME}/ DESTINATION include)
+install(DIRECTORY include/${PROJECT_NAME} DESTINATION include)
 
 if(BUILD_TESTING)
   set(test_files test/builder.cpp test/cpu_jpeg_compressor.cpp
