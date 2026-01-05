@@ -23,9 +23,11 @@
 
 #ifdef TURBOJPEG_AVAILABLE
 #include <turbojpeg.h>
+#endif  // TURBOJPEG_AVAILABLE
 
 namespace accelerated_image_processor::compression
 {
+#ifdef TURBOJPEG_AVAILABLE
 /**
  * @brief JPEG compressor using CPU (TurboJPEG) library.
  */

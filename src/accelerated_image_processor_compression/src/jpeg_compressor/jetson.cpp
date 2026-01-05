@@ -28,7 +28,7 @@
 #include <nppi_color_conversion.h>
 #include <nppi_data_exchange_and_initialization.h>
 #include <nppi_support_functions.h>
-#endif
+#endif  // JETSON_AVAILABLE
 
 namespace accelerated_image_processor::compression
 {

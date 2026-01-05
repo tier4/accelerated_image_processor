@@ -26,9 +26,11 @@
 #include <nppi_color_conversion.h>
 #include <nppi_data_exchange_and_initialization.h>
 #include <nvjpeg.h>
+#endif  // NVJPEG_AVAILABLE
 
 namespace accelerated_image_processor::compression
 {
+#ifdef NVJPEG_AVAILABLE
 /**
  * @brief JPEG compressor using NVJPEG library.
  */
