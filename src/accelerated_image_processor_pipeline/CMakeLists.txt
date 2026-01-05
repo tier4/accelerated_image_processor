@@ -27,7 +27,6 @@ if(CUDA_nppicc_LIBRARY
    AND CUDA_nppig_LIBRARY
    AND CUDA_nppisu_LIBRARY)
   set(NPP_FOUND TRUE)
-  add_definitions(-DNPP_AVAILABLE)
 else()
   set(NPP_FOUND FALSE)
 endif()
@@ -50,11 +49,12 @@ target_include_directories(
 target_link_libraries(
   ${PROJECT_NAME}
   ${OpenCV_LIBRARIES}
-  $<$<BOOL:${NPP_FOUND}>:${CUDA_nppidei_LIBRARY}>
-  $<$<BOOL:${NPP_FOUND}>:${CUDA_nppig_LIBRARY}>
-  $<$<BOOL:${NPP_FOUND}>:${CUDA_nppicc_LIBRARY}>
-  $<$<BOOL:${NPP_FOUND}>:${CUDA_nppisu_LIBRARY}>
-  $<$<BOOL:${CUDAToolkit_FOUND}>:CUDA::cudart>)
+  $<$<TARGET_EXISTS:CUDA::nppc>:CUDA::nppc>
+  $<$<TARGET_EXISTS:CUDA::nppicc>:CUDA::nppicc>
+  $<$<TARGET_EXISTS:CUDA::nppidei>:CUDA::nppidei>
+  $<$<TARGET_EXISTS:CUDA::nppig>:CUDA::nppig>
+  $<$<TARGET_EXISTS:CUDA::nppisu>:CUDA::nppisu>
+  $<$<TARGET_EXISTS:CUDA::cudart>:CUDA::cudart>)
 ament_target_dependencies(${PROJECT_NAME} accelerated_image_processor_common)
 
 set_property(TARGET ${PROJECT_NAME} PROPERTY INTERFACE_INCLUDE_DIRECTORIES
