@@ -65,9 +65,9 @@ public:
   }
 
   /**
-   * @brief Return the rectified camera information.
+   * @brief Return the rectified camera information if it has value, otherwise std::nullopt.
    */
-  const common::CameraInfo & get_camera_info() const { return camera_info_.value(); }
+  const std::optional<common::CameraInfo> & camera_info() const { return camera_info_; }
 
   /**
    * @brief Return true if Rectifier::set_camera_info() was invoked and the rectified camera

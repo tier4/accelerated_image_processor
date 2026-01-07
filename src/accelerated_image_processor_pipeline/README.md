@@ -65,7 +65,7 @@ private:
 
   void publish(const common::Image & image)
   {
-    const common::CameraInfo & camera_info = rectifier_->get_camera_info();
+    const common::CameraInfo & camera_info = rectifier_->camera_info().value();
 
     sensor_msgs::msg::CompressedImage image_msg;
     sensor_msgs::msg::CameraInfo camera_info_msg;
