@@ -4,11 +4,11 @@ This package provides functionalities for image processing pipelines using vario
 
 ## Processor Supports
 
-| Task          | Processor              | Backend                                                                            | Device |
-| ------------- | ---------------------- | ---------------------------------------------------------------------------------- | ------ |
-| Rectification | `NppRectifier`         | [NVIDIA Performance Primitives (NPP)](https://docs.nvidia.com/cuda/npp/index.html) | GPU    |
-|               | `OpencCvCudaRectifier` | [OpenCV CUDA](https://opencv.org/platforms/cuda/)                                  | GPU    |
-|               | `CpuRectifier`         | [OpenCV](https://opencv.org/)                                                      | CPU    |
+| Task          | Processor             | Backend                                                                            | Device |
+| ------------- | --------------------- | ---------------------------------------------------------------------------------- | ------ |
+| Rectification | `NppRectifier`        | [NVIDIA Performance Primitives (NPP)](https://docs.nvidia.com/cuda/npp/index.html) | GPU    |
+|               | `OpenCvCudaRectifier` | [OpenCV CUDA](https://opencv.org/platforms/cuda/)                                  | GPU    |
+|               | `CpuRectifier`        | [OpenCV](https://opencv.org/)                                                      | CPU    |
 
 ## Example Usage in ROS 2
 
@@ -31,8 +31,8 @@ public:
   {
     rectifier_ = pipeline::create_rectifier<SomeNode, &SomeNode::publish>(this);
 
-    // Update parameters of the compressor
-    for (auto & [name, value] : compressor_->parameters()) {
+    // Update parameters of the rectifier
+    for (auto & [name, value] : rectifier_->parameters()) {
       std::visit([&](auto & v) {
         using T = std::decay_t<decltype(v)>;
         v = this->declare_parameter<T>(name, v);
