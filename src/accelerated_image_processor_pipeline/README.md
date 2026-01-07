@@ -53,9 +53,7 @@ private:
   {
     common::Image image;
     // Convert the message to image...
-    if (rectifier_->is_ready()) {
-      rectifier_->process(image);
-    }
+    rectifier_->process(image);
   }
 
   void camera_info_callback(const sensor_msgs::msg::CameraInfo::ConstSharedPtr msg)
@@ -65,6 +63,7 @@ private:
 
   void publish(const common::Image & image)
   {
+    // NOTE: This function will be called only if internal status is ready
     const common::CameraInfo & camera_info = rectifier_->camera_info().value();
 
     sensor_msgs::msg::CompressedImage image_msg;

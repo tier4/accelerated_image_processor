@@ -73,7 +73,7 @@ public:
    * @brief Return true if Rectifier::set_camera_info() was invoked and the rectified camera
    * information has been set.
    */
-  bool is_ready() const { return camera_info_.has_value(); }
+  bool is_ready() const override { return camera_info_.has_value(); }
 
 protected:
   /**
