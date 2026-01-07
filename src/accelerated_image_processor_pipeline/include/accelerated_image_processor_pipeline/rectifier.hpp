@@ -45,29 +45,53 @@ public:
 
   ~Rectifier() override = default;
 
+  /**
+   * @brief Return the scaling parameter alpha.
+   */
+  double alpha() { return this->parameter_value<double>("alpha"); }
+
+  /**
+   * @brief Return the rectification backend.
+   */
+  RectifierBackend backend() const { return backend_; }
+
+  /**
+   * @brief Set camera information before rectified, and compute the rectified camera information
+   * under the hood.
+   */
   void set_camera_info(const common::CameraInfo & camera_info)
   {
     camera_info_ = prepare_maps(camera_info);
   }
 
+  /**
+   * @brief Return the rectified camera information.
+   */
   const common::CameraInfo & get_camera_info() const { return camera_info_.value(); }
 
-  double alpha() { return this->parameter_value<double>("alpha"); }
-
-  bool is_ready() { return camera_info_.has_value(); }
-
-  RectifierBackend backend() const { return backend_; }
+  /**
+   * @brief Return true if Rectifier::set_camera_info() was invoked and the rectified camera
+   * information has been set.
+   */
+  bool is_ready() const { return camera_info_.has_value(); }
 
 protected:
+  /**
+   * @brief Compute rectification maps and return the rectified camera information.
+   * This function is called in Rectifier::set_camera_info() under the hood.
+   */
   virtual common::CameraInfo prepare_maps(const common::CameraInfo & camera_info) = 0;
 
-  std::optional<common::CameraInfo> camera_info_{std::nullopt};  //!< Camera information.
+  std::optional<common::CameraInfo> camera_info_{std::nullopt};  //!< Rectified camera info.
 
 private:
-  const RectifierBackend backend_;
+  const RectifierBackend backend_;  //!< Rectification backend type.
 };
 
+//!< @brief Factory function to create a NppRectifier.
 std::unique_ptr<Rectifier> make_npp_rectifier();
+//!< @brief Factory function to create a OpenCvCudaRectifier.
 std::unique_ptr<Rectifier> make_opencv_cuda_rectifier();
+//!< @brief Factory function to create a CpuRectifier.
 std::unique_ptr<Rectifier> make_cpu_rectifier();
 }  // namespace accelerated_image_processor::pipeline
