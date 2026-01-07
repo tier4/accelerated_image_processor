@@ -62,7 +62,7 @@ private:
     cv::Mat map_y(camera_info.height, camera_info.width, CV_32FC1);
 
     common::CameraInfo camera_info_rect =
-      compute_maps_opencv(camera_info, map_x.ptr<float>(), map_y.ptr<float>(), this->alpha());
+      compute_maps(camera_info, map_x.ptr<float>(), map_y.ptr<float>(), this->alpha());
 
     map_x_ = cv::cuda::GpuMat(map_x);
     map_y_ = cv::cuda::GpuMat(map_y);
