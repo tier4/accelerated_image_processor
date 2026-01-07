@@ -107,14 +107,14 @@ private:
 
     common::CameraInfo camera_info_rect = compute_maps(camera_info, map_x, map_y, alpha());
 
-    // NOTE: This implementation currently computes maps on CPU, but does not upload them to the
-    // NPP device buffers (map_x_, map_y_). Upload should be implemented before using remap.
-    //
-    // Example:
-    //   CHECK_CUDA(cudaMemcpy2DAsync(map_x_, map_x_step_, map_x, camera_info.width * sizeof(float),
-    //     camera_info.width * sizeof(float), camera_info.height, cudaMemcpyHostToDevice, stream_));
-    //   CHECK_CUDA(cudaMemcpy2DAsync(map_y_, map_y_step_, map_y, camera_info.width * sizeof(float),
-    //     camera_info.width * sizeof(float), camera_info.height, cudaMemcpyHostToDevice, stream_));
+    CHECK_CUDA(cudaMemcpy2DAsync(
+      map_x_, map_x_step_, map_x, camera_info.width * sizeof(float),
+      camera_info.width * sizeof(float), camera_info.height, cudaMemcpyHostToDevice, stream_));
+    CHECK_CUDA(cudaMemcpy2DAsync(
+      map_y_, map_y_step_, map_y, camera_info.width * sizeof(float),
+      camera_info.width * sizeof(float), camera_info.height, cudaMemcpyHostToDevice, stream_));
+
+    CHECK_CUDA(cudaStreamSynchronize(stream_));
 
     delete[] map_x;
     delete[] map_y;
