@@ -22,10 +22,13 @@ find_library(
   PATHS ${NVJPEG_ROOT_DIR} ${CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES}
   PATH_SUFFIXES lib lib64)
 
-file(STRINGS "${NVJPEG_INCLUDE_DIR}/nvjpeg.h" NVJPEG_VERSION_LINE
-     REGEX "^[ \t]*#define[ \t]+NVJPEG_VER_MAJOR[ \t]+[0-9]+")
-string(REGEX REPLACE "^[ \t]*#define[ \t]+NVJPEG_VER_MAJOR[ \t]+([0-9]+).*"
-                     "\\1" NVJPEG_VERSION "${NVJPEG_VERSION_LINE}")
+set(NVJPEG_VERSION "")
+if(EXISTS "${NVJPEG_INCLUDE_DIR}/nvjpeg.h")
+  file(STRINGS "${NVJPEG_INCLUDE_DIR}/nvjpeg.h" NVJPEG_VERSION_LINE
+       REGEX "^[ \\t]*#define[ \\t]+NVJPEG_VER_MAJOR[ \\t]+[0-9]+")
+  string(REGEX REPLACE "^[ \\t]*#define[ \\t]+NVJPEG_VER_MAJOR[ \\t]+([0-9]+).*"
+                       "\\1" NVJPEG_VERSION "${NVJPEG_VERSION_LINE}")
+endif()
 
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(
@@ -34,6 +37,8 @@ find_package_handle_standard_args(
   VERSION_VAR NVJPEG_VERSION)
 
 if(NVJPEG_FOUND)
+  set(NVJPEG_INCLUDE_DIRS ${NVJPEG_INCLUDE_DIR})
+  set(NVJPEG_LIBRARIES ${NVJPEG_LIBRARY})
   # set includes and link libs for nvJpeg
 
   if(POLICY CMP0075)
