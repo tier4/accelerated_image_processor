@@ -97,7 +97,19 @@ public:
    */
   void process(const Image & image)
   {
+    if (!is_ready()) {
+      // TODO(ktro2828): Update to return a type that describes if the process success or not
+      // instead of void
+      return;
+    }
+
     auto processed = this->process_impl(image);
+
+    if (!processed.is_valid()) {
+      // TODO(ktro2828): Update to return a type that describes if the process success or not
+      // instead of void
+      return;
+    }
 
     std::visit(
       [&processed](auto & f) {
@@ -112,6 +124,11 @@ public:
       },
       storage_);
   };
+
+  /**
+   * @brief Check the processor is ready to run processing.
+   */
+  virtual bool is_ready() const { return true; }
 
   /**
    * @brief Return the read/write reference to the parameters.
