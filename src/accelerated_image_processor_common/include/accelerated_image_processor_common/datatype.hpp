@@ -39,6 +39,11 @@ struct Image
   uint32_t step;              //!< Full row length in bytes
   ImageFormat format;         //!< Image format, either RGB or BGR
   std::vector<uint8_t> data;  //!< Actual matrix data, size is (step * height)
+
+  /**
+   * @brief Check the specified image is valid.
+   */
+  bool is_valid() const { return data.size() != 0; }
 };
 
 /**

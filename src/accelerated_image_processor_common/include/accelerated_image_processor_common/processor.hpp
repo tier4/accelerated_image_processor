@@ -105,6 +105,12 @@ public:
 
     auto processed = this->process_impl(image);
 
+    if (!processed.is_valid()) {
+      // TODO(ktro2828): Update to return a type that describes if the process success or not
+      // instead of void
+      return;
+    }
+
     std::visit(
       [&processed](auto & f) {
         using T = std::decay_t<decltype(f)>;
