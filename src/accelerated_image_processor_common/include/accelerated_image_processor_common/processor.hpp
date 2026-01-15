@@ -17,6 +17,7 @@
 #include "accelerated_image_processor_common/datatype.hpp"
 #include "accelerated_image_processor_common/parameter.hpp"
 
+#include <optional>
 #include <string>
 #include <type_traits>
 #include <utility>
@@ -94,13 +95,14 @@ public:
   /**
    * @brief Process the input image.
    * @param image The input image.
+   * @return The processed image if the process is successful, otherwise std::nullopt.
    */
-  void process(const Image & image)
+  std::optional<common::Image> process(const Image & image)
   {
     if (!is_ready()) {
       // TODO(ktro2828): Update to return a type that describes if the process success or not
       // instead of void
-      return;
+      return std::nullopt;
     }
 
     auto processed = this->process_impl(image);
@@ -108,7 +110,7 @@ public:
     if (!processed.is_valid()) {
       // TODO(ktro2828): Update to return a type that describes if the process success or not
       // instead of void
-      return;
+      return std::nullopt;
     }
 
     std::visit(
@@ -123,6 +125,8 @@ public:
         }
       },
       storage_);
+
+    return processed;
   };
 
   /**
