@@ -23,9 +23,14 @@
 namespace accelerated_image_processor::common
 {
 /**
- * @brief Enumeration of image formats.
+ * @brief Enumeration of image color encodings.
  */
-enum class ImageFormat : uint8_t { RGB, BGR };
+enum class ImageEncoding : uint8_t { RGB, BGR };
+
+/**
+ * @brief Enumeration of image compression formats.
+ */
+enum class ImageFormat : uint8_t { RAW, JPEG, PNG };
 
 /**
  * @brief Structure representing an image.
@@ -37,8 +42,9 @@ struct Image
   uint32_t height;            //!< Image height, that is, number of rows
   uint32_t width;             //!< Image width, that is, number of columns
   uint32_t step;              //!< Full row length in bytes
-  ImageFormat format;         //!< Image format, either RGB or BGR
-  std::vector<uint8_t> data;  //!< Actual matrix data, size is (step * height)
+  ImageEncoding encoding;     //!< Image color encoding
+  ImageFormat format;         //!< Image compression format
+  std::vector<uint8_t> data;  //!< Actual matrix data
 
   /**
    * @brief Check the specified image is valid.

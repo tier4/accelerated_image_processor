@@ -48,9 +48,9 @@ private:
   common::Image process_impl(const common::Image & image) override
   {
     int tjpf;
-    if (image.format == common::ImageFormat::RGB) {
+    if (image.encoding == common::ImageEncoding::RGB) {
       tjpf = TJPF_RGB;
-    } else if (image.format == common::ImageFormat::BGR) {
+    } else if (image.encoding == common::ImageEncoding::BGR) {
       tjpf = TJPF_BGR;
     } else {
       throw std::runtime_error("Unsupported image format");
@@ -69,7 +69,8 @@ private:
     output.height = image.height;
     output.width = image.width;
     output.step = 0;  // 0 means this value is pointless because it's compressed
-    output.format = image.format;
+    output.encoding = image.encoding;
+    output.format = common::ImageFormat::JPEG;
     output.data.resize(size_ / sizeof(uint8_t));
     std::memcpy(output.data.data(), buffer_, size_);
 
