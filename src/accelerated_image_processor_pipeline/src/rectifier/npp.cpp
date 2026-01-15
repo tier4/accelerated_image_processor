@@ -70,6 +70,7 @@ private:
     result.height = image.height;
     result.width = image.width;
     result.step = image.step;
+    result.encoding = image.encoding;
     result.format = image.format;
     result.data.resize(image.data.size());
 

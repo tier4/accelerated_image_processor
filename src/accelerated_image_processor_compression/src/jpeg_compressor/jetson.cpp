@@ -108,7 +108,7 @@ private:
       image.height, cudaMemcpyHostToDevice, stream_));
 
     NppiSize roi = {static_cast<int>(image.width), static_cast<int>(image.height)};
-    if (image.format == common::ImageFormat::BGR) {
+    if (image.encoding == common::ImageEncoding::BGR) {
       constexpr int order[3] = {2, 1, 0};
       CHECK_NPP(nppiSwapChannels_8u_C3IR_Ctx(image_d_, image_step_bytes_, roi, order, context_));
     }
@@ -147,7 +147,8 @@ private:
     output.height = image.height;
     output.width = image.width;
     output.step = 0;  // 0 means this value is pointless because it's compressed
-    output.format = image.format;
+    output.encoding = image.encoding;
+    output.format = common::ImageFormat::JPEG;
     output.data.resize(static_cast<size_t>(out_buf_size) / sizeof(uint8_t));
     memcpy(output.data.data(), out_data, out_buf_size);
 

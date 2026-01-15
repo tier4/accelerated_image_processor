@@ -32,6 +32,7 @@ public:
     image_.width = width;
     image_.height = height;
     image_.step = step;
+    image_.encoding = encoding;
     image_.format = format;
     image_.data.resize(image_.step * image_.height);
 
@@ -49,7 +50,8 @@ public:
   const uint32_t width = 1920;
   const uint32_t height = 1080;
   const uint32_t step = width * 3;
-  const common::ImageFormat format = common::ImageFormat::RGB;
+  const common::ImageEncoding encoding = common::ImageEncoding::RGB;
+  const common::ImageFormat format = common::ImageFormat::RAW;
 
   const common::Image & get_image() const { return image_; }
 
@@ -60,7 +62,8 @@ public:
     EXPECT_EQ(result.height, height);
     EXPECT_EQ(result.width, width);
     EXPECT_EQ(result.step, 0);  // 0 means this value is pointless because it's compressed
-    EXPECT_EQ(result.format, format);
+    EXPECT_EQ(result.encoding, encoding);
+    EXPECT_EQ(result.format, common::ImageFormat::JPEG);
     // expect the compressed data size to be smaller than the original image data size, but not 0
     EXPECT_GT(result.data.size(), 0U);
     EXPECT_LE(result.data.size(), image_.data.size());

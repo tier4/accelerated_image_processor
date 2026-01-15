@@ -62,9 +62,9 @@ private:
     nvjpegEncoderParamsSetQuality(params_, quality(), stream_);
 
     nvjpegInputFormat_t format;
-    if (image.format == common::ImageFormat::RGB) {
+    if (image.encoding == common::ImageEncoding::RGB) {
       format = NVJPEG_INPUT_RGBI;
-    } else if (image.format == common::ImageFormat::BGR) {
+    } else if (image.encoding == common::ImageEncoding::BGR) {
       format = NVJPEG_INPUT_BGRI;
     } else {
       throw std::runtime_error("Unsupported image format");
@@ -82,7 +82,8 @@ private:
     output.height = image.height;
     output.width = image.width;
     output.step = 0;  // 0 means this value is pointless because it's compressed
-    output.format = image.format;
+    output.encoding = image.encoding;
+    output.format = common::ImageFormat::JPEG;
     output.data.resize(out_buffer_size);
 
     CHECK_NVJPEG(nvjpegEncodeRetrieveBitstream(

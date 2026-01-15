@@ -32,6 +32,7 @@ public:
     image_.width = width;
     image_.height = height;
     image_.step = step;
+    image_.encoding = encoding;
     image_.format = format;
     image_.data.resize(image_.step * image_.height);
 
@@ -62,7 +63,8 @@ public:
   const uint32_t width = 1920;
   const uint32_t height = 1080;
   const uint32_t step = width * 3;
-  const common::ImageFormat format = common::ImageFormat::RGB;
+  const common::ImageEncoding encoding = common::ImageEncoding::RGB;
+  const common::ImageFormat format = common::ImageFormat::RAW;
 
   const common::Image & get_image() const { return image_; }
   const common::CameraInfo & get_camera_info() const { return camera_info_; }
@@ -75,6 +77,7 @@ public:
     EXPECT_EQ(result.height, height);
     EXPECT_EQ(result.width, width);
     EXPECT_EQ(result.step, step);
+    EXPECT_EQ(result.encoding, encoding);
     EXPECT_EQ(result.format, format);
     EXPECT_EQ(result.data.size(), image_.data.size());
   }
