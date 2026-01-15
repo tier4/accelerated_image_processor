@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<launch>
+  <!-- parameter file -->
+  <arg name="param_path" default="$(find-pkg-share accelerated_image_processor_ros)/config/imgproc.param.yaml"/>
+
+  <!-- topics -->
+  <arg name="image_raw" default="/image_raw"/>
+  <arg name="camera_info" default="/camera_info"/>
+
+  <node pkg="accelerated_image_processor_ros" exec="accelerated_image_processor_ros_imgproc_node" output="screen">
+    <param from="$(var param_path)" allow_substs="true"/>
+    <remap from="image_raw" to="$(var image_raw)"/>
+    <remap from="camera_info" to="$(var camera_info)"/>
+  </node>
+</launch>

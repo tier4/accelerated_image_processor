@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "title": "Parameters for ImgProc Node",
+  "type": "object",
+  "definitions": {
+    "imgproc_node": {
+      "type": "object",
+      "properties": {
+        "max_task_length": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 5,
+          "description": "Maximum number of tasks to process in parallel"
+        },
+        "compressor": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "default": "jpeg",
+              "enum": ["jpeg", "video"],
+              "description": "Compression type"
+            },
+            "quality": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 100,
+              "default": 90,
+              "description": "Compression quality"
+            }
+          },
+          "required": ["type", "quality"]
+        },
+        "rectifier": {
+          "type": "object",
+          "properties": {
+            "do_rectify": {
+              "type": "boolean",
+              "default": true,
+              "description": "Whether to rectify the image"
+            },
+            "alpha": {
+              "type": "number",
+              "minimum": 0.0,
+              "maximum": 1.0,
+              "default": 1.0,
+              "description": "Alpha value for rectification"
+            }
+          },
+          "required": ["do_rectify", "alpha"]
+        }
+      },
+      "required": ["max_task_length", "compressor", "rectifier"]
+    }
+  },
+  "properties": {
+    "/**": {
+      "type": "object",
+      "properties": {
+        "ros__parameters": {
+          "$ref": "#/definitions/imgproc_node"
+        }
+      },
+      "required": ["ros__parameters"]
+    }
+  },
+  "required": ["/**"]
+}
