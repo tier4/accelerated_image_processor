@@ -53,17 +53,39 @@ struct Image
 };
 
 /**
+ * @brief Enumeration of distortion models.
+ */
+enum class DistortionModel : uint8_t { PLUMB_BOB, RATIONAL_POLYNOMIAL, EQUIDISTANT };
+
+/**
+ * @brief Region of interest.
+ */
+struct Roi
+{
+  uint32_t x_offset;  //!< X offset of the ROI
+  uint32_t y_offset;  //!< Y offset of the ROI
+  uint32_t width;     //!< Width of the ROI
+  uint32_t height;    //!< Height of the ROI
+  bool do_rectify;    //!< Whether to rectify the ROI
+};
+
+/**
  * @brief Camera information.
  * @todo Implement CameraInfo to common package.
  */
 struct CameraInfo
 {
-  std::string frame_id;      //!< Camera frame ID
-  uint64_t timestamp;        //!< Timestamp at the image is captured
-  uint32_t height;           //!< Image height, that is, number of rows
-  uint32_t width;            //!< Image width, that is, number of columns
-  std::vector<double> d;     //!< Distortion coefficients.
-  std::array<double, 9> k;   //!< Intrinsic camera matrix.
-  std::array<double, 12> p;  //!< Extrinsic camera matrix.
+  std::string frame_id;              //!< Camera frame ID
+  uint64_t timestamp;                //!< Timestamp at the image is captured
+  uint32_t height;                   //!< Image height, that is, number of rows
+  uint32_t width;                    //!< Image width, that is, number of columns
+  DistortionModel distortion_model;  //!< Distortion model
+  std::vector<double> d;             //!< Distortion coefficients.
+  std::array<double, 9> k;           //!< Intrinsic camera matrix.
+  std::array<double, 9> r;           //!< Rectification matrix.
+  std::array<double, 12> p;          //!< Extrinsic camera matrix.
+  uint32_t binning_x;                //!< Binning factor in x direction
+  uint32_t binning_y;                //!< Binning factor in y direction
+  Roi roi;                           //!< Region of interest
 };
 }  // namespace accelerated_image_processor::common
