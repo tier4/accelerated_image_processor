@@ -49,13 +49,21 @@ public:
     camera_info_.timestamp = timestamp;
     camera_info_.width = width;
     camera_info_.height = height;
-    camera_info_.d = {0.0, 0.0, 0.0, 0.0, 0.0};  // (k1, k2, p1, p2, k3)
-    camera_info_.k = {1.0, 0.0, width / 2.0,     // (fx, 0, cx)
-                      0.0, 1.0, height / 2.0,    // (0, fy, cy)
-                      0.0, 0.0, 1.0};            // (0, 0, 1.0)
-    camera_info_.p = {1.0, 0.0, 0.0, 0.0,        // (r11, r12, r13, tx)
-                      0.0, 1.0, 0.0, 0.0,        // (r21, r22, r23, ty)
-                      0.0, 0.0, 1.0, 0.0};       // (r31, r32, r33, tz)
+    camera_info_.distortion_model = common::DistortionModel::PLUMB_BOB;
+    camera_info_.d = {0.0, 0.0, 0.0, 0.0, 0.0};      // (k1, k2, p1, p2, k3)
+    camera_info_.k = {1.0, 0.0, width / 2.0,         // (fx, 0, cx)
+                      0.0, 1.0, height / 2.0,        // (0, fy, cy)
+                      0.0, 0.0, 1.0};                // (0, 0, 1.0)
+    camera_info_.r = {1.0, 0.0, 0.0,                 // (r11, r12, r13)
+                      0.0, 1.0, 0.0,                 // (r21, r22, r23)
+                      0.0, 0.0, 1.0};                // (r31, r32, r33)
+    camera_info_.p = {1.0, 0.0, width / 2.0,  0.0,   // (fx', 0, cx', tx)
+                      0.0, 1.0, height / 2.0, 0.0,   // (0, fy', cy', ty)
+                      0.0, 0.0, 1.0,          0.0};  // (0, 0, 1.0, tz)
+    camera_info_.binning_x = 1;
+    camera_info_.binning_y = 1;
+    camera_info_.roi = {
+      0, 0, width, height, false};  // (x_offset, y_offset, width, height, do_rectify)
   }
 
   const std::string frame_id = "camera";
