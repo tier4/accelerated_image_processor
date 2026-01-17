@@ -59,14 +59,14 @@ CompressionType to_compression_type(const std::string & str)
   }
 }
 
-std::unique_ptr<Compressor> create_compressor(CompressionType type)
+std::unique_ptr<Compressor> create_compressor(CompressionType type, cudaStream_t stream)
 {
   switch (type) {
     case CompressionType::JPEG:
 #ifdef JETSON_AVAILABLE
-      return make_jetsonjpeg_compressor();
+      return make_jetsonjpeg_compressor(stream);
 #elif NVJPEG_AVAILABLE
-      return make_nvjpeg_compressor();
+      return make_nvjpeg_compressor(stream);
 #elif TURBOJPEG_AVAILABLE
       return make_cpujpeg_compressor();
 #else
@@ -79,8 +79,8 @@ std::unique_ptr<Compressor> create_compressor(CompressionType type)
   }
 }
 
-std::unique_ptr<Compressor> create_compressor(const std::string & type)
+std::unique_ptr<Compressor> create_compressor(const std::string & type, cudaStream_t stream)
 {
-  return create_compressor(to_compression_type(type));
+  return create_compressor(to_compression_type(type), stream);
 }
 }  // namespace accelerated_image_processor::compression
