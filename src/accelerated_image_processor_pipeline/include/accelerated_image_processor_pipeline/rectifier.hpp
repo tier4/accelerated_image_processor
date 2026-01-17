@@ -18,6 +18,8 @@
 #include <accelerated_image_processor_common/parameter.hpp>
 #include <accelerated_image_processor_common/processor.hpp>
 
+#include <cuda_runtime.h>
+
 #include <memory>
 #include <optional>
 
@@ -89,7 +91,7 @@ private:
 };
 
 //!< @brief Factory function to create a NppRectifier.
-std::unique_ptr<Rectifier> make_npp_rectifier();
+std::unique_ptr<Rectifier> make_npp_rectifier(cudaStream_t stream = nullptr);
 //!< @brief Factory function to create a OpenCvCudaRectifier.
 std::unique_ptr<Rectifier> make_opencv_cuda_rectifier();
 //!< @brief Factory function to create a CpuRectifier.
