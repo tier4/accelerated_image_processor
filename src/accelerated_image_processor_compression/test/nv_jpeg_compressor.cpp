@@ -24,7 +24,8 @@ TEST_F(TestJPEGCompressor, NvJPEGCompressionDefault)
 {
   auto compressor = make_nvjpeg_compressor();
   compressor->register_postprocess<TestJPEGCompressor, &TestJPEGCompressor::check>(this);
-  compressor->process(get_image());
+  const auto result = compressor->process(get_image());
+  EXPECT_TRUE(result);
 }
 
 TEST_F(TestJPEGCompressor, NvJPEGCompressionWithLowQuality)
@@ -37,7 +38,8 @@ TEST_F(TestJPEGCompressor, NvJPEGCompressionWithLowQuality)
     }
   }
   EXPECT_EQ(compressor->parameter_value<int>("quality"), 10);
-  compressor->process(get_image());
+  const auto result = compressor->process(get_image());
+  EXPECT_TRUE(result);
 }
 
 TEST_F(TestJPEGCompressor, NvJPEGCompressionWithHighQuality)
@@ -50,7 +52,8 @@ TEST_F(TestJPEGCompressor, NvJPEGCompressionWithHighQuality)
     }
   }
   EXPECT_EQ(compressor->parameter_value<int>("quality"), 90);
-  compressor->process(get_image());
+  const auto result = compressor->process(get_image());
+  EXPECT_TRUE(result);
 }
 }  // namespace accelerated_image_processor::compression
 #else

@@ -24,7 +24,8 @@ TEST_F(TestRectifier, CpuRectificationDefault)
   auto rectifier = make_cpu_rectifier();
   rectifier->register_postprocess<TestRectifier, &TestRectifier::check>(this);
   rectifier->set_camera_info(get_camera_info());
-  rectifier->process(get_image());
+  const auto result = rectifier->process(get_image());
+  EXPECT_TRUE(result);
 }
 
 TEST_F(TestRectifier, CpuRectificationLowAlpha)
@@ -38,7 +39,8 @@ TEST_F(TestRectifier, CpuRectificationLowAlpha)
   }
   EXPECT_EQ(rectifier->parameter_value<double>("alpha"), 0.0);
   rectifier->set_camera_info(get_camera_info());
-  rectifier->process(get_image());
+  const auto result = rectifier->process(get_image());
+  EXPECT_TRUE(result);
 }
 
 TEST_F(TestRectifier, CpuRectificationHighAlpha)
@@ -52,7 +54,8 @@ TEST_F(TestRectifier, CpuRectificationHighAlpha)
   }
   EXPECT_EQ(rectifier->parameter_value<double>("alpha"), 1.0);
   rectifier->set_camera_info(get_camera_info());
-  rectifier->process(get_image());
+  const auto result = rectifier->process(get_image());
+  EXPECT_TRUE(result);
 }
 }  // namespace accelerated_image_processor::pipeline
 
