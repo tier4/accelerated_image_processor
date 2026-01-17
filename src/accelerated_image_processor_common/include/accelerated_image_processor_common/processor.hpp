@@ -17,7 +17,8 @@
 #include "accelerated_image_processor_common/datatype.hpp"
 #include "accelerated_image_processor_common/parameter.hpp"
 
-#include <optional>
+#include <tl_expected/expected.hpp>
+
 #include <string>
 #include <type_traits>
 #include <utility>
@@ -67,6 +68,12 @@ private:
 
 public:
   /**
+   * @brief Output result type of processed image. If successful, returns the processed image.
+   * Otherwise, returns an error message.
+   */
+  using result_t = tl::expected<Image, std::string>;
+
+  /**
    * @brief Constructor.
    */
   explicit BaseProcessor(ParameterMap parameters) : parameters_(std::move(parameters)) {}
@@ -95,22 +102,18 @@ public:
   /**
    * @brief Process the input image.
    * @param image The input image.
-   * @return The processed image if the process is successful, otherwise std::nullopt.
+   * @return The processed image or an error message.
    */
-  std::optional<common::Image> process(const Image & image)
+  result_t process(const Image & image)
   {
     if (!is_ready()) {
-      // TODO(ktro2828): Update to return a type that describes if the process success or not
-      // instead of void
-      return std::nullopt;
+      return tl::make_unexpected("Failed to process: process is not ready");
     }
 
     auto processed = this->process_impl(image);
 
     if (!processed.is_valid()) {
-      // TODO(ktro2828): Update to return a type that describes if the process success or not
-      // instead of void
-      return std::nullopt;
+      return tl::make_unexpected("Failed to process: invalid processed image");
     }
 
     std::visit(
