@@ -18,6 +18,8 @@
 #include <accelerated_image_processor_common/parameter.hpp>
 #include <accelerated_image_processor_common/processor.hpp>
 
+#include <cuda_runtime.h>
+
 #include <memory>
 
 namespace accelerated_image_processor::compression
@@ -57,7 +59,7 @@ private:
 //!< @brief Factory function to create a CPUJPEGCompressor.
 std::unique_ptr<JPEGCompressor> make_cpujpeg_compressor();
 //!< @brief Factory function to create a NvJPEGCompressor.
-std::unique_ptr<JPEGCompressor> make_nvjpeg_compressor();
+std::unique_ptr<JPEGCompressor> make_nvjpeg_compressor(cudaStream_t stream = nullptr);
 //!< @brief Factory function to create a JetsonJPEGCompressor.
-std::unique_ptr<JPEGCompressor> make_jetsonjpeg_compressor();
+std::unique_ptr<JPEGCompressor> make_jetsonjpeg_compressor(cudaStream_t stream = nullptr);
 }  // namespace accelerated_image_processor::compression

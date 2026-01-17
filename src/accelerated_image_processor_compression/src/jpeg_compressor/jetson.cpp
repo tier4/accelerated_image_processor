@@ -39,9 +39,13 @@ namespace accelerated_image_processor::compression
 class JetsonJPEGCompressor final : public JPEGCompressor
 {
 public:
-  JetsonJPEGCompressor() : JPEGCompressor(JPEGBackend::JETSON)
+  JetsonJPEGCompressor(cudaStream_t stream = nullptr)
+  : JPEGCompressor(JPEGBackend::JETSON), stream_(stream)
   {
-    CHECK_CUDA(cudaStreamCreate(&stream_));
+    if (stream_ == nullptr) {
+      CHECK_CUDA(cudaStreamCreateWithFlags(&stream_, cudaStreamNonBlocking));
+      own_stream_ = true;
+    }
     encoder_ = NvJPEGEncoder::createJPEGEncoder("jpeg_encoder");
   }
   ~JetsonJPEGCompressor() override
@@ -60,7 +64,7 @@ public:
       delete encoder_;
       encoder_ = nullptr;
     }
-    if (stream_) {
+    if (stream_ && own_stream_) {
       cudaStreamDestroy(stream_);
       stream_ = nullptr;
     }
@@ -168,16 +172,17 @@ private:
   std::array<int, 3> yuv_step_bytes_{{0, 0, 0}};  //!< Step sizes in bytes for the YUV data.
 
   cudaStream_t stream_{nullptr};    //!< CUDA stream for asynchronous operations.
+  bool own_stream_{false};          //!< Whether the stream is owned by the compressor.
   NppStreamContext context_{};      //!< NPP stream context for asynchronous operations.
   std::optional<NvBuffer> buffer_;  //!< Optional NvBuffer for storing encoded JPEG data.
 };
 
-std::unique_ptr<JPEGCompressor> make_jetsonjpeg_compressor()
+std::unique_ptr<JPEGCompressor> make_jetsonjpeg_compressor(cudaStream_t stream)
 {
-  return std::make_unique<JetsonJPEGCompressor>();
+  return std::make_unique<JetsonJPEGCompressor>(stream);
 }
 #else
-std::unique_ptr<JPEGCompressor> make_jetsonjpeg_compressor()
+std::unique_ptr<JPEGCompressor> make_jetsonjpeg_compressor(cudaStream_t)
 {
   return nullptr;
 }
