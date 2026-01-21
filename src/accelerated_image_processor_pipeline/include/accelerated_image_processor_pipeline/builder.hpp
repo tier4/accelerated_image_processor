@@ -18,6 +18,8 @@
 
 #include <accelerated_image_processor_common/datatype.hpp>
 
+#include <cuda_runtime.h>
+
 #include <memory>
 #include <type_traits>
 
@@ -26,22 +28,24 @@ namespace accelerated_image_processor::pipeline
 /**
  * @brief Create a rectifier object.
  *
+ * @param stream CUDA stream for asynchronous operations.
  * @return std::unique_ptr<Rectifier>
  */
-std::unique_ptr<Rectifier> create_rectifier();
+std::unique_ptr<Rectifier> create_rectifier(cudaStream_t stream = nullptr);
 
 /**
  * @brief Create a rectifier object with a free function for the postprocess.
  *
  * @tparam F The type of the callback function.
  * @param fn Free function for the postprocess.
+ * @param stream CUDA stream for asynchronous operations.
  * @return std::unique_ptr<Rectifier>
  */
 template <
   typename F, std::enable_if_t<std::is_convertible_v<F, void (*)(const common::Image &)>, int> = 0>
-inline std::unique_ptr<Rectifier> create_rectifier(F fn)
+inline std::unique_ptr<Rectifier> create_rectifier(F fn, cudaStream_t stream = nullptr)
 {
-  auto processor = create_rectifier();
+  auto processor = create_rectifier(stream);
   auto fp = static_cast<void (*)(const common::Image &)>(fn);
   if (fp) processor->register_postprocess(fp);
   return processor;
@@ -53,12 +57,13 @@ inline std::unique_ptr<Rectifier> create_rectifier(F fn)
  * @tparam Obj The type of the object.
  * @tparam Method The type of the member function.
  * @param obj Pointer to the object.
+ * @param stream CUDA stream for asynchronous operations.
  * @return std::unique_ptr<Rectifier>
  */
 template <typename Obj, void (Obj::*Method)(const common::Image &)>
-inline std::unique_ptr<Rectifier> create_rectifier(Obj * obj)
+inline std::unique_ptr<Rectifier> create_rectifier(Obj * obj, cudaStream_t stream = nullptr)
 {
-  auto processor = create_rectifier();
+  auto processor = create_rectifier(stream);
   processor->register_postprocess<Obj, Method>(obj);
   return processor;
 }

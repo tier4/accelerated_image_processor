@@ -21,10 +21,10 @@
 
 namespace accelerated_image_processor::pipeline
 {
-std::unique_ptr<Rectifier> create_rectifier()
+std::unique_ptr<Rectifier> create_rectifier(cudaStream_t stream)
 {
 #ifdef NPP_AVAILABLE
-  return make_npp_rectifier();
+  return make_npp_rectifier(stream);
 #elif OPENCV_CUDA_AVAILABLE
   return make_opencv_cuda_rectifier();
 #else
