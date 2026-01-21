@@ -92,6 +92,8 @@ private:
       image.width * 3 * sizeof(Npp8u),  // in byte
       image.height, cudaMemcpyDeviceToHost, stream_));
 
+    CHECK_CUDA(cudaStreamSynchronize(stream_));
+
     return result;
   }
 
