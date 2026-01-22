@@ -115,7 +115,7 @@ TEST(TestParameterFetchParametersWithPrefix, AppliesOverridesAndSuccessesToFetch
     });
 
   // Expect to fetch parameters successfully with correct prefix
-  fetch_parameters(node.get(), &processor, "rectifier.");
+  fetch_parameters(node.get(), &processor, "rectifier");
 
   // Parameters should be overridden
   EXPECT_EQ(processor.parameter_value<int>("quality"), 42);
@@ -137,7 +137,7 @@ TEST(TestParameterFetchParametersWithPrefix, AppliesOverridesButFailsToFetchWith
     });
 
   // Expect to fetch parameters failed with wrong prefix
-  fetch_parameters(node.get(), &processor, "rectifier.");
+  fetch_parameters(node.get(), &processor, "rectifier");
 
   // Parameters should be defaults
   EXPECT_EQ(processor.parameter_value<int>("quality"), 95);

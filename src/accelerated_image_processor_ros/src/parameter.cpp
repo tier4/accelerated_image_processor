@@ -26,7 +26,7 @@ void fetch_parameters(
   rclcpp::Node * node, common::BaseProcessor * processor, const std::string & prefix)
 {
   for (auto & [name, value] : processor->parameters()) {
-    const auto & param_name = prefix + name;
+    const auto & param_name = prefix.empty() ? name : prefix + "." + name;
     std::visit(
       [&](auto & v) {
         using T = std::decay_t<decltype(v)>;
