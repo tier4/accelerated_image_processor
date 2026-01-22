@@ -17,6 +17,8 @@
 #include <accelerated_image_processor_common/datatype.hpp>
 #include <rclcpp/time.hpp>
 
+#include <sensor_msgs/image_encodings.hpp>
+
 #include <stdexcept>
 #include <string>
 
@@ -47,9 +49,9 @@ common::Image from_ros_raw(const sensor_msgs::msg::Image & msg)
 
 common::ImageEncoding from_ros_encoding(const std::string & encoding)
 {
-  if (encoding == "rgb8") {
+  if (encoding == sensor_msgs::image_encodings::RGB8) {
     return common::ImageEncoding::RGB;
-  } else if (encoding == "bgr8") {
+  } else if (encoding == sensor_msgs::image_encodings::BGR8) {
     return common::ImageEncoding::BGR;
   } else {
     throw std::runtime_error("Unsupported encoding: " + encoding);
@@ -126,9 +128,9 @@ std::string to_ros_encoding(common::ImageEncoding encoding)
 {
   switch (encoding) {
     case common::ImageEncoding::RGB:
-      return "rgb8";
+      return sensor_msgs::image_encodings::RGB8;
     case common::ImageEncoding::BGR:
-      return "bgr8";
+      return sensor_msgs::image_encodings::BGR8;
     default:
       throw std::runtime_error("Unsupported format: " + std::to_string(static_cast<int>(encoding)));
   }

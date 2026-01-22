@@ -16,6 +16,8 @@
 
 #include <accelerated_image_processor_common/datatype.hpp>
 
+#include <sensor_msgs/image_encodings.hpp>
+
 #include <gtest/gtest.h>
 
 #include <cstdint>
@@ -45,7 +47,7 @@ TEST(TestConversionFromRosTime, NonZero)
 
 TEST(TestConversionFromRosEncoding, RGB8toRGB)
 {
-  const auto encoding = "rgb8";
+  const auto encoding = sensor_msgs::image_encodings::RGB8;
 
   const auto result = from_ros_encoding(encoding);
 
@@ -54,7 +56,7 @@ TEST(TestConversionFromRosEncoding, RGB8toRGB)
 
 TEST(TestConversionFromRosEncoding, BGR8toBGR)
 {
-  const auto encoding = "bgr8";
+  const auto encoding = sensor_msgs::image_encodings::BGR8;
 
   const auto result = from_ros_encoding(encoding);
 
@@ -63,8 +65,8 @@ TEST(TestConversionFromRosEncoding, BGR8toBGR)
 
 TEST(TestConversionFromRosEncoding, UnsupportedThrowsRuntimeError)
 {
-  EXPECT_THROW(from_ros_encoding("mono8"), std::runtime_error);
-  EXPECT_THROW(from_ros_encoding(""), std::runtime_error);
+  const auto encoding = sensor_msgs::image_encodings::MONO8;
+  EXPECT_THROW(from_ros_encoding(encoding), std::runtime_error);
 }
 
 TEST(TestConversionFromRosImage, CopyFields)
@@ -75,7 +77,7 @@ TEST(TestConversionFromRosImage, CopyFields)
         std_msgs::build<std_msgs::msg::Header>().stamp(rclcpp::Time(123, 456)).frame_id("camera"))
       .height(480)
       .width(640)
-      .encoding("rgb8")
+      .encoding(sensor_msgs::image_encodings::RGB8)
       .is_bigendian(false)
       .step(1234)
       .data({1, 2, 3, 4, 5});
@@ -99,7 +101,7 @@ TEST(TestConversionFromRosImage, UnsupportedEncodingThrowsRuntimeError)
       .header(std_msgs::build<std_msgs::msg::Header>().stamp(rclcpp::Time(0, 0)).frame_id("camera"))
       .height(1)
       .width(1)
-      .encoding("mono8")  // not supported by from_ros_encoding()
+      .encoding(sensor_msgs::image_encodings::MONO8)  // not supported by from_ros_encoding()
       .is_bigendian(false)
       .step(1)
       .data({0});
@@ -262,7 +264,7 @@ TEST(TestConversionToRosRaw, CopyFields)
   EXPECT_EQ(result.header.stamp.nanosec, 456u);
   EXPECT_EQ(result.height, image.height);
   EXPECT_EQ(result.width, image.width);
-  EXPECT_EQ(result.encoding, "bgr8");
+  EXPECT_EQ(result.encoding, sensor_msgs::image_encodings::BGR8);
   EXPECT_EQ(result.is_bigendian, false);
   EXPECT_EQ(result.step, image.step);
   EXPECT_EQ(result.data, image.data);
@@ -274,7 +276,7 @@ TEST(TestConversionToRosEncoding, RGBtoRGB8)
 
   const auto result = to_ros_encoding(encoding);
 
-  EXPECT_EQ(result, "rgb8");
+  EXPECT_EQ(result, sensor_msgs::image_encodings::RGB8);
 }
 
 TEST(TestConversionToRosEncoding, BGRtoBGR8)
@@ -283,7 +285,7 @@ TEST(TestConversionToRosEncoding, BGRtoBGR8)
 
   const auto result = to_ros_encoding(encoding);
 
-  EXPECT_EQ(result, "bgr8");
+  EXPECT_EQ(result, sensor_msgs::image_encodings::BGR8);
 }
 
 TEST(TestConversionToRosCompressed, CopyFields)
