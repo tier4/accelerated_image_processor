@@ -36,6 +36,6 @@ ros2 launch accelerated_image_processor_ros imgproc.launch.xml
 | ---------------------- | -------- | ------- | ---------------------------------------------- |
 | `max_task_length`      | `int`    | `5`     | Maximum number of tasks to process in parallel |
 | `compressor.type`      | `string` | `jpeg`  | Compression type [jpeg, video]                 |
-| `compressor.quality`   | `int`    | `90`    | Compression quality                            |
+| `compressor.quality`   | `int`    | `80`    | Compression quality                            |
 | `rectifier.do_rectify` | `bool`   | `true`  | Whether to rectify the image                   |
 | `rectifier.alpha`      | `double` | `0.0`   | Rectification alpha parameter                  |

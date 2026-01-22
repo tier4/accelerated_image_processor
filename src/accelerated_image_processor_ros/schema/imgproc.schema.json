@@ -25,7 +25,7 @@
               "type": "integer",
               "minimum": 0,
               "maximum": 100,
-              "default": 90,
+              "default": 80,
               "description": "Compression quality"
             }
           },
@@ -50,7 +50,7 @@
           "required": ["do_rectify", "alpha"]
         }
       },
-      "required": ["max_task_length", "compressor", "rectifier"]
+      "required": ["compressor", "rectifier"]
     }
   },
   "properties": {

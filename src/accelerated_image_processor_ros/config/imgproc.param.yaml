@@ -3,7 +3,7 @@
     max_task_length: 5
     compressor:
       type: jpeg
-      quality: 90
+      quality: 80
     rectifier:
       do_rectify: true
       alpha: 0.0
