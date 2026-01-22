@@ -27,7 +27,7 @@ namespace accelerated_image_processor::ros
 {
 /// === From ROS messages to common data types ===
 
-uint64_t from_ros_time(const builtin_interfaces::msg::Time & stamp)
+int64_t from_ros_time(const builtin_interfaces::msg::Time & stamp)
 {
   return rclcpp::Time(stamp.sec, stamp.nanosec).nanoseconds();
 }
@@ -99,16 +99,15 @@ common::Roi from_ros_roi(const sensor_msgs::msg::RegionOfInterest & roi)
 
 /// === From common data types to ROS messages ===
 
-std_msgs::msg::Header to_ros_header(uint64_t timestamp, const std::string & frame_id)
+std_msgs::msg::Header to_ros_header(int64_t timestamp, const std::string & frame_id)
 {
   return std_msgs::build<std_msgs::msg::Header>().stamp(to_ros_time(timestamp)).frame_id(frame_id);
 }
 
-builtin_interfaces::msg::Time to_ros_time(uint64_t time)
+builtin_interfaces::msg::Time to_ros_time(int64_t timestamp)
 {
-  return builtin_interfaces::build<builtin_interfaces::msg::Time>()
-    .sec(time / 1000000000)
-    .nanosec(time % 1000000000);
+  rclcpp::Time rclcpp_time(timestamp);
+  return static_cast<builtin_interfaces::msg::Time>(rclcpp_time);
 }
 
 /// --- From common::Image to sensor_msgs::msg::Image ---

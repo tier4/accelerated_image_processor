@@ -30,11 +30,11 @@ namespace accelerated_image_processor::ros
 /// === From ROS messages to common data types ===
 
 /**
- * @brief Convert builtin_interfaces::msg::Time to uint64_t in nanoseconds.
+ * @brief Convert builtin_interfaces::msg::Time to int64_t in nanoseconds.
  * @param stamp Time message to convert.
- * @return uint64_t in nanoseconds.
+ * @return int64_t in nanoseconds.
  */
-uint64_t from_ros_time(const builtin_interfaces::msg::Time & stamp);
+int64_t from_ros_time(const builtin_interfaces::msg::Time & stamp);
 
 /// --- From sensor_msgs::msg::Image to common::Image ---
 
@@ -83,14 +83,14 @@ common::Roi from_ros_roi(const sensor_msgs::msg::RegionOfInterest & roi);
  * @param frame_id Frame ID.
  * @return sensor_msgs::msg::Header
  */
-std_msgs::msg::Header to_ros_header(uint64_t timestamp, const std::string & frame_id);
+std_msgs::msg::Header to_ros_header(int64_t timestamp, const std::string & frame_id);
 
 /**
- * @brief Convert uint64_t in nanoseconds to builtin_interfaces::msg::Time.
- * @param time Time in nanoseconds.
+ * @brief Convert int64_t in nanoseconds to builtin_interfaces::msg::Time.
+ * @param timestamp Timestamp in nanoseconds.
  * @return builtin_interfaces::msg::Time
  */
-builtin_interfaces::msg::Time to_ros_time(uint64_t time);
+builtin_interfaces::msg::Time to_ros_time(int64_t timestamp);
 
 /// --- From common::Image to sensor_msgs::msg::Image ---
 

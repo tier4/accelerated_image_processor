@@ -30,20 +30,30 @@ namespace accelerated_image_processor::ros
 {
 TEST(TestConversionFromRosTime, Zero)
 {
-  const auto t = rclcpp::Time(0, 0);
+  const auto t = static_cast<builtin_interfaces::msg::Time>(rclcpp::Time(0, 0));
 
   const auto result = from_ros_time(t);
 
-  EXPECT_EQ(result, 0ULL);
+  EXPECT_EQ(result, 0LL);
 }
 
 TEST(TestConversionFromRosTime, NonZero)
 {
-  const auto t = rclcpp::Time(1, 2);
+  const auto t = static_cast<builtin_interfaces::msg::Time>(rclcpp::Time(1, 2));
 
   const auto result = from_ros_time(t);
 
-  EXPECT_EQ(result, 1000000000ULL + 2ULL);
+  EXPECT_EQ(result, 1000000000LL + 2LL);
+}
+
+TEST(TestConversionFromRosTime, BidirectionalConversionIsConsistent)
+{
+  const auto ros_time = static_cast<builtin_interfaces::msg::Time>(rclcpp::Time(1234567890));
+  const auto nanoseconds = from_ros_time(ros_time);
+
+  const auto result = to_ros_time(nanoseconds);
+
+  EXPECT_EQ(result, ros_time);
 }
 
 TEST(TestConversionFromRosEncoding, RGB8toRGB)
@@ -115,40 +125,41 @@ TEST(TestConversionFromRosCameraInfo, CopyFields)
   const uint32_t height = 720;
   const uint32_t width = 1280;
 
-  const auto msg =
-    sensor_msgs::build<sensor_msgs::msg::CameraInfo>()
-      .header(
-        std_msgs::build<std_msgs::msg::Header>().stamp(rclcpp::Time(10, 20)).frame_id("camera"))
-      .height(height)
-      .width(width)
-      .distortion_model(sensor_msgs::distortion_models::PLUMB_BOB)
-      .d({0.0, 0.0, 0.0, 0.0, 0.0})  // (k1, k2, p1, p2, k3)
-      .k(
-        {1.0, 0.0, width / 2.0,   // (fx, 0, cx)
-         0.0, 1.0, height / 2.0,  // (0, fy, cy)
-         0.0, 0.0, 1.0})          // (0, 0, 1.0)
-      .r(
-        {1.0, 0.0, 0.0,   // (r11, r12, r13)
-         0.0, 1.0, 0.0,   // (r21, r22, r23)
-         0.0, 0.0, 1.0})  // (r31, r32, r33)
-      .p(
-        {1.0, 0.0, width / 2.0, 0.0,   // (fx', 0, cx', tx)
-         0.0, 1.0, height / 2.0, 0.0,  // (0, fy', cy', ty)
-         0.0, 0.0, 1.0, 0.0})          // (0, 0, 1.0, tz)
-      .binning_x(1)
-      .binning_y(1)
-      .roi(
-        sensor_msgs::build<sensor_msgs::msg::RegionOfInterest>()
-          .x_offset(0)
-          .y_offset(0)
-          .height(height)
-          .width(width)
-          .do_rectify(false));
+  const auto msg = sensor_msgs::build<sensor_msgs::msg::CameraInfo>()
+                     .header(
+                       std_msgs::build<std_msgs::msg::Header>()
+                         .stamp(static_cast<builtin_interfaces::msg::Time>(rclcpp::Time(10, 20)))
+                         .frame_id("camera"))
+                     .height(height)
+                     .width(width)
+                     .distortion_model(sensor_msgs::distortion_models::PLUMB_BOB)
+                     .d({0.0, 0.0, 0.0, 0.0, 0.0})  // (k1, k2, p1, p2, k3)
+                     .k(
+                       {1.0, 0.0, width / 2.0,   // (fx, 0, cx)
+                        0.0, 1.0, height / 2.0,  // (0, fy, cy)
+                        0.0, 0.0, 1.0})          // (0, 0, 1.0)
+                     .r(
+                       {1.0, 0.0, 0.0,   // (r11, r12, r13)
+                        0.0, 1.0, 0.0,   // (r21, r22, r23)
+                        0.0, 0.0, 1.0})  // (r31, r32, r33)
+                     .p(
+                       {1.0, 0.0, width / 2.0, 0.0,   // (fx', 0, cx', tx)
+                        0.0, 1.0, height / 2.0, 0.0,  // (0, fy', cy', ty)
+                        0.0, 0.0, 1.0, 0.0})          // (0, 0, 1.0, tz)
+                     .binning_x(1)
+                     .binning_y(1)
+                     .roi(
+                       sensor_msgs::build<sensor_msgs::msg::RegionOfInterest>()
+                         .x_offset(0)
+                         .y_offset(0)
+                         .height(height)
+                         .width(width)
+                         .do_rectify(false));
 
   const auto result = from_ros_info(msg);
 
   EXPECT_EQ(result.frame_id, msg.header.frame_id);
-  EXPECT_EQ(result.timestamp, 10000000000ULL + 20ULL);
+  EXPECT_EQ(result.timestamp, 10000000000LL + 20LL);
   EXPECT_EQ(result.height, msg.height);
   EXPECT_EQ(result.width, msg.width);
 
@@ -228,7 +239,7 @@ TEST(TestConversionFromRosRoi, CopyFields)
 
 TEST(TestConversionToRosTime, Zero)
 {
-  const auto nanoseconds = 0ULL;
+  const auto nanoseconds = 0LL;
 
   const auto result = to_ros_time(nanoseconds);
 
@@ -238,7 +249,7 @@ TEST(TestConversionToRosTime, Zero)
 
 TEST(TestConversionToRosTime, NonZero)
 {
-  const auto nanoseconds = 1'000'000'000ULL + 2ULL;
+  const auto nanoseconds = 1'000'000'000LL + 2LL;
 
   const auto result = to_ros_time(nanoseconds);
 
@@ -246,11 +257,21 @@ TEST(TestConversionToRosTime, NonZero)
   EXPECT_EQ(result.nanosec, 2u);
 }
 
+TEST(TestConversionToRosTime, BidirectionalConversionIsConsistent)
+{
+  const auto nanoseconds = 123456789LL;
+  const auto ros_time = to_ros_time(nanoseconds);
+
+  const auto result = from_ros_time(ros_time);
+
+  EXPECT_EQ(result, nanoseconds);
+}
+
 TEST(TestConversionToRosRaw, CopyFields)
 {
   common::Image image;
   image.frame_id = "camera";
-  image.timestamp = 123000000000ULL + 456ULL;
+  image.timestamp = 123000000000LL + 456LL;
   image.height = 480;
   image.width = 640;
   image.step = 2560;
@@ -293,7 +314,7 @@ TEST(TestConversionToRosCompressed, CopyFields)
 {
   common::Image image;
   image.frame_id = "camera";
-  image.timestamp = 42ULL;
+  image.timestamp = 42LL;
   image.height = 1;
   image.width = 2;
   image.step = 6;
@@ -339,7 +360,7 @@ TEST(TestConversionToRosInfo, CopyFields)
 {
   common::CameraInfo info;
   info.frame_id = "camera";
-  info.timestamp = 10'000'000'000ULL + 20ULL;
+  info.timestamp = 10'000'000'000LL + 20LL;
   info.height = 720;
   info.width = 1280;
   info.distortion_model = common::DistortionModel::PLUMB_BOB;
