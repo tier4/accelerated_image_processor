@@ -19,6 +19,7 @@
 #include "accelerated_image_processor_ros/qos.hpp"
 
 #include <chrono>
+#include <memory>
 #include <string>
 #include <utility>
 
@@ -104,17 +105,21 @@ void ImgProcNode::determine_qos(bool do_rectify, int max_task_length)
 
 void ImgProcNode::on_image(const sensor_msgs::msg::Image::ConstSharedPtr msg)
 {
-  const auto image = from_ros_raw(*msg);
+  const auto image = std::make_shared<const common::Image>(from_ros_raw(*msg));
 
   // raw image compression
   if (compression_worker_) {
-    compression_worker_->add_task([this, image]() { raw_compressor_->process(image); });
+    // NOTE: capture `msg` by value to extend the lifetime of the shared pointer at least until the
+    // task is completed
+    compression_worker_->add_task([this, image, msg]() { raw_compressor_->process(*image); });
   }
 
   // raw image rectification and compression
   if (rectification_worker_) {
-    rectification_worker_->add_task([this, image]() {
-      const auto rectified = raw_rectifier_->process(image);
+    // NOTE: capture `msg` by value to extend the lifetime of the shared pointer at least until the
+    // task is completed
+    rectification_worker_->add_task([this, image, msg]() {
+      const auto rectified = raw_rectifier_->process(*image);
       if (rectified) {
         rectified_compressor_->process(rectified.value());
       }
