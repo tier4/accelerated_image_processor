@@ -38,7 +38,7 @@ enum class ImageFormat : uint8_t { RAW, JPEG, PNG };
 struct Image
 {
   std::string frame_id;       //!< Camera frame ID
-  uint64_t timestamp;         //!< Timestamp at the image is captured
+  int64_t timestamp;          //!< Timestamp at the image is captured
   uint32_t height;            //!< Image height, that is, number of rows
   uint32_t width;             //!< Image width, that is, number of columns
   uint32_t step;              //!< Full row length in bytes
@@ -76,7 +76,7 @@ struct Roi
 struct CameraInfo
 {
   std::string frame_id;              //!< Camera frame ID
-  uint64_t timestamp;                //!< Timestamp at the image is captured
+  int64_t timestamp;                 //!< Timestamp at the image is captured
   uint32_t height;                   //!< Image height, that is, number of rows
   uint32_t width;                    //!< Image width, that is, number of columns
   DistortionModel distortion_model;  //!< Distortion model
