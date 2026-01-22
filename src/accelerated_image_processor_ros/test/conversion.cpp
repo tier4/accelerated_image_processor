@@ -16,6 +16,7 @@
 
 #include <accelerated_image_processor_common/datatype.hpp>
 
+#include <sensor_msgs/distortion_models.hpp>
 #include <sensor_msgs/image_encodings.hpp>
 
 #include <gtest/gtest.h>
@@ -120,7 +121,7 @@ TEST(TestConversionFromRosCameraInfo, CopyFields)
         std_msgs::build<std_msgs::msg::Header>().stamp(rclcpp::Time(10, 20)).frame_id("camera"))
       .height(height)
       .width(width)
-      .distortion_model("plumb_bob")
+      .distortion_model(sensor_msgs::distortion_models::PLUMB_BOB)
       .d({0.0, 0.0, 0.0, 0.0, 0.0})  // (k1, k2, p1, p2, k3)
       .k(
         {1.0, 0.0, width / 2.0,   // (fx, 0, cx)
@@ -175,7 +176,7 @@ TEST(TestConversionFromRosCameraInfo, CopyFields)
 
 TEST(TestConversionFromRosDistortionModel, PlumbBob)
 {
-  const auto distortion_model = "plumb_bob";
+  const auto distortion_model = sensor_msgs::distortion_models::PLUMB_BOB;
 
   const auto result = from_ros_distortion_model(distortion_model);
 
@@ -184,7 +185,7 @@ TEST(TestConversionFromRosDistortionModel, PlumbBob)
 
 TEST(TestConversionFromRosDistortionModel, Equidistant)
 {
-  const auto distortion_model = "equidistant";
+  const auto distortion_model = sensor_msgs::distortion_models::EQUIDISTANT;
 
   const auto result = from_ros_distortion_model(distortion_model);
 
@@ -193,7 +194,7 @@ TEST(TestConversionFromRosDistortionModel, Equidistant)
 
 TEST(TestConversionFromRosDistortionModel, RationalPolynomial)
 {
-  const auto distortion_model = "rational_polynomial";
+  const auto distortion_model = sensor_msgs::distortion_models::RATIONAL_POLYNOMIAL;
 
   const auto result = from_ros_distortion_model(distortion_model);
 
@@ -368,7 +369,7 @@ TEST(TestConversionToRosInfo, CopyFields)
   EXPECT_EQ(result.height, info.height);
   EXPECT_EQ(result.width, info.width);
 
-  EXPECT_EQ(result.distortion_model, "plumb_bob");
+  EXPECT_EQ(result.distortion_model, sensor_msgs::distortion_models::PLUMB_BOB);
   EXPECT_EQ(result.d, info.d);
   EXPECT_EQ(result.k, info.k);
   EXPECT_EQ(result.r, info.r);
@@ -390,7 +391,7 @@ TEST(TestConversionToRosDistortionModel, PlumbBob)
 
   const auto result = to_ros_distortion_model(distortion_model);
 
-  EXPECT_EQ(result, "plumb_bob");
+  EXPECT_EQ(result, sensor_msgs::distortion_models::PLUMB_BOB);
 }
 
 TEST(TestConversionToRosDistortionModel, Equidistant)
@@ -399,7 +400,7 @@ TEST(TestConversionToRosDistortionModel, Equidistant)
 
   const auto result = to_ros_distortion_model(distortion_model);
 
-  EXPECT_EQ(result, "equidistant");
+  EXPECT_EQ(result, sensor_msgs::distortion_models::EQUIDISTANT);
 }
 
 TEST(TestConversionToRosDistortionModel, RationalPolynomial)
@@ -408,7 +409,7 @@ TEST(TestConversionToRosDistortionModel, RationalPolynomial)
 
   const auto result = to_ros_distortion_model(distortion_model);
 
-  EXPECT_EQ(result, "rational_polynomial");
+  EXPECT_EQ(result, sensor_msgs::distortion_models::RATIONAL_POLYNOMIAL);
 }
 
 TEST(TestConversionToRosRoi, CopyFields)

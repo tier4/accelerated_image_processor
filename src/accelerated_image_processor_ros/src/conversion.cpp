@@ -17,6 +17,7 @@
 #include <accelerated_image_processor_common/datatype.hpp>
 #include <rclcpp/time.hpp>
 
+#include <sensor_msgs/distortion_models.hpp>
 #include <sensor_msgs/image_encodings.hpp>
 
 #include <stdexcept>
@@ -80,11 +81,11 @@ common::CameraInfo from_ros_info(const sensor_msgs::msg::CameraInfo & msg)
 
 common::DistortionModel from_ros_distortion_model(const std::string & model)
 {
-  if (model == "plumb_bob") {
+  if (model == sensor_msgs::distortion_models::PLUMB_BOB) {
     return common::DistortionModel::PLUMB_BOB;
-  } else if (model == "equidistant") {
+  } else if (model == sensor_msgs::distortion_models::EQUIDISTANT) {
     return common::DistortionModel::EQUIDISTANT;
-  } else if (model == "rational_polynomial") {
+  } else if (model == sensor_msgs::distortion_models::RATIONAL_POLYNOMIAL) {
     return common::DistortionModel::RATIONAL_POLYNOMIAL;
   } else {
     throw std::runtime_error("Unsupported distortion model: " + model);
@@ -182,11 +183,11 @@ std::string to_ros_distortion_model(common::DistortionModel model)
 {
   switch (model) {
     case common::DistortionModel::PLUMB_BOB:
-      return "plumb_bob";
+      return sensor_msgs::distortion_models::PLUMB_BOB;
     case common::DistortionModel::EQUIDISTANT:
-      return "equidistant";
+      return sensor_msgs::distortion_models::EQUIDISTANT;
     case common::DistortionModel::RATIONAL_POLYNOMIAL:
-      return "rational_polynomial";
+      return sensor_msgs::distortion_models::RATIONAL_POLYNOMIAL;
     default:
       throw std::runtime_error(
         "Unsupported distortion model: " + std::to_string(static_cast<int>(model)));
