@@ -41,7 +41,7 @@ private:
    * @param do_rectify Whether rectification is enabled.
    * @param max_task_length Maximum task length.
    */
-  void determine_qos(bool do_rectify, int max_task_length);
+  void determine_qos(const bool do_rectify, const int max_task_length);
 
   /**
    * @brief Callback function for image messages.

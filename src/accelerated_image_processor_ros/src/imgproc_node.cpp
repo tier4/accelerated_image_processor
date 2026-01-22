@@ -58,7 +58,7 @@ ImgProcNode::ImgProcNode(const rclcpp::NodeOptions & options) : Node("imgproc_no
     [this, do_rectify, max_task_length]() { this->determine_qos(do_rectify, max_task_length); });
 }
 
-void ImgProcNode::determine_qos(bool do_rectify, int max_task_length)
+void ImgProcNode::determine_qos(const bool do_rectify, const int max_task_length)
 {
   auto image_topic = this->get_node_topics_interface()->resolve_topic_name("image_raw", false);
   auto info_topic = this->get_node_topics_interface()->resolve_topic_name("camera_info", false);
