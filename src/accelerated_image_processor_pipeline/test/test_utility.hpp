@@ -67,7 +67,7 @@ public:
   }
 
   const std::string frame_id = "camera";
-  const uint32_t timestamp = 123456789;
+  const int64_t timestamp = 123456789;
   const uint32_t width = 1920;
   const uint32_t height = 1080;
   const uint32_t step = width * 3;

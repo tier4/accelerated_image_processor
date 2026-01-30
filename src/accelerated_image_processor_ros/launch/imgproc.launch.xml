@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<launch>
+  <!-- parameter file -->
+  <arg name="param_path" default="$(find-pkg-share accelerated_image_processor_ros)/config/imgproc.param.yaml"/>
+
+  <!-- I/O topics -->
+  <arg name="input/image_raw" default="/image_raw"/>
+  <arg name="input/camera_info" default="/camera_info"/>
+  <arg name="output/image_raw/compressed" default="/image_raw/compressed"/>
+  <arg name="output/image_rect" default="/image_rect"/>
+  <arg name="output/image_rect/camera_info" default="/image_rect/camera_info"/>
+  <arg name="output/image_rect/compressed" default="/image_rect/compressed"/>
+
+  <node pkg="accelerated_image_processor_ros" exec="accelerated_image_processor_ros_imgproc_node" output="screen">
+    <param from="$(var param_path)" allow_substs="true"/>
+    <remap from="image_raw" to="$(var input/image_raw)"/>
+    <remap from="camera_info" to="$(var input/camera_info)"/>
+    <remap from="image_raw/compressed" to="$(var output/image_raw/compressed)"/>
+    <remap from="image_rect" to="$(var output/image_rect)"/>
+    <remap from="image_rect/camera_info" to="$(var output/image_rect/camera_info)"/>
+    <remap from="image_rect/compressed" to="$(var output/image_rect/compressed)"/>
+  </node>
+</launch>
