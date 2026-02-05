@@ -24,6 +24,7 @@
 #include <memory>
 #include <numeric>
 #include <ostream>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -59,6 +60,24 @@ double percentile(const std::vector<double> & values, double p)
   const double fraction = index - static_cast<double>(i0);
 
   return (1.0 - fraction) * sorted_values[i0] + fraction * sorted_values[i1];
+}
+
+/**
+ * @brief Format bytes into a human-readable string.
+ * @param bytes The number of bytes to format.
+ * @return The formatted string.
+ */
+std::string format_bytes(uint64_t bytes)
+{
+  if (bytes < 1024) {
+    return std::to_string(bytes) + "B";
+  } else if (bytes < 1024 * 1024) {
+    return std::to_string(bytes / 1024) + "KB";
+  } else if (bytes < 1024 * 1024 * 1024) {
+    return std::to_string(bytes / (1024 * 1024)) + "MB";
+  } else {
+    return std::to_string(bytes / (1024 * 1024 * 1024)) + "GB";
+  }
 }
 }  // namespace
 
@@ -138,8 +157,9 @@ void Benchmarker::set_source_bytes(const std::vector<common::Image> & images)
 
 double Benchmarker::compare_bytes() const
 {
-  return processed_bytes_ > 0 ? 100.0 * static_cast<double>(processed_bytes_) / source_bytes_
-                              : std::numeric_limits<double>::quiet_NaN();
+  return source_bytes_ > 0
+           ? 100.0 * static_cast<double>(source_bytes_ - processed_bytes_) / source_bytes_
+           : std::numeric_limits<double>::quiet_NaN();
 }
 
 double Benchmarker::total_ms() const
@@ -168,7 +188,8 @@ void Benchmarker::print() const
 {
   std::cout << "------------------ Benchmark Summary ------------------\n";
 
-  std::cout << "Storage Ratio: " << compare_bytes() << "%\n";
+  std::cout << "Storage Ratio: " << compare_bytes() << "% (SOURCE=" << format_bytes(source_bytes_)
+            << " -> PROCESSED=" << format_bytes(processed_bytes_) << ")\n";
 
   std::cout << "Iteration ms: [Average]=" << average_ms()  // Average
             << ", [50%tile]=" << percentile_ms(50)         // 50%tile
