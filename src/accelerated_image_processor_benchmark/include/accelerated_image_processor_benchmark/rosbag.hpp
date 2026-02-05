@@ -21,6 +21,7 @@
 #include <rosbag2_storage/storage_options.hpp>
 #include <rosbag2_transport/reader_writer_factory.hpp>
 
+#include <limits>
 #include <memory>
 #include <string>
 #include <vector>
@@ -48,14 +49,17 @@ public:
    * @brief Read messages from a specific topic.
    * @tparam T Type of message to read.
    * @param topic_name Name of the topic to read messages from.
+   * @param max_count Maximum number of messages to read.
    * @return Vector of messages of type T.
    */
   template <typename T>
-  std::vector<T> read_messages(const std::string & topic_name)
+  std::vector<T> read_messages(
+    const std::string & topic_name, size_t max_count = std::numeric_limits<size_t>::max())
   {
     std::vector<T> messages;
     rclcpp::Serialization<T> serialization;
-    while (reader_->has_next()) {
+    size_t count = 0;
+    while (reader_->has_next() && count < max_count) {
       rosbag2_storage::SerializedBagMessageSharedPtr msg = reader_->read_next();
 
       if (msg->topic_name != topic_name) {
@@ -68,6 +72,7 @@ public:
       serialization.deserialize_message(&serialized, ros_msg.get());
 
       messages.push_back(*ros_msg);
+      ++count;
     }
     return messages;
   }

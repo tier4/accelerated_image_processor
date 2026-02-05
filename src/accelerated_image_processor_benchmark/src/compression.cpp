@@ -13,12 +13,9 @@
 // limitations under the License.
 
 #include "accelerated_image_processor_benchmark/benchmarker.hpp"
-#include "accelerated_image_processor_benchmark/image.hpp"
-#include "accelerated_image_processor_benchmark/rosbag.hpp"
 #include "accelerated_image_processor_benchmark/utility.hpp"
 
 #include <accelerated_image_processor_compression/builder.hpp>
-#include <accelerated_image_processor_ros/conversion.hpp>
 #include <argparse/argparse.hpp>
 
 #include <exception>
@@ -94,14 +91,14 @@ int main(int argc, char ** argv)
               << "  Storage ID: " << storage_id << "\n"
               << "  Topic: " << topic << "\n";
 
-    images = benchmark::load_images(bag_dir, storage_id, topic);
+    images = benchmark::load_images(bag_dir, storage_id, topic, num_iterations);
   } else {
     const auto height = program.get<int>("--height");
     const auto width = program.get<int>("--width");
     const auto seed = program.get<int>("--seed");
     std::cout << "Loading synthetic images:\n";
     std::cout << "  (Height, Width): (" << height << ", " << width << ")\n";
-    images = benchmark::load_images(height, width, num_iterations, seed);
+    images = benchmark::load_images(height, width, seed, num_iterations);
   }
 
   // Run benchmark

@@ -37,21 +37,23 @@ YAML::Node load_config(const std::string & filepath);
  * @param bag_path Path to the ROS bag file.
  * @param storage_id ID of the storage to use.
  * @param topic Topic to subscribe to.
+ * @param num_iterations Number of iterations to load images.
  * @return Vector of loaded images.
  */
 std::vector<common::Image> load_images(
-  const std::string & bag_path, const std::string & storage_id, const std::string & topic);
+  const std::string & bag_path, const std::string & storage_id, const std::string & topic,
+  const int num_iterations);
 
 /**
  * @brief Load images from a random generator.
  * @param height Height of the images.
  * @param width Width of the images.
- * @param num_images Number of images to generate.
  * @param seed Seed for the random generator.
+ * @param num_iterations Number of iterations to load images.
  * @return Vector of loaded images.
  */
 std::vector<common::Image> load_images(
-  const int height, const int width, const int num_images, const int seed);
+  const int height, const int width, const int seed, const int num_iterations);
 
 /**
  * @brief Fetch parameters from a configuration node and apply them to a processor.

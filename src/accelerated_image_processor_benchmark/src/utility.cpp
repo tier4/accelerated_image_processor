@@ -85,10 +85,11 @@ YAML::Node load_config(const std::string & filepath)
 }
 
 std::vector<common::Image> load_images(
-  const std::string & bag_path, const std::string & storage_id, const std::string & topic)
+  const std::string & bag_path, const std::string & storage_id, const std::string & topic,
+  const int num_iterations)
 {
   RosBagReader reader(bag_path, storage_id);
-  const auto image_msgs = reader.read_messages<sensor_msgs::msg::Image>(topic);
+  const auto image_msgs = reader.read_messages<sensor_msgs::msg::Image>(topic, num_iterations);
   std::vector<common::Image> images;
   for (const auto & msg : image_msgs) {
     images.push_back(ros::from_ros_raw(msg));
@@ -97,10 +98,10 @@ std::vector<common::Image> load_images(
 }
 
 std::vector<common::Image> load_images(
-  const int height, const int width, const int num_images, const int seed)
+  const int height, const int width, const int seed, const int num_iterations)
 {
   std::vector<common::Image> images;
-  for (int i = 0; i < std::max(1, num_images); ++i) {
+  for (int i = 0; i < std::max(1, num_iterations); ++i) {
     images.push_back(make_synthetic_image(height, width, common::ImageEncoding::RGB, seed, i));
   }
   return images;
