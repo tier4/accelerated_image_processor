@@ -188,8 +188,9 @@ void Benchmarker::print() const
 {
   std::cout << "------------------ Benchmark Summary ------------------\n";
 
-  std::cout << "Storage Ratio: " << compare_bytes() << "% (SOURCE=" << format_bytes(source_bytes_)
-            << " -> PROCESSED=" << format_bytes(processed_bytes_) << ")\n";
+  std::cout << "Storage Reduction: " << compare_bytes() << "% "  // Reduction rate[%]
+            << "(" << format_bytes(source_bytes_) << " -> "      // Source size
+            << format_bytes(processed_bytes_) << ")\n";          // Processed size
 
   std::cout << "Iteration ms: [Average]=" << average_ms()  // Average
             << ", [50%tile]=" << percentile_ms(50)         // 50%tile
