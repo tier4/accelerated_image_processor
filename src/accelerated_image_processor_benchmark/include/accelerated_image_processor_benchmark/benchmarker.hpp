@@ -32,10 +32,17 @@ class Benchmarker
 public:
   Benchmarker(const YAML::Node & config, std::unique_ptr<common::BaseProcessor> processor);
 
+  /**
+   * @brief Run the benchmark.
+   * @param images The images to process.
+   * @param num_warmups The number of warmup iterations.
+   * @param num_iterations The number of benchmark iterations.
+   */
   void run(
     const std::vector<common::Image> & images, const size_t num_warmups,
     const size_t num_iterations);
 
+private:
   /**
    * @brief Process an image for benchmarking.
    * @param image The image to process.
@@ -93,7 +100,6 @@ public:
    */
   void print() const;
 
-private:
   YAML::Node config_;
   std::unique_ptr<common::BaseProcessor> processor_;
 
