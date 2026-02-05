@@ -180,7 +180,7 @@ double Benchmarker::percentile_ms(double p) const
 
 double Benchmarker::fps() const
 {
-  return processed_count_ > 0 ? processed_count_ / total_ms()
+  return processed_count_ > 0 ? 1000.0 * processed_count_ / total_ms()
                               : std::numeric_limits<double>::quiet_NaN();
 }
 
