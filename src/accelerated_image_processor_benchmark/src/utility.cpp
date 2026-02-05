@@ -126,7 +126,7 @@ void print_processor(const common::BaseProcessor * processor)
 {
   std::cout << "------------------ Processor Information ------------------\n";
 
-  std::cout << "Name: " << demangle(typeid(*processor).name()) << "\n";
+  std::cout << "ClassName: " << demangle(typeid(*processor).name()) << "\n";
 
   std::cout << "Parameters:\n";
   for (const auto & [name, value] : processor->parameters()) {
