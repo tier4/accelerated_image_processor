@@ -17,6 +17,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -30,7 +31,7 @@ enum class ImageEncoding : uint8_t { RGB, BGR };
 /**
  * @brief Enumeration of image compression formats.
  */
-enum class ImageFormat : uint8_t { RAW, JPEG, PNG };
+enum class ImageFormat : uint8_t { RAW, JPEG, PNG, H264, H265, AV1 };
 
 /**
  * @brief Structure representing an image.
@@ -41,10 +42,17 @@ struct Image
   int64_t timestamp;          //!< Timestamp at the image is captured
   uint32_t height;            //!< Image height, that is, number of rows
   uint32_t width;             //!< Image width, that is, number of columns
-  uint32_t step;              //!< Full row length in bytes
-  ImageEncoding encoding;     //!< Image color encoding
   ImageFormat format;         //!< Image compression format
   std::vector<uint8_t> data;  //!< Actual matrix data
+
+  // Image / CompressedImage dedicated fields
+  uint32_t step;           //!< Full row length in bytes
+  ImageEncoding encoding;  //!< Image color encoding
+
+  // Video frame dedicated fields
+  std::optional<uint64_t> pts;       //!< packet time stamp
+  std::optional<uint8_t> flags;      //!< flag representing whether this is the key frame
+  std::optional<bool> is_bigendian;  //!< true if machine stores in big endian format
 
   /**
    * @brief Check the specified image is valid.

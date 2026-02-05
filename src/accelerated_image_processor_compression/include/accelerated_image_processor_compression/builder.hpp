@@ -31,7 +31,7 @@ using Compressor = common::BaseProcessor;
 /**
  * @brief Compression type enum
  */
-enum class CompressionType : uint8_t { JPEG, VIDEO };
+enum class CompressionType : uint8_t { JPEG, VIDEO_H264, VIDEO_H265, VIDEO_AV1 };
 
 /**
  * @brief Convert a string to a compression type
@@ -85,7 +85,7 @@ template <
 inline std::unique_ptr<Compressor> create_compressor(const std::string & type, F fn)
 {
   return create_compressor(to_compression_type(type), fn);
-};
+}
 
 /**
  * @brief Create a compressor processor with a member function for the postprocess.

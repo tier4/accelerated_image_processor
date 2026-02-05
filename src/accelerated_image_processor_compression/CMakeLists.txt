@@ -45,6 +45,18 @@ if(NOT JETSON_FOUND
   message(FATAL_ERROR "No JPEG encoder found")
 endif()
 
+# --- CUDA VPI available? ---
+find_package(VPI)
+if(${VPI_FOUND})
+  message("VPI found")
+endif()
+
+# --- Jetson multimedia API available? ---
+find_package(NVMMAPI)
+if(${NVMMAPI_FOUND})
+  message("Jetson multimedia API found")
+endif()
+
 add_library(${PROJECT_NAME} SHARED src/builder.cpp src/jpeg_compressor/cpu.cpp
                                    src/jpeg_compressor/nvjpeg.cpp)
 
@@ -76,12 +88,23 @@ if(JETSON_FOUND)
                              PRIVATE /usr/src/jetson_multimedia_api/include)
   add_library(
     ${PROJECT_NAME}_jetson SHARED
+    # JPEG compression
     src/jpeg_compressor/jetson.cpp
     /usr/src/jetson_multimedia_api/samples/common/classes/NvBuffer.cpp
     /usr/src/jetson_multimedia_api/samples/common/classes/NvElement.cpp
     /usr/src/jetson_multimedia_api/samples/common/classes/NvElementProfiler.cpp
     /usr/src/jetson_multimedia_api/samples/common/classes/NvJpegEncoder.cpp
-    /usr/src/jetson_multimedia_api/samples/common/classes/NvLogging.cpp)
+    /usr/src/jetson_multimedia_api/samples/common/classes/NvLogging.cpp
+    # video compression
+    src/video_compressor/jetson.cpp
+    src/video_compressor/jetson_h264.cpp
+    src/video_compressor/jetson_h265.cpp
+    src/video_compressor/jetson_av1.cpp
+    /usr/src/jetson_multimedia_api/samples/common/classes/NvVideoEncoder.cpp
+    /usr/src/jetson_multimedia_api/samples/common/classes/NvV4l2Element.cpp
+    /usr/src/jetson_multimedia_api/samples/common/classes/NvV4l2ElementPlane.cpp
+    /usr/src/jetson_multimedia_api/samples/common/classes/NvBufSurface.cpp
+  )
   target_compile_definitions(${PROJECT_NAME}_jetson PRIVATE JETSON_AVAILABLE)
 
   ament_target_dependencies(${PROJECT_NAME}_jetson
@@ -100,12 +123,14 @@ if(JETSON_FOUND)
   target_link_libraries(
     ${PROJECT_NAME}_jetson
     ${JETSON_NVJPEG_LIB}
+    ${NVMMAPI_LIBRARIES}
     $<$<TARGET_EXISTS:CUDA::cudart>:CUDA::cudart>
     $<$<TARGET_EXISTS:CUDA::nppc>:CUDA::nppc>
     $<$<TARGET_EXISTS:CUDA::nppicc>:CUDA::nppicc>
     $<$<TARGET_EXISTS:CUDA::nppidei>:CUDA::nppidei>
     $<$<TARGET_EXISTS:CUDA::nppig>:CUDA::nppig>
-    $<$<TARGET_EXISTS:CUDA::nppisu>:CUDA::nppisu>)
+    $<$<TARGET_EXISTS:CUDA::nppisu>:CUDA::nppisu>
+    $<$<TARGET_EXISTS:vpi>:vpi>)
 
   set(JETSON_LIB_DIRS
       "/usr/lib/aarch64-linux-gnu/nvidia;/usr/lib/aarch64-linux-gnu/tegra")
