@@ -14,13 +14,17 @@
 
 #include "accelerated_image_processor_benchmark/benchmarker.hpp"
 
+#include "accelerated_image_processor_benchmark/utility.hpp"
+
 #include <algorithm>
 #include <cmath>
 #include <functional>
 #include <iostream>
 #include <limits>
+#include <memory>
 #include <numeric>
 #include <ostream>
+#include <utility>
 #include <vector>
 
 namespace accelerated_image_processor::benchmark
@@ -57,6 +61,46 @@ double percentile(const std::vector<double> & values, double p)
   return (1.0 - fraction) * sorted_values[i0] + fraction * sorted_values[i1];
 }
 }  // namespace
+
+Benchmarker::Benchmarker(
+  const YAML::Node & config, std::unique_ptr<common::BaseProcessor> processor)
+: config_(config), processor_(std::move(processor))
+{
+  fetch_parameters(config_, processor_.get());
+  print_processor(processor_.get());
+  processor_->register_postprocess<Benchmarker, &Benchmarker::on_image>(this);
+}
+
+void Benchmarker::run(
+  const std::vector<common::Image> & images, const size_t num_warmups, const size_t num_iterations)
+{
+  // Set source bytes
+  this->set_source_bytes(images);
+
+  auto try_processing = [this, &images](size_t iter_idx) {
+    const auto idx = iter_idx % images.size();
+    processor_->process(images[idx]);
+  };
+
+  // Warmup
+  std::cout << ">>> Starting warmup [n = " << num_warmups << "]" << std::endl;
+  for (size_t i = 0; i < num_warmups; ++i) {
+    try_processing(i);
+  }
+  std::cout << "<<< ✨Finished warmup" << std::endl;
+
+  // Iterations
+  std::cout << ">>> Starting iterations [n = " << num_iterations << "]" << std::endl;
+  this->reset_processed();
+  for (size_t i = 0; i < num_iterations; ++i) {
+    this->tic();
+    try_processing(i);
+  }
+  std::cout << "<<< ✨Finished iterations" << std::endl;
+
+  // Print benchmark results
+  this->print();
+}
 
 void Benchmarker::on_image(const common::Image & image)
 {

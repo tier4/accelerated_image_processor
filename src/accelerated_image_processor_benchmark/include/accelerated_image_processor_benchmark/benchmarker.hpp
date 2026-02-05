@@ -15,9 +15,13 @@
 #pragma once
 
 #include <accelerated_image_processor_common/datatype.hpp>
+#include <accelerated_image_processor_common/processor.hpp>
+
+#include <yaml-cpp/yaml.h>
 
 #include <chrono>
 #include <cstdint>
+#include <memory>
 #include <optional>
 #include <vector>
 
@@ -26,6 +30,12 @@ namespace accelerated_image_processor::benchmark
 class Benchmarker
 {
 public:
+  Benchmarker(const YAML::Node & config, std::unique_ptr<common::BaseProcessor> processor);
+
+  void run(
+    const std::vector<common::Image> & images, const size_t num_warmups,
+    const size_t num_iterations);
+
   /**
    * @brief Process an image for benchmarking.
    * @param image The image to process.
@@ -84,6 +94,9 @@ public:
   void print() const;
 
 private:
+  YAML::Node config_;
+  std::unique_ptr<common::BaseProcessor> processor_;
+
   uint64_t source_bytes_ = 0;
   uint64_t processed_bytes_ = 0;
   uint64_t processed_count_ = 0;

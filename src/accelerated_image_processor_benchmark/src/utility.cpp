@@ -14,17 +14,25 @@
 
 #include "accelerated_image_processor_benchmark/utility.hpp"
 
+#include "accelerated_image_processor_benchmark/image.hpp"
+#include "accelerated_image_processor_benchmark/rosbag.hpp"
+
 #include <accelerated_image_processor_common/processor.hpp>
+#include <accelerated_image_processor_ros/conversion.hpp>
 #include <rmw/impl/cpp/demangle.hpp>
+
+#include <sensor_msgs/msg/image.hpp>
 
 #include <yaml-cpp/yaml.h>
 
+#include <algorithm>
 #include <iostream>
 #include <memory>
 #include <string>
 #include <type_traits>
 #include <typeinfo>
 #include <variant>
+#include <vector>
 
 #ifdef __GNUG__
 #include <cxxabi.h>
@@ -74,6 +82,28 @@ YAML::Node load_config(const std::string & filepath)
     throw std::runtime_error("Failed to load config file");
   }
   return config["/**"]["ros__parameters"];
+}
+
+std::vector<common::Image> load_images(
+  const std::string & bag_path, const std::string & storage_id, const std::string & topic)
+{
+  RosBagReader reader(bag_path, storage_id);
+  const auto image_msgs = reader.read_messages<sensor_msgs::msg::Image>(topic);
+  std::vector<common::Image> images;
+  for (const auto & msg : image_msgs) {
+    images.push_back(ros::from_ros_raw(msg));
+  }
+  return images;
+}
+
+std::vector<common::Image> load_images(
+  const int height, const int width, const int num_images, const int seed)
+{
+  std::vector<common::Image> images;
+  for (int i = 0; i < std::max(1, num_images); ++i) {
+    images.push_back(make_synthetic_image(height, width, common::ImageEncoding::RGB, seed, i));
+  }
+  return images;
 }
 
 void fetch_parameters(const YAML::Node & config, common::BaseProcessor * processor)

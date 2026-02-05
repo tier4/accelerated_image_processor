@@ -21,12 +21,10 @@
 #include <accelerated_image_processor_ros/conversion.hpp>
 #include <argparse/argparse.hpp>
 
-#include <sensor_msgs/msg/image.hpp>
-
-#include <algorithm>
 #include <exception>
 #include <iostream>
 #include <string>
+#include <utility>
 #include <vector>
 
 using namespace accelerated_image_processor;  // NOLINT
@@ -63,8 +61,13 @@ int main(int argc, char ** argv)
     return 1;
   }
 
+  // Read arguments
+  const auto config_path = program.get<std::string>("config");
+  const auto num_warmups = program.get<int>("--warmup");
+  const auto num_iterations = program.get<int>("--iterations");
+
   // Load config from ROS parameter YAML file
-  const auto config = benchmark::load_config(program.get<std::string>("config"))["compressor"];
+  const auto config = benchmark::load_config(config_path)["compressor"];
 
   // Build compressor
   auto compressor = compression::create_compressor(config["type"].as<std::string>());
@@ -72,16 +75,8 @@ int main(int argc, char ** argv)
     throw std::runtime_error("Failed to create compressor");
   }
 
-  // Fetch parameters from config
-  benchmark::fetch_parameters(config, compressor.get());
-
-  // Print processor information
-  benchmark::print_processor(compressor.get());
-
   // Observe output sizes via postprocess callback
-  benchmark::Benchmarker benchmarker;
-  compressor->register_postprocess<benchmark::Benchmarker, &benchmark::Benchmarker::on_image>(
-    &benchmarker);
+  benchmark::Benchmarker benchmarker(config, std::move(compressor));
 
   // Prepare input images
   std::vector<common::Image> images;
@@ -99,52 +94,18 @@ int main(int argc, char ** argv)
               << "  Storage ID: " << storage_id << "\n"
               << "  Topic: " << topic << "\n";
 
-    benchmark::RosBagReader reader(bag_dir, storage_id);
-
-    const auto image_msgs = reader.read_messages<sensor_msgs::msg::Image>(topic);
-    for (const auto & msg : image_msgs) {
-      images.push_back(ros::from_ros_raw(msg));
-    }
+    images = benchmark::load_images(bag_dir, storage_id, topic);
   } else {
     const auto height = program.get<int>("--height");
     const auto width = program.get<int>("--width");
     const auto seed = program.get<int>("--seed");
     std::cout << "Loading synthetic images:\n";
     std::cout << "  (Height, Width): (" << height << ", " << width << ")\n";
-    for (int i = 0; i < std::max(1, program.get<int>("--iterations")); ++i) {
-      images.push_back(
-        benchmark::make_synthetic_image(height, width, common::ImageEncoding::RGB, seed, i));
-    }
+    images = benchmark::load_images(height, width, num_iterations, seed);
   }
 
-  // Set source image bytes
-  benchmarker.set_source_bytes(images);
-
-  auto try_processing = [&images, &compressor](size_t iter_idx) {
-    const auto idx = iter_idx % images.size();
-    compressor->process(images[idx]);
-  };
-
-  // Warmup
-  const auto warmup = program.get<int>("--warmup");
-  std::cout << ">>> Starting warmup [n = " << warmup << "]" << std::endl;
-  for (int i = 0; i < warmup; ++i) {
-    try_processing(static_cast<size_t>(i));
-  }
-  std::cout << "<<< ✨Finished warmup" << std::endl;
-
-  // Reset benchmarker and run iterations
-  const auto iterations = program.get<int>("--iterations");
-  std::cout << ">>> Starting iterations [n = " << iterations << "]" << std::endl;
-  benchmarker.reset_processed();
-  for (int i = 0; i < iterations; ++i) {
-    benchmarker.tic();
-    try_processing(static_cast<size_t>(i));
-  }
-  std::cout << "<<< ✨Finished iterations" << std::endl;
-
-  // Print benchmark results
-  benchmarker.print();
+  // Run benchmark
+  benchmarker.run(images, num_warmups, num_iterations);
 
   return 0;
 }
