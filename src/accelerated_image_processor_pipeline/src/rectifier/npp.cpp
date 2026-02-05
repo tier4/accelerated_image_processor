@@ -18,6 +18,7 @@
 #include <accelerated_image_processor_common/helper.hpp>
 
 #include <memory>
+#include <vector>
 
 #ifdef NPP_AVAILABLE
 #include <cuda_runtime.h>
@@ -35,9 +36,12 @@ namespace accelerated_image_processor::pipeline
 class NppRectifier final : public Rectifier
 {
 public:
-  NppRectifier() : Rectifier(RectifierBackend::NPP)
+  NppRectifier(cudaStream_t stream = nullptr) : Rectifier(RectifierBackend::NPP), stream_(stream)
   {
-    cudaStreamCreateWithFlags(&stream_, cudaStreamNonBlocking);
+    if (stream_ == nullptr) {
+      CHECK_CUDA(cudaStreamCreateWithFlags(&stream_, cudaStreamNonBlocking));
+      own_stream_ = true;
+    }
     nppSetStream(stream_);
   }
   ~NppRectifier() override
@@ -58,7 +62,10 @@ public:
       nppiFree(dst_);
       dst_ = nullptr;
     }
-    cudaStreamDestroy(stream_);
+    if (stream_ && own_stream_) {
+      cudaStreamDestroy(stream_);
+      stream_ = nullptr;
+    }
   }
 
 private:
@@ -134,14 +141,15 @@ private:
   int src_step_{0};
   int dst_step_{0};
   cudaStream_t stream_;
+  bool own_stream_{false};
 };
 
-std::unique_ptr<Rectifier> make_npp_rectifier()
+std::unique_ptr<Rectifier> make_npp_rectifier(cudaStream_t stream)
 {
-  return std::make_unique<NppRectifier>();
+  return std::make_unique<NppRectifier>(stream);
 }
 #else
-std::unique_ptr<Rectifier> make_npp_rectifier()
+std::unique_ptr<Rectifier> make_npp_rectifier(cudaStream_t)
 {
   return nullptr;
 }

@@ -37,9 +37,13 @@ namespace accelerated_image_processor::compression
 class NvJPEGCompressor final : public JPEGCompressor
 {
 public:
-  NvJPEGCompressor() : JPEGCompressor(JPEGBackend::NVJPEG)
+  NvJPEGCompressor(cudaStream_t stream = nullptr)
+  : JPEGCompressor(JPEGBackend::NVJPEG), stream_(stream)
   {
-    CHECK_CUDA(cudaStreamCreate(&stream_));
+    if (stream_ == nullptr) {
+      CHECK_CUDA(cudaStreamCreateWithFlags(&stream_, cudaStreamNonBlocking));
+      own_stream_ = true;
+    }
     CHECK_NVJPEG(nvjpegCreateSimple(&handle_));
     CHECK_NVJPEG(nvjpegEncoderStateCreate(handle_, &state_, stream_));
     CHECK_NVJPEG(nvjpegEncoderParamsCreate(handle_, &params_, stream_));
@@ -53,7 +57,10 @@ public:
     CHECK_NVJPEG(nvjpegEncoderParamsDestroy(params_));
     CHECK_NVJPEG(nvjpegEncoderStateDestroy(state_));
     CHECK_NVJPEG(nvjpegDestroy(handle_));
-    CHECK_CUDA(cudaStreamDestroy(stream_));
+    if (stream_ && own_stream_) {
+      CHECK_CUDA(cudaStreamDestroy(stream_));
+      stream_ = nullptr;
+    }
   }
 
 private:
@@ -114,14 +121,15 @@ private:
   nvjpegEncoderState_t state_;    //!< NVJPEG encoder state.
   nvjpegEncoderParams_t params_;  //!< NVJPEG encoder parameters.
   nvjpegImage_t nv_image_;        //!< NVJPEG image buffer.
+  bool own_stream_{false};        //!< Whether the stream is owned by the compressor.
 };
 
-std::unique_ptr<JPEGCompressor> make_nvjpeg_compressor()
+std::unique_ptr<JPEGCompressor> make_nvjpeg_compressor(cudaStream_t stream)
 {
-  return std::make_unique<NvJPEGCompressor>();
+  return std::make_unique<NvJPEGCompressor>(stream);
 }
 #else
-std::unique_ptr<JPEGCompressor> make_nvjpeg_compressor()
+std::unique_ptr<JPEGCompressor> make_nvjpeg_compressor(cudaStream_t)
 {
   return nullptr;
 }

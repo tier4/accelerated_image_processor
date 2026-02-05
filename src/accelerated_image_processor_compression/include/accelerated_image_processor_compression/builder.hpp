@@ -16,6 +16,8 @@
 
 #include <accelerated_image_processor_common/processor.hpp>
 
+#include <cuda_runtime.h>
+
 #include <memory>
 #include <string>
 #include <type_traits>
@@ -44,30 +46,35 @@ CompressionType to_compression_type(const std::string & str);
  * @brief Create a compressor processor.
  *
  * @param type Compression type
+ * @param stream CUDA stream to use for asynchronous operations
  * @return std::unique_ptr<Compressor>
  */
-std::unique_ptr<Compressor> create_compressor(CompressionType type);
+std::unique_ptr<Compressor> create_compressor(CompressionType type, cudaStream_t stream = nullptr);
 
 /**
  * @brief Create a compressor processor.
  *
  * @param type Compression type name in string format
+ * @param stream CUDA stream to use for asynchronous operations
  * @return std::unique_ptr<Compressor>
  */
-std::unique_ptr<Compressor> create_compressor(const std::string & type);
+std::unique_ptr<Compressor> create_compressor(
+  const std::string & type, cudaStream_t stream = nullptr);
 
 /**
  * @brief Create a compressor processor with a free function for the postprocess.
  *
  * @param type Compression type
  * @param fn Free function for the postprocess
+ * @param stream CUDA stream to use for asynchronous operations
  * @return std::unique_ptr<Compressor>
  */
 template <
   typename F, std::enable_if_t<std::is_convertible_v<F, void (*)(const common::Image &)>, int> = 0>
-inline std::unique_ptr<Compressor> create_compressor(CompressionType type, F fn)
+inline std::unique_ptr<Compressor> create_compressor(
+  CompressionType type, F fn, cudaStream_t stream = nullptr)
 {
-  auto processor = create_compressor(type);
+  auto processor = create_compressor(type, stream);
   auto fp = static_cast<void (*)(const common::Image &)>(fn);
   if (fp) processor->register_postprocess(fp);
   return processor;
@@ -78,13 +85,15 @@ inline std::unique_ptr<Compressor> create_compressor(CompressionType type, F fn)
  *
  * @param type Compression type name in string format
  * @param fn Free function for the postprocess
+ * @param stream CUDA stream to use for asynchronous operations
  * @return std::unique_ptr<Compressor>
  */
 template <
   typename F, std::enable_if_t<std::is_convertible_v<F, void (*)(const common::Image &)>, int> = 0>
-inline std::unique_ptr<Compressor> create_compressor(const std::string & type, F fn)
+inline std::unique_ptr<Compressor> create_compressor(
+  const std::string & type, F fn, cudaStream_t stream = nullptr)
 {
-  return create_compressor(to_compression_type(type), fn);
+  return create_compressor(to_compression_type(type), fn, stream);
 };
 
 /**
@@ -92,12 +101,14 @@ inline std::unique_ptr<Compressor> create_compressor(const std::string & type, F
  *
  * @param type Compression type
  * @param obj Object that has a member function for the postprocess
+ * @param stream CUDA stream to use for asynchronous operations
  * @return std::unique_ptr<Compressor>
  */
 template <typename Obj, void (Obj::*Method)(const common::Image &)>
-inline std::unique_ptr<Compressor> create_compressor(CompressionType type, Obj * obj)
+inline std::unique_ptr<Compressor> create_compressor(
+  CompressionType type, Obj * obj, cudaStream_t stream = nullptr)
 {
-  auto processor = create_compressor(type);
+  auto processor = create_compressor(type, stream);
   processor->register_postprocess<Obj, Method>(obj);
   return processor;
 }
@@ -107,11 +118,13 @@ inline std::unique_ptr<Compressor> create_compressor(CompressionType type, Obj *
  *
  * @param type Compression type name in string format
  * @param obj Object that has a member function for the postprocess
+ * @param stream CUDA stream to use for asynchronous operations
  * @return std::unique_ptr<Compressor>
  */
 template <typename Obj, void (Obj::*Method)(const common::Image &)>
-inline std::unique_ptr<Compressor> create_compressor(const std::string & type, Obj * obj)
+inline std::unique_ptr<Compressor> create_compressor(
+  const std::string & type, Obj * obj, cudaStream_t stream = nullptr)
 {
-  return create_compressor<Obj, Method>(to_compression_type(type), obj);
+  return create_compressor<Obj, Method>(to_compression_type(type), obj, stream);
 }
 }  // namespace accelerated_image_processor::compression
