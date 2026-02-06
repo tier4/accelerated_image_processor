@@ -16,8 +16,34 @@
 
 #include <accelerated_image_processor_common/datatype.hpp>
 
+#include <string>
+#include <vector>
+
 namespace accelerated_image_processor::benchmark
 {
+/**
+ * @brief Load images from a ROS bag file.
+ * @param bag_path Path to the ROS bag file.
+ * @param storage_id ID of the storage to use.
+ * @param topic Topic to subscribe to.
+ * @param num_iteration Number of iterations to load images.
+ * @return Vector of loaded images.
+ */
+std::vector<common::Image> load_images(
+  const std::string & bag_path, const std::string & storage_id, const std::string & topic,
+  const size_t num_iteration);
+
+/**
+ * @brief Load images from a random generator.
+ * @param height Height of the images.
+ * @param width Width of the images.
+ * @param seed Seed for the random generator.
+ * @param num_iteration Number of iterations to load images.
+ * @return Vector of loaded images.
+ */
+std::vector<common::Image> load_images(
+  const int height, const int width, const size_t seed, const size_t num_iteration);
+
 /**
  * @brief Create a synthetic image with the given height, width, encoding, seed, and index.
  *
@@ -29,5 +55,5 @@ namespace accelerated_image_processor::benchmark
  * @return common::Image The synthetic image.
  */
 common::Image make_synthetic_image(
-  int height, int width, common::ImageEncoding encoding, uint64_t seed, uint64_t index);
+  int height, int width, common::ImageEncoding encoding, size_t seed, size_t index);
 }  // namespace accelerated_image_processor::benchmark

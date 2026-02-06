@@ -15,6 +15,7 @@
 #include "accelerated_image_processor_benchmark/compression.hpp"
 
 #include "accelerated_image_processor_benchmark/benchmarker.hpp"
+#include "accelerated_image_processor_benchmark/image.hpp"
 #include "accelerated_image_processor_benchmark/utility.hpp"
 
 #include <accelerated_image_processor_compression/builder.hpp>
@@ -43,14 +44,22 @@ std::shared_ptr<argparse::ArgumentParser> make_compression_command()
   // for synthetic images
   command->add_argument("--height")
     .default_value(1080)
-    .help("Image height, only required if --bag is not specified");
-  command->add_argument("--width").default_value(1920).help(
-    "Image width, only required if --bag is not specified");
-  command->add_argument("--seed").default_value(1).help(
-    "Random seed, only required if --bag is not specified");
+    .help("Image height, only required if --bag is not specified")
+    .scan<'i', int>();
+  command->add_argument("--width")
+    .default_value(1920)
+    .help("Image width, only required if --bag is not specified")
+    .scan<'i', int>();
+  command->add_argument("--seed")
+    .default_value(1)
+    .help("Random seed, only required if --bag is not specified")
+    .scan<'i', int>();
   // for warmup and iterations
-  command->add_argument("--warmup").default_value(10).help("Number of warmup iterations");
-  command->add_argument("--iterations").default_value(100);
+  command->add_argument("--warmup")
+    .default_value(10)
+    .help("Number of warmup iterations")
+    .scan<'u', size_t>();
+  command->add_argument("--iteration").default_value(100).scan<'u', size_t>();
 
   return command;
 }
@@ -59,8 +68,8 @@ void run_compression(const argparse::ArgumentParser & command)
 {
   // Read arguments
   const auto config_path = command.get<std::string>("config");
-  const auto num_warmups = command.get<int>("--warmup");
-  const auto num_iterations = command.get<int>("--iterations");
+  const auto num_warmup = command.get<size_t>("--warmup");
+  const auto num_iteration = command.get<size_t>("--iteration");
 
   // Load config from ROS parameter YAML file
   const auto config = benchmark::load_config(config_path)["compressor"];
@@ -90,17 +99,17 @@ void run_compression(const argparse::ArgumentParser & command)
               << "  Storage ID: " << storage_id << "\n"
               << "  Topic: " << topic << "\n";
 
-    images = benchmark::load_images(bag_dir, storage_id, topic, num_iterations);
+    images = benchmark::load_images(bag_dir, storage_id, topic, num_iteration);
   } else {
     const auto height = command.get<int>("--height");
     const auto width = command.get<int>("--width");
     const auto seed = command.get<int>("--seed");
     std::cout << "Loading synthetic images:\n";
     std::cout << "  (Height, Width): (" << height << ", " << width << ")\n";
-    images = benchmark::load_images(height, width, seed, num_iterations);
+    images = benchmark::load_images(height, width, seed, num_iteration);
   }
 
   // Run benchmark
-  benchmarker.run(images, num_warmups, num_iterations);
+  benchmarker.run(images, num_warmup, num_iteration);
 }
 }  // namespace accelerated_image_processor::benchmark

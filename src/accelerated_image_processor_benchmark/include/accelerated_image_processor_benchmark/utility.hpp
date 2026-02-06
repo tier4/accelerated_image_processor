@@ -14,14 +14,11 @@
 
 #pragma once
 
-#include <accelerated_image_processor_common/datatype.hpp>
 #include <accelerated_image_processor_common/processor.hpp>
 
 #include <yaml-cpp/node/node.h>
 
-#include <ostream>
 #include <string>
-#include <vector>
 
 namespace accelerated_image_processor::benchmark
 {
@@ -31,29 +28,6 @@ namespace accelerated_image_processor::benchmark
  * @return YAML::Node representing the loaded configuration.
  */
 YAML::Node load_config(const std::string & filepath);
-
-/**
- * @brief Load images from a ROS bag file.
- * @param bag_path Path to the ROS bag file.
- * @param storage_id ID of the storage to use.
- * @param topic Topic to subscribe to.
- * @param num_iterations Number of iterations to load images.
- * @return Vector of loaded images.
- */
-std::vector<common::Image> load_images(
-  const std::string & bag_path, const std::string & storage_id, const std::string & topic,
-  const int num_iterations);
-
-/**
- * @brief Load images from a random generator.
- * @param height Height of the images.
- * @param width Width of the images.
- * @param seed Seed for the random generator.
- * @param num_iterations Number of iterations to load images.
- * @return Vector of loaded images.
- */
-std::vector<common::Image> load_images(
-  const int height, const int width, const int seed, const int num_iterations);
 
 /**
  * @brief Fetch parameters from a configuration node and apply them to a processor.

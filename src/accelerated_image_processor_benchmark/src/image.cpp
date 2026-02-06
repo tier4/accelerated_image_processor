@@ -14,13 +14,44 @@
 
 #include "accelerated_image_processor_benchmark/image.hpp"
 
+#include "accelerated_image_processor_benchmark/rosbag.hpp"
+
+#include <accelerated_image_processor_ros/conversion.hpp>
+
+#include <sensor_msgs/msg/image.hpp>
+
 #include <algorithm>
 #include <random>
+#include <string>
+#include <vector>
 
 namespace accelerated_image_processor::benchmark
 {
+std::vector<common::Image> load_images(
+  const std::string & bag_path, const std::string & storage_id, const std::string & topic,
+  const size_t num_iteration)
+{
+  RosBagReader reader(bag_path, storage_id);
+  const auto image_msgs = reader.read_messages<sensor_msgs::msg::Image>(topic, num_iteration);
+  std::vector<common::Image> images;
+  for (const auto & msg : image_msgs) {
+    images.push_back(ros::from_ros_raw(msg));
+  }
+  return images;
+}
+
+std::vector<common::Image> load_images(
+  const int height, const int width, const size_t seed, const size_t num_iteration)
+{
+  std::vector<common::Image> images;
+  for (size_t i = 0; i < std::max(size_t(1), num_iteration); ++i) {
+    images.push_back(make_synthetic_image(height, width, common::ImageEncoding::RGB, seed, i));
+  }
+  return images;
+}
+
 common::Image make_synthetic_image(
-  int height, int width, common::ImageEncoding encoding, uint64_t seed, uint64_t index)
+  int height, int width, common::ImageEncoding encoding, size_t seed, size_t index)
 {
   common::Image image;
   image.frame_id = "benchmark";
