@@ -12,56 +12,55 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "accelerated_image_processor_benchmark/compression.hpp"
+
 #include "accelerated_image_processor_benchmark/benchmarker.hpp"
 #include "accelerated_image_processor_benchmark/utility.hpp"
 
 #include <accelerated_image_processor_compression/builder.hpp>
 #include <argparse/argparse.hpp>
 
-#include <exception>
 #include <iostream>
+#include <memory>
 #include <string>
 #include <utility>
 #include <vector>
 
-using namespace accelerated_image_processor;  // NOLINT
-
-int main(int argc, char ** argv)
+namespace accelerated_image_processor::benchmark
 {
-  argparse::ArgumentParser program("compression");
-  program.add_description("Benchmark CLI for image compression");
-  program.add_argument("config").required().help("Filepath to the configuration file");
+std::shared_ptr<argparse::ArgumentParser> make_compression_command()
+{
+  auto command = std::make_shared<argparse::ArgumentParser>("compression");
+  command->add_description("Benchmark CLI for image compression");
+  command->add_argument("config").required().help("Filepath to the configuration file");
   // for rosbag images
-  program.add_argument("--bag").help("Directory path to the input rosbags");
-  program.add_argument("--storage-id")
+  command->add_argument("--bag").help("Directory path to the input rosbags");
+  command->add_argument("--storage-id")
     .choices("sqlite3", "mcap")
     .default_value("sqlite3")
     .help("Storage ID, only required if --bag is specified");
-  program.add_argument("--topic").help("Image topic name, only required if --bag is specified");
+  command->add_argument("--topic").help("Image topic name, only required if --bag is specified");
   // for synthetic images
-  program.add_argument("--height")
+  command->add_argument("--height")
     .default_value(1080)
     .help("Image height, only required if --bag is not specified");
-  program.add_argument("--width").default_value(1920).help(
+  command->add_argument("--width").default_value(1920).help(
     "Image width, only required if --bag is not specified");
-  program.add_argument("--seed").default_value(1).help(
+  command->add_argument("--seed").default_value(1).help(
     "Random seed, only required if --bag is not specified");
   // for warmup and iterations
-  program.add_argument("--warmup").default_value(10).help("Number of warmup iterations");
-  program.add_argument("--iterations").default_value(100);
+  command->add_argument("--warmup").default_value(10).help("Number of warmup iterations");
+  command->add_argument("--iterations").default_value(100);
 
-  try {
-    program.parse_args(argc, argv);
-  } catch (const std::exception & err) {
-    std::cerr << err.what() << std::endl;
-    std::cerr << program;
-    return 1;
-  }
+  return command;
+}
 
+void run_compression(const argparse::ArgumentParser & command)
+{
   // Read arguments
-  const auto config_path = program.get<std::string>("config");
-  const auto num_warmups = program.get<int>("--warmup");
-  const auto num_iterations = program.get<int>("--iterations");
+  const auto config_path = command.get<std::string>("config");
+  const auto num_warmups = command.get<int>("--warmup");
+  const auto num_iterations = command.get<int>("--iterations");
 
   // Load config from ROS parameter YAML file
   const auto config = benchmark::load_config(config_path)["compressor"];
@@ -78,13 +77,13 @@ int main(int argc, char ** argv)
   // Prepare input images
   std::vector<common::Image> images;
   std::cout << ">>> Preparing input images\n";
-  if (program.is_used("--bag")) {
-    if (!program.is_used("--topic")) {
+  if (command.is_used("--bag")) {
+    if (!command.is_used("--topic")) {
       throw std::runtime_error("Topic is required when using bag");
     }
-    const auto bag_dir = program.get<std::string>("--bag");
-    const auto storage_id = program.get<std::string>("--storage-id");
-    const auto topic = program.get<std::string>("--topic");
+    const auto bag_dir = command.get<std::string>("--bag");
+    const auto storage_id = command.get<std::string>("--storage-id");
+    const auto topic = command.get<std::string>("--topic");
 
     std::cout << "Loading images from bag:\n"
               << "  Bag: " << bag_dir << "\n"
@@ -93,9 +92,9 @@ int main(int argc, char ** argv)
 
     images = benchmark::load_images(bag_dir, storage_id, topic, num_iterations);
   } else {
-    const auto height = program.get<int>("--height");
-    const auto width = program.get<int>("--width");
-    const auto seed = program.get<int>("--seed");
+    const auto height = command.get<int>("--height");
+    const auto width = command.get<int>("--width");
+    const auto seed = command.get<int>("--seed");
     std::cout << "Loading synthetic images:\n";
     std::cout << "  (Height, Width): (" << height << ", " << width << ")\n";
     images = benchmark::load_images(height, width, seed, num_iterations);
@@ -103,6 +102,5 @@ int main(int argc, char ** argv)
 
   // Run benchmark
   benchmarker.run(images, num_warmups, num_iterations);
-
-  return 0;
 }
+}  // namespace accelerated_image_processor::benchmark

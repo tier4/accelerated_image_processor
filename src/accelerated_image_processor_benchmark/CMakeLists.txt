@@ -23,19 +23,20 @@ FetchContent_Declare(
   GIT_TAG v3.2)
 FetchContent_MakeAvailable(argparse)
 
-ament_auto_add_library(${PROJECT_NAME} src/benchmarker.cpp src/image.cpp
-                       src/utility.cpp)
+ament_auto_add_library(${PROJECT_NAME} src/compression.cpp src/benchmarker.cpp
+                       src/image.cpp src/utility.cpp)
 target_include_directories(
   ${PROJECT_NAME} PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
                          $<INSTALL_INTERFACE:include>)
+target_link_libraries(${PROJECT_NAME} argparse)
 
-ament_auto_add_executable(compression src/compression.cpp)
+ament_auto_add_executable(accbench src/run.cpp)
 target_include_directories(
-  compression PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-                     $<INSTALL_INTERFACE:include>)
-target_link_libraries(compression argparse ${PROJECT_NAME})
+  accbench PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+                  $<INSTALL_INTERFACE:include>)
+target_link_libraries(accbench argparse ${PROJECT_NAME})
 
-install(TARGETS compression DESTINATION bin)
+install(TARGETS accbench DESTINATION bin)
 
 if(BUILD_TESTING)
 

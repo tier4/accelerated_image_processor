@@ -8,20 +8,24 @@ colcon build --symlink-install -DCMAKE_BUILD_TYPE=Release --packages-up-to accel
 source install/setup.bash
 ```
 
-## Benchmark for Compression
+## Run Benchmarks
 
-To get help, run `compression -h`.
+To get help, run `accbench -h`.
 
-### Benchmark with Synthetic Image Data
+### Compression
+
+To get help, run `accbench compression -h`.
+
+#### Synthetic Image Data
 
 ```bash
 # [] is optional arguments
-compression <CONFIG_PATH> [--height <HEIGHT> --width <WIDTH> ...]
+accbench compression <CONFIG_PATH> [--height <HEIGHT> --width <WIDTH> ...]
 ```
 
-### Benchmark with ROSBag
+#### RosBag
 
 ```bash
 # [] is optional arguments
-compression <CONFIG_PATH> --bag <BAG_DIR> --topic <TOPIC_NAME> [--storage-id <sqlite3, mcap> ...]
+accbench compression <CONFIG_PATH> --bag <BAG_DIR> --topic <TOPIC_NAME> [--storage-id <sqlite3, mcap> ...]
 ```
