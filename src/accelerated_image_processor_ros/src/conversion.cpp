@@ -202,4 +202,33 @@ sensor_msgs::msg::RegionOfInterest to_ros_roi(const common::Roi & roi)
     .width(roi.width)
     .do_rectify(roi.do_rectify);
 }
+
+/// --- From common::Image to ffmpeg_image_transport_msgs::msg::FFMPEGPacket ---
+
+std::string to_ros_ffmpeg_encoding(common::ImageFormat format)
+{
+  switch (format) {
+    case common::ImageFormat::H264:
+      return "h264";
+    case common::ImageFormat::H265:
+      return "hevc";
+    case common::ImageFormat::AV1:
+      return "av1";
+    default:
+      throw std::runtime_error("Unsupported format: " + std::to_string(static_cast<int>(format)));
+  }
+}
+
+ffmpeg_image_transport_msgs::msg::FFMPEGPacket to_ros_ffmpeg(const common::Image & image)
+{
+  return ffmpeg_image_transport_msgs::build<ffmpeg_image_transport_msgs::msg::FFMPEGPacket>()
+    .header(to_ros_header(image.timestamp, image.frame_id))
+    .width(image.width)
+    .height(image.height)
+    .encoding(to_ros_ffmpeg_encoding(image.format))
+    .pts(image.pts.value())
+    .flags(image.flags.value())
+    .is_bigendian(image.is_bigendian.value())
+    .data(image.data);
+}
 }  // namespace accelerated_image_processor::ros

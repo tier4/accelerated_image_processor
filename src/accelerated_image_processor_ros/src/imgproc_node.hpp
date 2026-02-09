@@ -19,8 +19,10 @@
 #include <accelerated_image_processor_common/datatype.hpp>
 #include <accelerated_image_processor_compression/builder.hpp>
 #include <accelerated_image_processor_pipeline/builder.hpp>
+#include <rclcpp/publisher_base.hpp>
 #include <rclcpp/rclcpp.hpp>
 
+#include <ffmpeg_image_transport_msgs/msg/ffmpeg_packet.hpp>
 #include <sensor_msgs/msg/camera_info.hpp>
 #include <sensor_msgs/msg/compressed_image.hpp>
 #include <sensor_msgs/msg/image.hpp>
@@ -83,15 +85,17 @@ private:
   rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr image_subscription_;
   rclcpp::Subscription<sensor_msgs::msg::CameraInfo>::SharedPtr info_subscription_;
 
-  rclcpp::Publisher<sensor_msgs::msg::CompressedImage>::SharedPtr compressed_publisher_;
+  rclcpp::PublisherBase::SharedPtr compressed_publisher_;
 
   rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr rectified_raw_publisher_;
-  rclcpp::Publisher<sensor_msgs::msg::CompressedImage>::SharedPtr rectified_compressed_publisher_;
+  rclcpp::PublisherBase::SharedPtr rectified_compressed_publisher_;
   rclcpp::Publisher<sensor_msgs::msg::CameraInfo>::SharedPtr rectified_info_publisher_;
 
   rclcpp::TimerBase::SharedPtr qos_request_timer_;
 
   std::optional<TaskWorker> compression_worker_;
   std::optional<TaskWorker> rectification_worker_;
+
+  bool use_jpeg_compression_;
 };
 }  // namespace accelerated_image_processor::ros

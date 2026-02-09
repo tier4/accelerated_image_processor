@@ -31,6 +31,9 @@ ImgProcNode::ImgProcNode(const rclcpp::NodeOptions & options) : Node("imgproc_no
   auto compression_type = this->declare_parameter<std::string>("compressor.type");
   auto do_rectify = this->declare_parameter<bool>("rectifier.do_rectify");
 
+  use_jpeg_compression_ =
+    compression::to_compression_type(compression_type) == compression::CompressionType::JPEG;
+
   // raw compressor
   {
     raw_compressor_ = compression::create_compressor<ImgProcNode, &ImgProcNode::publish_compressed>(
@@ -78,8 +81,13 @@ void ImgProcNode::determine_qos(const bool do_rectify, const int max_task_length
     image_topic, image_qos,
     [this](const sensor_msgs::msg::Image::ConstSharedPtr msg) { this->on_image(msg); });
 
-  compressed_publisher_ =
-    this->create_publisher<sensor_msgs::msg::CompressedImage>("image_raw/compressed", image_qos);
+  if (use_jpeg_compression_) {
+    compressed_publisher_ =
+      this->create_publisher<sensor_msgs::msg::CompressedImage>("image_raw/compressed", image_qos);
+  } else {
+    compressed_publisher_ = this->create_publisher<ffmpeg_image_transport_msgs::msg::FFMPEGPacket>(
+      "image_raw/compressed", image_qos);
+  }
 
   compression_worker_.emplace(max_task_length);
 
@@ -93,8 +101,14 @@ void ImgProcNode::determine_qos(const bool do_rectify, const int max_task_length
       this->create_publisher<sensor_msgs::msg::Image>("image_rect", image_qos);
     rectified_info_publisher_ =
       this->create_publisher<sensor_msgs::msg::CameraInfo>("image_rect/camera_info", info_qos);
-    rectified_compressed_publisher_ =
-      this->create_publisher<sensor_msgs::msg::CompressedImage>("image_rect/compressed", image_qos);
+    if (use_jpeg_compression_) {
+      rectified_compressed_publisher_ = this->create_publisher<sensor_msgs::msg::CompressedImage>(
+        "image_rect/compressed", image_qos);
+    } else {
+      rectified_compressed_publisher_ =
+        this->create_publisher<ffmpeg_image_transport_msgs::msg::FFMPEGPacket>(
+          "image_rect/compressed", image_qos);
+    }
 
     rectification_worker_.emplace(max_task_length);
   }
@@ -136,8 +150,17 @@ void ImgProcNode::on_camera_info(const sensor_msgs::msg::CameraInfo::ConstShared
 
 void ImgProcNode::publish_compressed(const common::Image & image)
 {
-  auto compressed = to_ros_compressed(image);
-  compressed_publisher_->publish(std::move(compressed));
+  if (use_jpeg_compression_) {
+    auto compressed = to_ros_compressed(image);
+    std::dynamic_pointer_cast<rclcpp::Publisher<sensor_msgs::msg::CompressedImage>>(
+      compressed_publisher_)
+      ->publish(std::move(compressed));
+  } else {
+    auto compressed = to_ros_ffmpeg(image);
+    std::dynamic_pointer_cast<rclcpp::Publisher<ffmpeg_image_transport_msgs::msg::FFMPEGPacket>>(
+      compressed_publisher_)
+      ->publish(std::move(compressed));
+  }
 }
 
 void ImgProcNode::publish_rectified_raw(const common::Image & image)
@@ -150,8 +173,17 @@ void ImgProcNode::publish_rectified_raw(const common::Image & image)
 
 void ImgProcNode::publish_rectified_compressed(const common::Image & image)
 {
-  auto compressed = to_ros_compressed(image);
-  rectified_compressed_publisher_->publish(std::move(compressed));
+  if (use_jpeg_compression_) {
+    auto compressed = to_ros_compressed(image);
+    std::dynamic_pointer_cast<rclcpp::Publisher<sensor_msgs::msg::CompressedImage>>(
+      rectified_compressed_publisher_)
+      ->publish(std::move(compressed));
+  } else {
+    auto compressed = to_ros_ffmpeg(image);
+    std::dynamic_pointer_cast<rclcpp::Publisher<ffmpeg_image_transport_msgs::msg::FFMPEGPacket>>(
+      rectified_compressed_publisher_)
+      ->publish(std::move(compressed));
+  }
 }
 }  // namespace accelerated_image_processor::ros
 
