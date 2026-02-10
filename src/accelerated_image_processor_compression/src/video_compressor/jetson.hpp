@@ -18,6 +18,11 @@
 #include "jetson_precise_timestamp_map.hpp"
 
 #include <atomic>
+#include <iostream>
+#include <memory>
+#include <string>
+#include <unordered_map>
+#include <vector>
 
 #ifdef JETSON_AVAILABLE
 #include "NvBufSurface.h"
@@ -76,7 +81,6 @@ const std::unordered_map<VideoCompressionType, NvBufSurfaceColorFormat> nvbuf_co
    NVBUF_COLOR_FORMAT_NV12_ER},  // Y/CbCr 4:2:0 multi-planar, extended range (full color)
   {VideoCompressionType::LOSSLESS,
    NVBUF_COLOR_FORMAT_NV24_ER},  // Y/CbCr 4:4:4 multi-planar, extended range (full color)
-
 };
 
 /**
@@ -112,7 +116,8 @@ public:
     bool use_max_performance_mode;
   };
 
-  JetsonVideoCompressor(SupportedCodec codec, common::ParameterMap dedicated_parameters = {})
+  explicit JetsonVideoCompressor(
+    SupportedCodec codec, common::ParameterMap dedicated_parameters = {})
   : VideoCompressor(
       VideoBackend::JETSON, dedicated_parameters +=
                             {{"buffer_length", static_cast<int>(4)},
@@ -274,12 +279,12 @@ private:
   std::string last_error_{""};
   SupportedCodec codec_;
 
-  std::vector<int> output_plane_fds_;
-  std::vector<NvBufSurface *> output_nvsurface_;
-  VPIImage input_rgb_dev_;
-  VPIImage output_yuv_dev_;
-  cudaStream_t stream_;
-  VPIStream vpi_stream_;
+  std::vector<int> output_plane_fds_{};
+  std::vector<NvBufSurface *> output_nvsurface_{};
+  VPIImage input_rgb_dev_{nullptr};
+  VPIImage output_yuv_dev_{nullptr};
+  cudaStream_t stream_{};
+  VPIStream vpi_stream_{};
 
   std::unique_ptr<TimestampMap> timestamp_map_;
   std::unique_ptr<DqCallbackArgs> dq_callback_args_;
