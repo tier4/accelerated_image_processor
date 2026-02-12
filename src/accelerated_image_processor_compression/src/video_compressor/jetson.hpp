@@ -114,6 +114,7 @@ public:
     int frame_rate_denominator;
     v4l2_enc_hw_preset_type hw_preset_type;
     bool use_max_performance_mode;
+    double target_bits_per_pixel;
   };
 
   explicit JetsonVideoCompressor(
@@ -122,7 +123,8 @@ public:
       VideoBackend::JETSON, dedicated_parameters +=
                             {{"buffer_length", static_cast<int>(4)},
                              {"use_max_performance", static_cast<bool>(true)},
-                             {"hw_preset_type", static_cast<std::string>("disable")}}),
+                             {"hw_preset_type", static_cast<std::string>("disable")},
+                             {"target_bits_per_pixel", static_cast<double>(0.1)}}),
     codec_(codec)
   {
     // To make EGL

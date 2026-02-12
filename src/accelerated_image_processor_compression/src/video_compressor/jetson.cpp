@@ -50,6 +50,7 @@ EncResult JetsonVideoCompressor::collect_params(EncoderParameter & params)
   params.hw_preset_type = string_to_enum<v4l2_enc_hw_preset_type>(
     this->parameter_value<std::string>("hw_preset_type"), hardware_preset_map);
   params.use_max_performance_mode = this->parameter_value<bool>("use_max_performance");
+  params.target_bits_per_pixel = this->parameter_value<double>("target_bits_per_pixel");
 
   if (auto r = this->collect_codec_params_impl(); !r.ok) {
     return r;
@@ -98,11 +99,19 @@ EncResult JetsonVideoCompressor::init_encoder(const common::Image & image)
     if (encoder_params_.compression_type == VideoCompressionType::LOSSLESS) {
       CHECK_NVENC(encoder_->setLossless(true), "Could not set lossless encoding");
     } else {
-      // disable rate control (RC) and use fixed quantization parameter (QP)
-      // if false is given, the API disable RC
+      // Enable variable rate control (VRC)
       CHECK_NVENC(
-        encoder_->setConstantQp(false),
-        "Failed to set encoder to use constant quantization parameter")
+        encoder_->setRateControlMode(V4L2_MPEG_VIDEO_BITRATE_MODE_VBR),
+        "Failed to set variable rate control mode");
+
+      // compute the target bit rate from input streaming rate
+      double frame_rate = static_cast<double>(encoder_params_.frame_rate_numerator) /
+                          static_cast<double>(encoder_params_.frame_rate_denominator);
+      auto target_bit_rate =
+        image.height * image.width * frame_rate * encoder_params_.target_bits_per_pixel;
+      auto peak_bit_rate = 1.2 * target_bit_rate;  // set 1.2x of average bitrate as peak bitrate
+      CHECK_NVENC(encoder_->setBitrate(target_bit_rate), "Failed to set bit rate");
+      CHECK_NVENC(encoder_->setPeakBitrate(peak_bit_rate), "Failed to set peak bit rate");
     }
 
     // Set IDR (Instantaneous Decoding Refresh) frame interval
