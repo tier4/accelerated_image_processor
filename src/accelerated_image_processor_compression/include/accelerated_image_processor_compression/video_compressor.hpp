@@ -46,7 +46,7 @@ const std::unordered_map<std::string, VideoCompressionType> video_compression_ty
   {"LOSSY", VideoCompressionType::LOSSY}, {"LOSSLESS", VideoCompressionType::LOSSLESS}};
 
 /**
- * Utility function to convert std::string to enum class
+ * \@brief Utility function to convert std::string to enum class
  */
 template <typename EnumType>
 EnumType string_to_enum(
@@ -88,10 +88,8 @@ public:
   ~VideoCompressor() override = default;
 
   /**
-   * @brief Return the quality of the JPEG compression.
+   * @brief Return the backend enum
    */
-  int quality() const { return this->parameter_value<int>("quality"); }
-
   VideoBackend backend() const { return backend_; }
 
 private:

@@ -40,14 +40,22 @@ namespace accelerated_image_processor::compression
 {
 #ifdef JETSON_AVAILABLE
 /**
- * @brief Enumeration of available codecs and string map
+ * @brief Enumeration of available codecs
  */
 enum class SupportedCodec : uint8_t { H264, H265, AV1 };
+
+/**
+ * @brief Lookup table to tie the string to the corresponding codecs
+ */
 const std::unordered_map<std::string, SupportedCodec> supported_codec_map = {
   {"H264", SupportedCodec::H264},
   {"H265", SupportedCodec::H265},
   {"AV1", SupportedCodec::AV1},
 };
+
+/**
+ * @brief Lookup table to tie the supported codecs enumeration to the common::ImageFormat
+ */
 const std::unordered_map<SupportedCodec, common::ImageFormat> supported_codec_format_map = {
   {SupportedCodec::H264, common::ImageFormat::H264},
   {SupportedCodec::H265, common::ImageFormat::H265},
@@ -89,6 +97,23 @@ const std::unordered_map<VideoCompressionType, NvBufSurfaceColorFormat> nvbuf_co
 class JetsonVideoCompressor : public VideoCompressor
 {
 protected:
+  /**
+   * @brief Arguments passed to the capture plane dequeue callback.
+   *
+   * This structure holds information about the frame being processed,
+   * including its identifier, dimensions, and a pointer to the owning
+   * JetsonVideoCompressor instance. It is used to associate
+   * the callback with the correct compressor context.
+   *
+   * @var std::string frame_id
+   *   The frame ID derived from the input
+   * @var int input_width
+   *   Width of the input image in pixels.
+   * @var int input_height
+   *   Height of the input image in pixels.
+   * @var JetsonVideoCompressor* obj
+   *   Pointer to the compressor instance that owns this callback.
+   */
   struct DqCallbackArgs
   {
     std::string frame_id;
@@ -104,6 +129,45 @@ protected:
   };
 
 public:
+  /**
+   * @brief Configuration parameters for the Jetson video encoder.
+   *
+   * This structure encapsulates all the tunable settings that control the
+   * behavior of the NvVideoEncoder.  The values are typically derived from
+   * the user supplied parameter map and are validated during the
+   * initialization phase.
+   *
+   * @var int buffer_length
+   *   Number of buffers reserved for the encoder output plane.
+   *
+   * @var VideoCompressionType compression_type
+   *   The compression mode (lossy or lossless) selected for the stream.
+   *
+   * @var int idr_interval
+   *   Interval (in frames) between IDR (Instantaneous Decoder Refresh)
+   *   keyframes.
+   *
+   * @var int i_frame_interval
+   *   Interval (in frames) between I‑frames.
+   *
+   * @var int frame_rate_numerator
+   *   Numerator of the target frame rate (numerator in second).
+   *
+   * @var int frame_rate_denominator
+   *   Denominator of the target frame rate (denominator in frames).
+   *
+   * @var v4l2_enc_hw_preset_type hw_preset_type
+   *   Hardware preset that tunes the encoder for speed or quality.
+   *
+   * @var bool use_max_performance_mode
+   *   When true the encoder is forced into a high‑performance mode,
+   *   potentially at the cost of increased power consumption.
+   *
+   * @var double target_bits_per_pixel
+   *   Target bitrate expressed as bits per pixel.  This value is used
+   *   by the encoder to deternine the target bit rate, which mainly affects encoded image quality
+   *   and payload size.
+   */
   struct EncoderParameter
   {
     int buffer_length;
@@ -117,6 +181,9 @@ public:
     double target_bits_per_pixel;
   };
 
+  /**
+   * @brief Constructor
+   */
   explicit JetsonVideoCompressor(
     SupportedCodec codec, common::ParameterMap dedicated_parameters = {})
   : VideoCompressor(
