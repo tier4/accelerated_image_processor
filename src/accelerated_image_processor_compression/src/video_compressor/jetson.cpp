@@ -23,6 +23,9 @@
 #include <endian.h>
 
 #include <cstdint>
+#include <iostream>
+#include <memory>
+#include <string>
 
 // Header that defines ffmpeg flags
 extern "C" {
@@ -394,7 +397,8 @@ common::Image JetsonVideoCompressor::process_impl(const common::Image & image)
   // Sync the hardware memory cache for the device
   for (uint32_t j = 0; j < buffer->n_planes; j++) {
     NvBufSurface * nvbuf_surf = 0;
-    if (auto ret = NvBufSurfaceFromFd(buffer->planes[j].fd, (void **)(&nvbuf_surf)); ret < 0) {
+    if (auto ret = NvBufSurfaceFromFd(buffer->planes[j].fd, reinterpret_cast<void **>(&nvbuf_surf));
+        ret < 0) {
       std::cerr << "Error while NvBufSurfaceFromFd" << std::endl;
       return common::Image();
     }
