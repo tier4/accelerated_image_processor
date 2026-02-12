@@ -103,8 +103,7 @@ if(JETSON_FOUND)
     /usr/src/jetson_multimedia_api/samples/common/classes/NvVideoEncoder.cpp
     /usr/src/jetson_multimedia_api/samples/common/classes/NvV4l2Element.cpp
     /usr/src/jetson_multimedia_api/samples/common/classes/NvV4l2ElementPlane.cpp
-    /usr/src/jetson_multimedia_api/samples/common/classes/NvBufSurface.cpp
-  )
+    /usr/src/jetson_multimedia_api/samples/common/classes/NvBufSurface.cpp)
   target_compile_definitions(${PROJECT_NAME}_jetson PRIVATE JETSON_AVAILABLE)
 
   ament_target_dependencies(${PROJECT_NAME}_jetson
@@ -157,10 +156,35 @@ install(DIRECTORY include/${PROJECT_NAME} DESTINATION include)
 if(BUILD_TESTING)
   set(test_files test/builder.cpp test/cpu_jpeg_compressor.cpp
                  test/jetson_jpeg_compressor.cpp test/nv_jpeg_compressor.cpp)
+
   foreach(test_file IN LISTS test_files)
     get_filename_component(test_file_name ${test_file} NAME)
     ament_auto_add_gtest(${test_file_name}_${PROJECT_NAME} ${test_file})
     target_link_libraries(${test_file_name}_${PROJECT_NAME} ${PROJECT_NAME})
+  endforeach()
+
+  # Treat some tests separately because they contains many test cases and cause
+  # colcon test timeout if the tests are generated in the above way
+  set(long_test_files
+      test/jetson_video_compressor_h264.cpp
+      test/jetson_video_compressor_h265.cpp
+      test/jetson_video_compressor_av1.cpp)
+
+  find_package(GTest)
+  enable_testing()
+  include(GoogleTest) # enable the GoogleTest integration
+
+  foreach(test_file IN LISTS long_test_files)
+    get_filename_component(test_file_name ${test_file} NAME)
+
+    set(LONG_TEST_EXEC ${test_file_name}_${PROJECT_NAME})
+    add_executable(${LONG_TEST_EXEC} ${test_file})
+    target_include_directories(${LONG_TEST_EXEC}
+                               PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+    target_link_libraries(${LONG_TEST_EXEC} ${PROJECT_NAME} GTest::GTest
+                          GTest::Main)
+    # divide a single test into separated cases
+    gtest_discover_tests(${LONG_TEST_EXEC})
   endforeach()
 endif()
 
