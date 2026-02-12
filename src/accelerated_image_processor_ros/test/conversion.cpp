@@ -356,6 +356,64 @@ TEST(TestConversionToRosFormat, Png)
   EXPECT_EQ(result, "png");
 }
 
+TEST(TestConversionToRosFFmpeg, CopyFieldsAndVideo)
+{
+  common::Image image;
+  image.frame_id = "camera";
+  image.timestamp = 123'000'000'000LL + 456LL;
+  image.height = 480;
+  image.width = 640;
+  image.format = common::ImageFormat::H264;
+  image.data = {9, 8, 7, 6};
+  image.pts = 123456789ULL;
+  image.flags = 1;
+  image.is_bigendian = true;
+
+  auto pkt = to_ros_ffmpeg(image);
+
+  EXPECT_EQ(pkt.header.frame_id, image.frame_id);
+  EXPECT_EQ(pkt.header.stamp.sec, 123);
+  EXPECT_EQ(pkt.header.stamp.nanosec, 456);
+  EXPECT_EQ(pkt.width, image.width);
+  EXPECT_EQ(pkt.height, image.height);
+  EXPECT_EQ(pkt.encoding, "h264");
+  EXPECT_EQ(pkt.pts, image.pts.value());
+  EXPECT_EQ(pkt.flags, image.flags.value());
+  EXPECT_EQ(pkt.is_bigendian, image.is_bigendian.value());
+  EXPECT_EQ(pkt.data, image.data);
+}
+
+TEST(TestConversionToRosFFmpegEncoding, ValidEncodings)
+{
+  struct
+  {
+    common::ImageFormat fmt;
+    std::string expected;
+  } cases[] = {
+    {common::ImageFormat::RAW, "raw"},   {common::ImageFormat::JPEG, "jpeg"},
+    {common::ImageFormat::PNG, "png"},   {common::ImageFormat::H264, "h264"},
+    {common::ImageFormat::H265, "hevc"}, {common::ImageFormat::AV1, "av1"},
+  };
+
+  auto is_supported_encoding = [](const common::ImageFormat & fmt) {
+    if (
+      fmt == common::ImageFormat::H264 || fmt == common::ImageFormat::H265 ||
+      fmt == common::ImageFormat::AV1) {
+      return true;
+    } else {
+      return false;
+    }
+  };
+
+  for (const auto & c : cases) {
+    if (is_supported_encoding(c.fmt)) {
+      EXPECT_EQ(to_ros_ffmpeg_encoding(c.fmt), c.expected);
+    } else {
+      EXPECT_THROW(to_ros_ffmpeg_encoding(c.fmt), std::runtime_error);
+    }
+  }
+}
+
 TEST(TestConversionToRosInfo, CopyFields)
 {
   common::CameraInfo info;
