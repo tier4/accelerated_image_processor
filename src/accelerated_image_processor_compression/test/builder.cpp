@@ -22,16 +22,19 @@
 #include <gtest/gtest.h>
 
 #include <memory>
+#include <optional>
 
 namespace accelerated_image_processor::compression
 {
 #ifdef JETSON_AVAILABLE
 constexpr auto ExpectedJPEGBackend = JPEGBackend::JETSON;
-constexpr auto ExpectedVideoBackend = VideoBackend::JETSON;
+constexpr std::optional<VideoBackend> ExpectedVideoBackend = VideoBackend::JETSON;
 #elif NVJPEG_AVAILABLE
 constexpr auto ExpectedJPEGBackend = JPEGBackend::NVJPEG;
+constexpr std::optional<VideoBackend> ExpectedVideoBackend = std::nullopt;
 #else
 constexpr auto ExpectedJPEGBackend = JPEGBackend::CPU;
+constexpr std::optional<VideoBackend> ExpectedVideoBackend = std::nullopt;
 #endif
 
 namespace
@@ -52,14 +55,20 @@ void check_compressor_type(const std::unique_ptr<Compressor> & compressor)
 /**
  * @brief Check compressor type by dynamic_cast (for video encode).
  */
-void check_video_compressor_type(const std::unique_ptr<Compressor> & compressor)
+[[maybe_unused]] void check_video_compressor_type(
+  [[maybe_unused]] const std::unique_ptr<Compressor> & compressor)
 {
-  EXPECT_NE(compressor, nullptr);
+  if (ExpectedVideoBackend) {
+    EXPECT_NE(compressor, nullptr);
 
-  auto ptr = dynamic_cast<VideoCompressor *>(compressor.get());
-  EXPECT_NE(ptr, nullptr);
+    auto ptr = dynamic_cast<VideoCompressor *>(compressor.get());
+    EXPECT_NE(ptr, nullptr);
 
-  EXPECT_EQ(ptr->backend(), ExpectedVideoBackend);
+    EXPECT_EQ(ptr->backend(), ExpectedVideoBackend);
+  } else {
+    // This function should not be called under the non-Jetson platform
+    FAIL();
+  }
 }
 
 /**
@@ -122,6 +131,7 @@ TEST(TestCompressorBuilder, CreateJPEGCompressor6)
   check_compressor_type(compressor);
 }
 
+#ifdef JETSON_AVAILABLE
 TEST(TestCompressorBuilder, CreateH264Compressor1)
 {
   auto compressor = create_compressor(CompressionType::H264);
@@ -244,4 +254,11 @@ TEST(TestCompressorBuilder, CreateAV1Compressor6)
   auto compressor = create_compressor("av1", &dummy_function);
   check_video_compressor_type(compressor);
 }
+#else
+TEST(TestCompressorBuilderSkip, JetsonUnavailable)
+{
+  GTEST_SKIP()
+    << "Jetson not available. Skipping TestCompressorBuilder (for video compressor) tests.";
+}
+#endif
 }  // namespace accelerated_image_processor::compression
