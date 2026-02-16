@@ -16,6 +16,7 @@
 
 #include <cstdio>
 #include <iostream>
+#include <string>
 
 namespace accelerated_image_processor::common
 {
