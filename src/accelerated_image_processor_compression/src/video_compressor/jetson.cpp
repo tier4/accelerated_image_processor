@@ -119,13 +119,13 @@ EncResult JetsonVideoCompressor::init_encoder(const common::Image & image)
 
     // Set IDR (Instantaneous Decoding Refresh) frame interval
     // The IDR frame is a special format of I frame that ensures later P (and B) frames never refer
-    // the I frames befere this frame. Decoders can restart from this frame in cases of seek or
+    // the I frames before this frame. Decoders can restart from this frame in cases of seek or
     // error.
     CHECK_NVENC(
       encoder_->setIDRInterval(encoder_params_.idr_interval), "Failed to set encoder IDR interval");
 
     // Set I frame interval
-    // I frame is self-decodable frame, which can be decoded without refering other frames
+    // I frame is self-decodable frame, which can be decoded without referring other frames
     CHECK_NVENC(
       encoder_->setIFrameInterval(encoder_params_.i_frame_interval),
       "Failed to set I Frame interval");
@@ -140,7 +140,7 @@ EncResult JetsonVideoCompressor::init_encoder(const common::Image & image)
     CHECK_NVENC(
       encoder_->setTemporalTradeoff(
         V4L2_ENC_TEMPORAL_TRADEOFF_LEVEL_DROPNONE),  // encode all frames
-      "Failed to set teporal trade off level to DROPNONE");
+      "Failed to set temporal trade off level to DROPNONE");
 
     CHECK_NVENC(
       encoder_->setHWPresetType(encoder_params_.hw_preset_type),
@@ -350,8 +350,8 @@ common::Image JetsonVideoCompressor::process_impl(const common::Image & image)
     }
   }
 
-  // Wrap the memroy region held by NvBuffer so that VPI can write the
-  // color conversion result ot it directly
+  // Wrap the memory region held by NvBuffer so that VPI can write the
+  // color conversion result to it directly
   {
     VPIImageData data_params = {};
     data_params.bufferType = VPI_IMAGE_BUFFER_NVBUFFER;
@@ -379,7 +379,7 @@ common::Image JetsonVideoCompressor::process_impl(const common::Image & image)
   // Copy timestamp from source image
   {
     // NOTE: Since nanosecond order timestamp resolution, such as provided by ROS timestamp, will be
-    // lost in v4l2_buf.timstamp (microsecond order), actual timestamp is derivered to the output
+    // lost in v4l2_buf.timestamp (microsecond order), actual timestamp is derived to the output
     // result via timestamp_map_
     v4l2_buf.flags |= V4L2_BUF_FLAG_TIMESTAMP_COPY;
     v4l2_buf.timestamp.tv_sec = image.timestamp / 1'000'000'000ULL;
@@ -483,7 +483,7 @@ bool JetsonVideoCompressor::encoder_capture_plane_dq_callback(
     int64_t stamp_in_nanosecond = 0;
     TimestampMap::PreciseTimestamp ps;
     if (!timestamp_map->get(v4l2_buf->index, ps)) {
-      // fail to fetch precise timestamp. Fallback to use v4l2 bufefr timestamp
+      // fail to fetch precise timestamp. Fallback to use v4l2 buffer timestamp
       stamp_in_nanosecond = static_cast<int64_t>(v4l2_buf->timestamp.tv_sec) * 1e9 +
                             static_cast<int64_t>(v4l2_buf->timestamp.tv_usec) * 1e3;
     } else {
@@ -495,7 +495,7 @@ bool JetsonVideoCompressor::encoder_capture_plane_dq_callback(
     processed.height = callback_args->input_height;
     processed.width = callback_args->input_width;
     processed.format = supported_codec_format_map.at(compressor_object->codec());
-    processed.pts = stamp_in_nanosecond * 1e3;  // [us]
+    processed.pts = stamp_in_nanosecond / 1e3;  // [us]
     processed.flags = enc_metadata.KeyFrame ? AV_PKT_FLAG_KEY : 0;
     processed.is_bigendian = is_big_endian;
 

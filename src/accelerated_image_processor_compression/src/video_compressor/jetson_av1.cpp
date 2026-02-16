@@ -24,7 +24,7 @@ namespace accelerated_image_processor::compression
 #ifdef JETSON_AVAILABLE
 
 /**
- * @brief AV1 encoder working on Jetsonn devices.
+ * @brief AV1 encoder working on Jetson devices.
  */
 class JetsonAV1Compressor final : public JetsonVideoCompressor
 {
@@ -103,12 +103,12 @@ protected:
       tile_config.bEnableTile = enable_tile_;
       tile_config.nLog2RowTiles = log2_num_tile_row_;
       tile_config.nLog2ColTiles = log2_num_tile_col_;
-      CHECK_NVENC(encoder_->enableAV1Tile(tile_config), "Failedd to enable AV1 tile configuration");
+      CHECK_NVENC(encoder_->enableAV1Tile(tile_config), "Failed to enable AV1 tile configuration");
     }
 
     CHECK_NVENC(
       encoder_->setAV1SsimRdo(enable_ssim_rdo_),
-      "Failed to set AV1's SSIM RDO (variance based Structural SImilarity Rate Distortion "
+      "Failed to set AV1's SSIM RDO (variance based Structural Similarity Rate Distortion "
       "Optimization)");
 
     CHECK_NVENC(

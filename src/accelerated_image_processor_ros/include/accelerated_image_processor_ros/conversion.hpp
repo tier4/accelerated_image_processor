@@ -158,7 +158,7 @@ sensor_msgs::msg::RegionOfInterest to_ros_roi(const common::Roi & roi);
 ffmpeg_image_transport_msgs::msg::FFMPEGPacket to_ros_ffmpeg(const common::Image & image);
 
 /**
- * @brief Convert common::ImageFormat to ffpeg_image_transport_msgs::msg::FFMPEGPacket encoding.
+ * @brief Convert common::ImageFormat to ffmpeg_image_transport_msgs::msg::FFMPEGPacket encoding.
  * @param format Format of common::Image.
  * @return std::string
  */

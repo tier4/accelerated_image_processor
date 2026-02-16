@@ -168,7 +168,7 @@ public:
    *
    * @var double target_bits_per_pixel
    *   Target bitrate expressed as bits per pixel.  This value is used
-   *   by the encoder to deternine the target bit rate, which mainly affects encoded image quality
+   *   by the encoder to determine the target bit rate, which mainly affects encoded image quality
    *   and payload size.
    */
   struct EncoderParameter
@@ -263,7 +263,7 @@ public:
   }
 
   /**
-   * @brief [override] Check the encoder is ready to run procerssing.
+   * @brief [override] Check the encoder is ready to run processing.
    */
   bool is_ready() const override { return state_ != State::ERROR; }
 
@@ -290,7 +290,7 @@ protected:
   virtual EncResult collect_codec_params_impl() = 0;
 
   /**
-   * @brief codec decidated setup steps for capture plane (encoder output)
+   * @brief codec dedicated setup steps for capture plane (encoder output)
    */
   virtual EncResult set_capture_plane_format_impl(
     const uint32_t & width, const uint32_t & height, const uint32_t & image_size) = 0;

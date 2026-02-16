@@ -81,7 +81,7 @@ TEST_P(TestH264Compressor, JetsonVideoCompressorH264ProfileLevelTypeCombo)
 }
 
 INSTANTIATE_TEST_SUITE_P(
-  JestsonVideoCompressorH264Combo, TestH264Compressor,
+  JetsonVideoCompressorH264Combo, TestH264Compressor,
   ::testing::Combine(
     // Available profiles
     ::testing::Values("BASELINE", "MAIN", "HIGH"),

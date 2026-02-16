@@ -93,7 +93,7 @@ TEST_P(TestAV1Compressor, JetsonVideoCompressorAV1ProfileLevelTypeCombo)
 }
 
 INSTANTIATE_TEST_SUITE_P(
-  JestsonVideoCompressorAV1ComboWithTiling, TestAV1Compressor,
+  JetsonVideoCompressorAV1ComboWithTiling, TestAV1Compressor,
   ::testing::Combine(
     // Enable tiling
     ::testing::Values(true),
@@ -111,7 +111,7 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Values("lossy", "lossless")));
 
 INSTANTIATE_TEST_SUITE_P(
-  JestsonVideoCompressorAV1ComboWithoutTiling, TestAV1Compressor,
+  JetsonVideoCompressorAV1ComboWithoutTiling, TestAV1Compressor,
   ::testing::Combine(
     // Disable tiling
     ::testing::Values(false),

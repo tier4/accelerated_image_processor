@@ -24,7 +24,7 @@ namespace accelerated_image_processor::compression
 {
 #ifdef JETSON_AVAILABLE
 /**
- * @brief H.264 encoder working on Jetsonn devices.
+ * @brief H.264 encoder working on Jetson devices.
  */
 class JetsonH264Compressor final : public JetsonVideoCompressor
 {

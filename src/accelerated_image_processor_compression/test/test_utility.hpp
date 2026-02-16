@@ -123,7 +123,7 @@ public:
     if (index_ < images_.size()) {
       return images_[index_++];
     }
-    std::out_of_range("TestVideoCompressor's generator exhauseted.");
+    throw std::out_of_range("TestVideoCompressor's generator exhausted.");
   }
 
   template <common::ImageFormat Fmt, int IFrameInterval>
@@ -137,7 +137,7 @@ public:
     // expect the compressed data size to be smaller than the original image data size, but not 0
     EXPECT_GT(result.data.size(), 0U);
     EXPECT_LE(result.data.size(), image_size_);
-    // expect the pts field has valeus larger than zero
+    // expect the pts field has values larger than zero
     EXPECT_TRUE(result.pts.has_value());
     EXPECT_GT(result.pts.value(), 0);
     // expect flag should be 0 or 1

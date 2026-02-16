@@ -81,11 +81,11 @@ TEST_P(TestH265Compressor, JetsonVideoCompressorH265ProfileLevelTypeCombo)
 }
 
 INSTANTIATE_TEST_SUITE_P(
-  JestsonVideoCompressorH265Combo, TestH265Compressor,
+  JetsonVideoCompressorH265Combo, TestH265Compressor,
   ::testing::Combine(
     // Available profiles
     ::testing::Values("MAIN", "MAIN10"),
-    // Avaiable levels
+    // Available levels
     ::testing::Values(
       "1_0_MAIN_TIER", "1_0_HIGH_TIER", "2_0_MAIN_TIER", "2_0_HIGH_TIER", "2_1_MAIN_TIER",
       "2_1_HIGH_TIER", "3_0_MAIN_TIER", "3_0_HIGH_TIER", "3_1_MAIN_TIER", "3_1_HIGH_TIER",

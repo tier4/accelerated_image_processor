@@ -46,7 +46,7 @@ const std::unordered_map<std::string, VideoCompressionType> video_compression_ty
   {"LOSSY", VideoCompressionType::LOSSY}, {"LOSSLESS", VideoCompressionType::LOSSLESS}};
 
 /**
- * \@brief Utility function to convert std::string to enum class
+ * @brief Utility function to convert std::string to enum class
  */
 template <typename EnumType>
 EnumType string_to_enum(
