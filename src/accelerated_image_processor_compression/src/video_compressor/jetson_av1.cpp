@@ -16,6 +16,9 @@
 
 #include <accelerated_image_processor_common/helper.hpp>
 
+#include <memory>
+#include <vector>
+
 namespace accelerated_image_processor::compression
 {
 #ifdef JETSON_AVAILABLE

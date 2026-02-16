@@ -16,6 +16,10 @@
 
 #include <accelerated_image_processor_common/helper.hpp>
 
+#include <memory>
+#include <string>
+#include <unordered_map>
+
 namespace accelerated_image_processor::compression
 {
 #ifdef JETSON_AVAILABLE
