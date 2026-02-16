@@ -45,53 +45,6 @@ namespace accelerated_image_processor::compression
 enum class SupportedCodec : uint8_t { H264, H265, AV1 };
 
 /**
- * @brief Lookup table to tie the string to the corresponding codecs
- */
-const std::unordered_map<std::string, SupportedCodec> supported_codec_map = {
-  {"H264", SupportedCodec::H264},
-  {"H265", SupportedCodec::H265},
-  {"AV1", SupportedCodec::AV1},
-};
-
-/**
- * @brief Lookup table to tie the supported codecs enumeration to the common::ImageFormat
- */
-const std::unordered_map<SupportedCodec, common::ImageFormat> supported_codec_format_map = {
-  {SupportedCodec::H264, common::ImageFormat::H264},
-  {SupportedCodec::H265, common::ImageFormat::H265},
-  {SupportedCodec::AV1, common::ImageFormat::AV1},
-};
-
-/**
- * @brief Map between strings and corresponding hardware preset types
- */
-const std::unordered_map<std::string, v4l2_enc_hw_preset_type> hardware_preset_map = {
-  {"DISABLE", V4L2_ENC_HW_PRESET_DISABLE},     {"SLOW", V4L2_ENC_HW_PRESET_SLOW},
-  {"MEDIUM", V4L2_ENC_HW_PRESET_MEDIUM},       {"FAST", V4L2_ENC_HW_PRESET_FAST},
-  {"ULTRAFAST", V4L2_ENC_HW_PRESET_ULTRAFAST},
-};
-
-/**
- * @brief Map between compression type and pixel format to be used for configuring encoder input
- * (consumed by encoder API)
- */
-const std::unordered_map<VideoCompressionType, __u32> pixel_format_map = {
-  {VideoCompressionType::LOSSY, V4L2_PIX_FMT_NV24M},
-  {VideoCompressionType::LOSSLESS, V4L2_PIX_FMT_NV12M},
-};
-
-/**
- * @brief Map between compression type and NvBuffer pixel format to be used for configuring encoder
- * input DMA buffer (consumed by NvBuffer API)
- */
-const std::unordered_map<VideoCompressionType, NvBufSurfaceColorFormat> nvbuf_color_format_map = {
-  {VideoCompressionType::LOSSY,
-   NVBUF_COLOR_FORMAT_NV12_ER},  // Y/CbCr 4:2:0 multi-planar, extended range (full color)
-  {VideoCompressionType::LOSSLESS,
-   NVBUF_COLOR_FORMAT_NV24_ER},  // Y/CbCr 4:4:4 multi-planar, extended range (full color)
-};
-
-/**
  * @brief Abstract base class for Video compressor working on Jetson devices.
  */
 class JetsonVideoCompressor : public VideoCompressor
@@ -129,6 +82,56 @@ protected:
   };
 
 public:
+  /**
+   * @brief Lookup table to tie the string to the corresponding codecs
+   */
+  inline static const std::unordered_map<std::string, SupportedCodec> supported_codec_map = {
+    {"H264", SupportedCodec::H264},
+    {"H265", SupportedCodec::H265},
+    {"AV1", SupportedCodec::AV1},
+  };
+
+  /**
+   * @brief Lookup table to tie the supported codecs enumeration to the common::ImageFormat
+   */
+  inline static const std::unordered_map<SupportedCodec, common::ImageFormat>
+    supported_codec_format_map = {
+      {SupportedCodec::H264, common::ImageFormat::H264},
+      {SupportedCodec::H265, common::ImageFormat::H265},
+      {SupportedCodec::AV1, common::ImageFormat::AV1},
+    };
+
+  /**
+   * @brief Map between strings and corresponding hardware preset types
+   */
+  inline static const std::unordered_map<std::string, v4l2_enc_hw_preset_type> hardware_preset_map =
+    {
+      {"DISABLE", V4L2_ENC_HW_PRESET_DISABLE},     {"SLOW", V4L2_ENC_HW_PRESET_SLOW},
+      {"MEDIUM", V4L2_ENC_HW_PRESET_MEDIUM},       {"FAST", V4L2_ENC_HW_PRESET_FAST},
+      {"ULTRAFAST", V4L2_ENC_HW_PRESET_ULTRAFAST},
+    };
+
+  /**
+   * @brief Map between compression type and pixel format to be used for configuring encoder input
+   * (consumed by encoder API)
+   */
+  inline static const std::unordered_map<VideoCompressionType, __u32> pixel_format_map = {
+    {VideoCompressionType::LOSSY, V4L2_PIX_FMT_NV24M},
+    {VideoCompressionType::LOSSLESS, V4L2_PIX_FMT_NV12M},
+  };
+
+  /**
+   * @brief Map between compression type and NvBuffer pixel format to be used for configuring
+   * encoder input DMA buffer (consumed by NvBuffer API)
+   */
+  inline static const std::unordered_map<VideoCompressionType, NvBufSurfaceColorFormat>
+    nvbuf_color_format_map = {
+      {VideoCompressionType::LOSSY,
+       NVBUF_COLOR_FORMAT_NV12_ER},  // Y/CbCr 4:2:0 multi-planar, extended range (full color)
+      {VideoCompressionType::LOSSLESS,
+       NVBUF_COLOR_FORMAT_NV24_ER},  // Y/CbCr 4:4:4 multi-planar, extended range (full color)
+    };
+
   /**
    * @brief Configuration parameters for the Jetson video encoder.
    *

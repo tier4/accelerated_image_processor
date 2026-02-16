@@ -20,32 +20,28 @@ namespace accelerated_image_processor::compression
 {
 #ifdef JETSON_AVAILABLE
 
-namespace
-{
-/**
- * @brief IVF header size (32 byte)
- */
-constexpr size_t ivf_file_header_size_in_byte = 32;
-
-/**
- * @brief IVF frame header size (12 byte)
- */
-constexpr size_t ivf_frame_header_size_in_byte = 12;
-
-/**
- * @brief IVF total header size (44 byte)
- */
-constexpr size_t first_frame_header_size =
-  ivf_file_header_size_in_byte + ivf_frame_header_size_in_byte;
-
-}  // namespace
-
 /**
  * @brief AV1 encoder working on Jetsonn devices.
  */
 class JetsonAV1Compressor final : public JetsonVideoCompressor
 {
 public:
+  /**
+   * @brief IVF header size (32 byte)
+   */
+  static constexpr size_t ivf_file_header_size_in_byte = 32;
+
+  /**
+   * @brief IVF frame header size (12 byte)
+   */
+  static constexpr size_t ivf_frame_header_size_in_byte = 12;
+
+  /**
+   * @brief IVF total header size (44 byte)
+   */
+  static constexpr size_t first_frame_header_size =
+    ivf_file_header_size_in_byte + ivf_frame_header_size_in_byte;
+
   /**
    * @brief constructor
    *

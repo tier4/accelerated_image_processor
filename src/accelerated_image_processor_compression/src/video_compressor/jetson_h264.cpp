@@ -19,29 +19,30 @@
 namespace accelerated_image_processor::compression
 {
 #ifdef JETSON_AVAILABLE
-std::unordered_map<std::string, v4l2_mpeg_video_h264_profile> h264_profile_map = {
-  {"BASELINE", V4L2_MPEG_VIDEO_H264_PROFILE_BASELINE},
-  {"MAIN", V4L2_MPEG_VIDEO_H264_PROFILE_MAIN},
-  {"HIGH", V4L2_MPEG_VIDEO_H264_PROFILE_HIGH},
-};
-
-std::unordered_map<std::string, v4l2_mpeg_video_h264_level> h264_level_map = {
-  {"1_0", V4L2_MPEG_VIDEO_H264_LEVEL_1_0}, {"1B", V4L2_MPEG_VIDEO_H264_LEVEL_1B},
-  {"1_1", V4L2_MPEG_VIDEO_H264_LEVEL_1_1}, {"1_2", V4L2_MPEG_VIDEO_H264_LEVEL_1_2},
-  {"1_3", V4L2_MPEG_VIDEO_H264_LEVEL_1_3}, {"2_0", V4L2_MPEG_VIDEO_H264_LEVEL_2_0},
-  {"2_1", V4L2_MPEG_VIDEO_H264_LEVEL_2_1}, {"2_2", V4L2_MPEG_VIDEO_H264_LEVEL_2_2},
-  {"3_0", V4L2_MPEG_VIDEO_H264_LEVEL_3_0}, {"3_1", V4L2_MPEG_VIDEO_H264_LEVEL_3_1},
-  {"3_2", V4L2_MPEG_VIDEO_H264_LEVEL_3_2}, {"4_0", V4L2_MPEG_VIDEO_H264_LEVEL_4_0},
-  {"4_1", V4L2_MPEG_VIDEO_H264_LEVEL_4_1}, {"4_2", V4L2_MPEG_VIDEO_H264_LEVEL_4_2},
-  {"5_0", V4L2_MPEG_VIDEO_H264_LEVEL_5_0}, {"5_1", V4L2_MPEG_VIDEO_H264_LEVEL_5_1},
-};
-
 /**
  * @brief H.264 encoder working on Jetsonn devices.
  */
 class JetsonH264Compressor final : public JetsonVideoCompressor
 {
 public:
+  inline static const std::unordered_map<std::string, v4l2_mpeg_video_h264_profile>
+    h264_profile_map = {
+      {"BASELINE", V4L2_MPEG_VIDEO_H264_PROFILE_BASELINE},
+      {"MAIN", V4L2_MPEG_VIDEO_H264_PROFILE_MAIN},
+      {"HIGH", V4L2_MPEG_VIDEO_H264_PROFILE_HIGH},
+    };
+
+  inline static const std::unordered_map<std::string, v4l2_mpeg_video_h264_level> h264_level_map = {
+    {"1_0", V4L2_MPEG_VIDEO_H264_LEVEL_1_0}, {"1B", V4L2_MPEG_VIDEO_H264_LEVEL_1B},
+    {"1_1", V4L2_MPEG_VIDEO_H264_LEVEL_1_1}, {"1_2", V4L2_MPEG_VIDEO_H264_LEVEL_1_2},
+    {"1_3", V4L2_MPEG_VIDEO_H264_LEVEL_1_3}, {"2_0", V4L2_MPEG_VIDEO_H264_LEVEL_2_0},
+    {"2_1", V4L2_MPEG_VIDEO_H264_LEVEL_2_1}, {"2_2", V4L2_MPEG_VIDEO_H264_LEVEL_2_2},
+    {"3_0", V4L2_MPEG_VIDEO_H264_LEVEL_3_0}, {"3_1", V4L2_MPEG_VIDEO_H264_LEVEL_3_1},
+    {"3_2", V4L2_MPEG_VIDEO_H264_LEVEL_3_2}, {"4_0", V4L2_MPEG_VIDEO_H264_LEVEL_4_0},
+    {"4_1", V4L2_MPEG_VIDEO_H264_LEVEL_4_1}, {"4_2", V4L2_MPEG_VIDEO_H264_LEVEL_4_2},
+    {"5_0", V4L2_MPEG_VIDEO_H264_LEVEL_5_0}, {"5_1", V4L2_MPEG_VIDEO_H264_LEVEL_5_1},
+  };
+
   JetsonH264Compressor()
   : JetsonVideoCompressor(
       SupportedCodec::H264, {{"h264.profile", static_cast<std::string>("HIGH")},
