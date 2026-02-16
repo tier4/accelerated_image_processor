@@ -124,7 +124,7 @@ TEST(TestCompressorBuilder, CreateJPEGCompressor6)
 
 TEST(TestCompressorBuilder, CreateH264Compressor1)
 {
-  auto compressor = create_compressor(CompressionType::VIDEO_H264);
+  auto compressor = create_compressor(CompressionType::H264);
   check_video_compressor_type(compressor);
 }
 
@@ -139,13 +139,13 @@ TEST(TestCompressorBuilder, CreateH264Compressor3)
   DummyClass dummy;
 
   auto compressor =
-    create_compressor<DummyClass, &DummyClass::dummy_function>(CompressionType::VIDEO_H264, &dummy);
+    create_compressor<DummyClass, &DummyClass::dummy_function>(CompressionType::H264, &dummy);
   check_video_compressor_type(compressor);
 }
 
 TEST(TestCompressorBuilder, CreateH264Compressor4)
 {
-  auto compressor = create_compressor(CompressionType::VIDEO_H264, &dummy_function);
+  auto compressor = create_compressor(CompressionType::H264, &dummy_function);
   check_video_compressor_type(compressor);
 }
 
@@ -165,7 +165,7 @@ TEST(TestCompressorBuilder, CreateH264Compressor6)
 
 TEST(TestCompressorBuilder, CreateH265Compressor1)
 {
-  auto compressor = create_compressor(CompressionType::VIDEO_H265);
+  auto compressor = create_compressor(CompressionType::H265);
   check_video_compressor_type(compressor);
 }
 
@@ -180,13 +180,13 @@ TEST(TestCompressorBuilder, CreateH265Compressor3)
   DummyClass dummy;
 
   auto compressor =
-    create_compressor<DummyClass, &DummyClass::dummy_function>(CompressionType::VIDEO_H265, &dummy);
+    create_compressor<DummyClass, &DummyClass::dummy_function>(CompressionType::H265, &dummy);
   check_video_compressor_type(compressor);
 }
 
 TEST(TestCompressorBuilder, CreateH265Compressor4)
 {
-  auto compressor = create_compressor(CompressionType::VIDEO_H265, &dummy_function);
+  auto compressor = create_compressor(CompressionType::H265, &dummy_function);
   check_video_compressor_type(compressor);
 }
 
@@ -206,7 +206,7 @@ TEST(TestCompressorBuilder, CreateH265Compressor6)
 
 TEST(TestCompressorBuilder, CreateAV1Compressor1)
 {
-  auto compressor = create_compressor(CompressionType::VIDEO_AV1);
+  auto compressor = create_compressor(CompressionType::AV1);
   check_video_compressor_type(compressor);
 }
 
@@ -221,13 +221,13 @@ TEST(TestCompressorBuilder, CreateAV1Compressor3)
   DummyClass dummy;
 
   auto compressor =
-    create_compressor<DummyClass, &DummyClass::dummy_function>(CompressionType::VIDEO_AV1, &dummy);
+    create_compressor<DummyClass, &DummyClass::dummy_function>(CompressionType::AV1, &dummy);
   check_video_compressor_type(compressor);
 }
 
 TEST(TestCompressorBuilder, CreateAV1Compressor4)
 {
-  auto compressor = create_compressor(CompressionType::VIDEO_AV1, &dummy_function);
+  auto compressor = create_compressor(CompressionType::AV1, &dummy_function);
   check_video_compressor_type(compressor);
 }
 

@@ -31,7 +31,7 @@ using Compressor = common::BaseProcessor;
 /**
  * @brief Compression type enum
  */
-enum class CompressionType : uint8_t { JPEG, VIDEO_H264, VIDEO_H265, VIDEO_AV1 };
+enum class CompressionType : uint8_t { JPEG, H264, H265, AV1 };
 
 /**
  * @brief Convert a string to a compression type
