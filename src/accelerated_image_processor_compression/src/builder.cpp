@@ -14,6 +14,7 @@
 
 #include "accelerated_image_processor_compression/builder.hpp"
 
+#include "accelerated_image_processor_compression/compressor.hpp"
 #include "accelerated_image_processor_compression/jpeg_compressor.hpp"
 #include "accelerated_image_processor_compression/video_compressor.hpp"
 

@@ -190,11 +190,11 @@ public:
   explicit JetsonVideoCompressor(
     SupportedCodec codec, common::ParameterMap dedicated_parameters = {})
   : VideoCompressor(
-      VideoBackend::JETSON, dedicated_parameters +=
-                            {{"buffer_length", static_cast<int>(4)},
-                             {"use_max_performance", static_cast<bool>(true)},
-                             {"hw_preset_type", static_cast<std::string>("disable")},
-                             {"target_bits_per_pixel", static_cast<double>(0.1)}}),
+      CompressorBackend::JETSON, dedicated_parameters +=
+                                 {{"buffer_length", static_cast<int>(4)},
+                                  {"use_max_performance", static_cast<bool>(true)},
+                                  {"hw_preset_type", static_cast<std::string>("disable")},
+                                  {"target_bits_per_pixel", static_cast<double>(0.1)}}),
     codec_(codec)
   {
     // To make EGL

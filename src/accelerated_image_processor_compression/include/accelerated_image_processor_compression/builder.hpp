@@ -15,6 +15,7 @@
 #pragma once
 
 #include <accelerated_image_processor_common/processor.hpp>
+#include <accelerated_image_processor_compression/compressor.hpp>
 
 #include <memory>
 #include <string>
@@ -22,17 +23,6 @@
 
 namespace accelerated_image_processor::compression
 {
-/**
- * @brief Type alias for compressor processor.
- * @note This might be a specific implementation of a compressor processor in the future.
- */
-using Compressor = common::BaseProcessor;
-
-/**
- * @brief Compression type enum
- */
-enum class CompressionType : uint8_t { JPEG, H264, H265, AV1 };
-
 /**
  * @brief Convert a string to a compression type
  * @param str String to convert expected strings ["JPEG", "VIDEO"]

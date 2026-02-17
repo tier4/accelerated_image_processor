@@ -17,6 +17,7 @@
 #include <accelerated_image_processor_common/datatype.hpp>
 #include <accelerated_image_processor_common/parameter.hpp>
 #include <accelerated_image_processor_common/processor.hpp>
+#include <accelerated_image_processor_compression/compressor.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -32,11 +33,6 @@ class JetsonVideoCompressor;
 class JetsonH264Compressor;
 class JetsonH265Compressor;
 class JetsonAV1Compressor;
-
-/**
- * @brief Enumeration of video compression backends.
- */
-enum class VideoBackend : uint8_t { JETSON };
 
 /**
  * @brief Enumeration of video encoder mode and string map
@@ -68,32 +64,23 @@ EnumType string_to_enum(
 /**
  * @brief Abstract base class for Jetson Video compressors.
  */
-class VideoCompressor : public common::BaseProcessor
+class VideoCompressor : public Compressor
 {
 public:
-  explicit VideoCompressor(VideoBackend backend, common::ParameterMap dedicated_parameters = {})
-  : BaseProcessor(
-      dedicated_parameters +=
-      {
-        {"compression_type", static_cast<std::string>("lossy")},
-        {"idr_frame_interval", static_cast<int>(10)},
-        {"i_frame_interval", static_cast<int>(10)},
-        {"frame_rate_numerator", static_cast<int>(10)},   // frame
-        {"frame_rate_denominator", static_cast<int>(1)},  // Second
-      }),
-    backend_(backend)
+  explicit VideoCompressor(
+    CompressorBackend backend, common::ParameterMap dedicated_parameters = {})
+  : Compressor(
+      backend, dedicated_parameters += {
+                 {"compression_type", static_cast<std::string>("lossy")},
+                 {"idr_frame_interval", static_cast<int>(10)},
+                 {"i_frame_interval", static_cast<int>(10)},
+                 {"frame_rate_numerator", static_cast<int>(10)},   // frame
+                 {"frame_rate_denominator", static_cast<int>(1)},  // Second
+               })
   {
   }
 
   ~VideoCompressor() override = default;
-
-  /**
-   * @brief Return the backend enum
-   */
-  VideoBackend backend() const { return backend_; }
-
-private:
-  const VideoBackend backend_;  //!< Compression backend type.
 };
 //!< @brief Factory function to create a JetsonH264Compressor.
 std::unique_ptr<VideoCompressor> make_jetson_h264_compressor();

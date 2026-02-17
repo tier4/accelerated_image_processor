@@ -14,6 +14,7 @@
 
 #include "accelerated_image_processor_compression/builder.hpp"
 
+#include "accelerated_image_processor_compression/compressor.hpp"
 #include "accelerated_image_processor_compression/jpeg_compressor.hpp"
 #include "accelerated_image_processor_compression/video_compressor.hpp"
 
@@ -27,14 +28,14 @@
 namespace accelerated_image_processor::compression
 {
 #ifdef JETSON_AVAILABLE
-constexpr auto ExpectedJPEGBackend = JPEGBackend::JETSON;
-constexpr std::optional<VideoBackend> ExpectedVideoBackend = VideoBackend::JETSON;
+constexpr auto ExpectedJPEGBackend = CompressorBackend::JETSON;
+constexpr std::optional<CompressorBackend> ExpectedVideoBackend = CompressorBackend::JETSON;
 #elif NVJPEG_AVAILABLE
-constexpr auto ExpectedJPEGBackend = JPEGBackend::NVJPEG;
-constexpr std::optional<VideoBackend> ExpectedVideoBackend = std::nullopt;
+constexpr auto ExpectedJPEGBackend = CompressorBackend::NVJPEG;
+constexpr std::optional<CompressorBackend> ExpectedVideoBackend = std::nullopt;
 #else
-constexpr auto ExpectedJPEGBackend = JPEGBackend::CPU;
-constexpr std::optional<VideoBackend> ExpectedVideoBackend = std::nullopt;
+constexpr auto ExpectedJPEGBackend = CompressorBackend::CPU;
+constexpr std::optional<CompressorBackend> ExpectedVideoBackend = std::nullopt;
 #endif
 
 namespace

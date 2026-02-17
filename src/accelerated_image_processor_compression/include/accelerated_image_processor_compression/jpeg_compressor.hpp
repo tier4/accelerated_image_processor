@@ -17,6 +17,7 @@
 #include <accelerated_image_processor_common/datatype.hpp>
 #include <accelerated_image_processor_common/parameter.hpp>
 #include <accelerated_image_processor_common/processor.hpp>
+#include <accelerated_image_processor_compression/compressor.hpp>
 
 #include <memory>
 
@@ -27,18 +28,13 @@ class NvJPEGCompressor;
 class CpuJPEGCompressor;
 
 /**
- * @brief Enumeration of available JPEG compression backends.
- */
-enum class JPEGBackend : uint8_t { JETSON, NVJPEG, CPU };
-
-/**
  * @brief Abstract base class for JPEG compressors.
  */
-class JPEGCompressor : public common::BaseProcessor
+class JPEGCompressor : public Compressor
 {
 public:
-  explicit JPEGCompressor(JPEGBackend backend, common::ParameterMap dedicated_parameters = {})
-  : BaseProcessor(dedicated_parameters += {{"quality", 90}}), backend_(backend)
+  explicit JPEGCompressor(CompressorBackend backend, common::ParameterMap dedicated_parameters = {})
+  : Compressor(backend, dedicated_parameters += {{"quality", 90}})
   {
   }
 
@@ -48,11 +44,6 @@ public:
    * @brief Return the quality of the JPEG compression.
    */
   int quality() const { return this->parameter_value<int>("quality"); }
-
-  JPEGBackend backend() const { return backend_; }
-
-private:
-  const JPEGBackend backend_;  //!< Compression backend type.
 };
 //!< @brief Factory function to create a CPUJPEGCompressor.
 std::unique_ptr<JPEGCompressor> make_cpujpeg_compressor();
