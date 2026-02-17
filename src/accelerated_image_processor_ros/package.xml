@@ -11,6 +11,7 @@
 
   <depend>accelerated_image_processor_common</depend>
   <depend>accelerated_image_processor_compression</depend>
+  <depend>accelerated_image_processor_decompression</depend>
   <depend>accelerated_image_processor_pipeline</depend>
   <depend>builtin_interfaces</depend>
   <depend>ffmpeg_image_transport_msgs</depend>
