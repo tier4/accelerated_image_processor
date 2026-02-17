@@ -44,15 +44,15 @@ struct Image
   uint32_t width;             //!< Image width, that is, number of columns
   ImageFormat format;         //!< Image compression format
   std::vector<uint8_t> data;  //!< Actual matrix data
+  bool is_bigendian;          //!< true if machine stores in big endian format
 
   // Image / CompressedImage dedicated fields
   uint32_t step;           //!< Full row length in bytes
   ImageEncoding encoding;  //!< Image color encoding
 
   // Video frame dedicated fields
-  std::optional<uint64_t> pts;       //!< packet time stamp
-  std::optional<uint8_t> flags;      //!< flag representing whether this is the key frame
-  std::optional<bool> is_bigendian;  //!< true if machine stores in big endian format
+  std::optional<uint64_t> pts;   //!< packet time stamp
+  std::optional<uint8_t> flags;  //!< flag representing whether this is the key frame
 
   /**
    * @brief Check the specified image is valid.

@@ -379,7 +379,7 @@ TEST(TestConversionToRosFFmpeg, CopyFieldsAndVideo)
   EXPECT_EQ(pkt.encoding, "h264");
   EXPECT_EQ(pkt.pts, image.pts.value());
   EXPECT_EQ(pkt.flags, image.flags.value());
-  EXPECT_EQ(pkt.is_bigendian, image.is_bigendian.value());
+  EXPECT_EQ(pkt.is_bigendian, image.is_bigendian);
   EXPECT_EQ(pkt.data, image.data);
 }
 

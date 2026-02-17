@@ -228,7 +228,7 @@ ffmpeg_image_transport_msgs::msg::FFMPEGPacket to_ros_ffmpeg(const common::Image
     .encoding(to_ros_ffmpeg_encoding(image.format))
     .pts(image.pts.value())
     .flags(image.flags.value())
-    .is_bigendian(image.is_bigendian.value())
+    .is_bigendian(image.is_bigendian)
     .data(image.data);
 }
 }  // namespace accelerated_image_processor::ros
