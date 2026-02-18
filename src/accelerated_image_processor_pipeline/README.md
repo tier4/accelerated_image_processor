@@ -10,6 +10,15 @@ This package provides functionalities for image processing pipelines using vario
 |               | `OpenCvCudaRectifier` | [OpenCV CUDA](https://opencv.org/platforms/cuda/)                                  | GPU    |
 |               | `CpuRectifier`        | [OpenCV](https://opencv.org/)                                                      | CPU    |
 
+## Sequential Processor
+
+`Sequential` can compose multiple processors and execute them sequentially.
+By chaining `Sequential::append(...)` methods, you can add multiple processors.
+
+With `Sequential::register_callback(...)` methods, you can also add the postprocess callback to be executed after all processors are finished as the usual processor.
+
+For the example usage, see the [example_sequential.cpp](./examples/example_sequential.cpp).
+
 ## Example Usage in ROS 2
 
 The following code demonstrates how to use each processor in your ROS 2 codebase.

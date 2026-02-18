@@ -33,8 +33,8 @@ endif()
 
 add_library(
   ${PROJECT_NAME} SHARED
-  src/builder.cpp src/rectifier/cpu.cpp src/rectifier/npp.cpp
-  src/rectifier/opencv_cuda.cpp src/rectifier/utility.cpp)
+  src/builder.cpp src/sequential.cpp src/rectifier/cpu.cpp
+  src/rectifier/npp.cpp src/rectifier/opencv_cuda.cpp src/rectifier/utility.cpp)
 
 target_compile_definitions(
   ${PROJECT_NAME}
@@ -55,7 +55,8 @@ target_link_libraries(
   $<$<TARGET_EXISTS:CUDA::nppig>:CUDA::nppig>
   $<$<TARGET_EXISTS:CUDA::nppisu>:CUDA::nppisu>
   $<$<TARGET_EXISTS:CUDA::cudart>:CUDA::cudart>)
-ament_target_dependencies(${PROJECT_NAME} accelerated_image_processor_common)
+ament_target_dependencies(${PROJECT_NAME} accelerated_image_processor_common
+                          accelerated_image_processor_compression)
 
 set_property(TARGET ${PROJECT_NAME} PROPERTY INTERFACE_INCLUDE_DIRECTORIES
                                              $<INSTALL_INTERFACE:include>)
@@ -64,11 +65,19 @@ install(DIRECTORY include/${PROJECT_NAME} DESTINATION include)
 
 if(BUILD_TESTING)
   set(test_files test/builder.cpp test/cpu_rectifier.cpp test/npp_rectifier.cpp
-                 test/opencv_cuda_rectifier.cpp)
+                 test/opencv_cuda_rectifier.cpp test/sequential.cpp)
   foreach(test_file IN LISTS test_files)
     get_filename_component(test_file_name ${test_file} NAME)
     ament_auto_add_gtest(${test_file_name}_${PROJECT_NAME} ${test_file})
     target_link_libraries(${test_file_name}_${PROJECT_NAME} ${PROJECT_NAME})
+  endforeach()
+
+  # Examples
+  set(example_files examples/example_sequential.cpp)
+  foreach(example_file IN LISTS example_files)
+    get_filename_component(example_name ${example_file} NAME_WE)
+    ament_auto_add_executable(${example_name} ${example_file})
+    target_link_libraries(${example_name} ${PROJECT_NAME})
   endforeach()
 endif()
 
