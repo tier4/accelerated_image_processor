@@ -16,6 +16,18 @@
 
 namespace accelerated_image_processor::pipeline
 {
+void Sequential::set_camera_info(const common::CameraInfo & camera_info)
+{
+  for (auto & child : sequence_) {
+    child.processor->set_camera_info(camera_info);
+    // Update camera info with child's camera info
+    const auto info = child.processor->camera_info();
+    if (info.has_value()) {
+      camera_info_.emplace(info.value());
+    }
+  }
+}
+
 common::Image Sequential::process_impl(const common::Image & image)
 {
   auto processed = image;

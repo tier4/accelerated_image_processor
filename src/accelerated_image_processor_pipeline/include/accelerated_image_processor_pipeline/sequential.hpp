@@ -20,6 +20,7 @@
 #include <accelerated_image_processor_pipeline/builder.hpp>
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <type_traits>
 #include <utility>
@@ -128,6 +129,16 @@ public:
     }
     return *this;
   }
+
+  /**
+   * @brief Set camera info for all processors in the pipeline.
+   *
+   * @note The camera info that is held by this class will be updated with the child's last valid
+   * camera info.
+   *
+   * @param camera_info Camera info to set
+   */
+  void set_camera_info(const common::CameraInfo & camera_info) override;
 
   /**
    * @brief Return a writable reference to the sequence of child processors.

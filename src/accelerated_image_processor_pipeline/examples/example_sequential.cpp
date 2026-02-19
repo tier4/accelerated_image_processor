@@ -20,6 +20,7 @@
 
 #include <iostream>
 #include <string>
+#include <utility>
 
 namespace accelerated_image_processor
 {
@@ -49,11 +50,14 @@ void print_finish(const common::Image &)
   std::cout << ">>> 🎉 All processing finished!!" << std::endl;
 }
 
-common::Image make_image(int width, int height)
+std::pair<common::Image, common::CameraInfo> make_image_and_info(uint32_t width, uint32_t height)
 {
+  const std::string frame_id = "camera";
+  constexpr int64_t timestamp = 123456789;
+
   common::Image image;
-  image.frame_id = "camera";
-  image.timestamp = 123456789;
+  image.frame_id = frame_id;
+  image.timestamp = timestamp;
   image.width = width;
   image.height = height;
   image.step = width * 3;
@@ -68,12 +72,34 @@ common::Image make_image(int width, int height)
       image.data[y * image.step + x * 3 + 2] = static_cast<uint8_t>((x + y) % 256);
     }
   }
-  return image;
+
+  common::CameraInfo camera_info;
+  camera_info.frame_id = frame_id;
+  camera_info.timestamp = timestamp;
+  camera_info.width = width;
+  camera_info.height = height;
+  camera_info.distortion_model = common::DistortionModel::PLUMB_BOB;
+  camera_info.d = {0.0, 0.0, 0.0, 0.0, 0.0};      // (k1, k2, p1, p2, k3)
+  camera_info.k = {1.0, 0.0, width / 2.0,         // (fx, 0, cx)
+                   0.0, 1.0, height / 2.0,        // (0, fy, cy)
+                   0.0, 0.0, 1.0};                // (0, 0, 1.0)
+  camera_info.r = {1.0, 0.0, 0.0,                 // (r11, r12, r13)
+                   0.0, 1.0, 0.0,                 // (r21, r22, r23)
+                   0.0, 0.0, 1.0};                // (r31, r32, r33)
+  camera_info.p = {1.0, 0.0, width / 2.0,  0.0,   // (fx', 0, cx', tx)
+                   0.0, 1.0, height / 2.0, 0.0,   // (0, fy', cy', ty)
+                   0.0, 0.0, 1.0,          0.0};  // (0, 0, 1.0, tz)
+  camera_info.binning_x = 1;
+  camera_info.binning_y = 1;
+  camera_info.roi = {0, 0, width, height, false};
+  return std::make_pair(image, camera_info);
 }
 }  // namespace
 
 void run_sequential()
 {
+  const auto [image, camera_info] = make_image_and_info(1920, 1080);
+
   pipeline::Sequential sequential;
 
   // Pipeline: Rectification -> [Info] -> JPEG Compression -> [Info] -> [Finish]
@@ -81,7 +107,8 @@ void run_sequential()
     .append<compression::Compressor>("compressor", &print_info, "jpeg")
     .register_postprocess(&print_finish);
 
-  const auto image = make_image(1920, 1080);
+  // Set camera info for rectification
+  sequential.set_camera_info(camera_info);
 
   sequential.process(image);
 }
