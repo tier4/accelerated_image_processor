@@ -116,8 +116,8 @@ public:
    * (consumed by encoder API)
    */
   inline static const std::unordered_map<VideoCompressionType, __u32> pixel_format_map = {
-    {VideoCompressionType::LOSSY, V4L2_PIX_FMT_NV24M},
-    {VideoCompressionType::LOSSLESS, V4L2_PIX_FMT_NV12M},
+    {VideoCompressionType::LOSSY, V4L2_PIX_FMT_NV12M},
+    {VideoCompressionType::LOSSLESS, V4L2_PIX_FMT_NV24M},
   };
 
   /**
