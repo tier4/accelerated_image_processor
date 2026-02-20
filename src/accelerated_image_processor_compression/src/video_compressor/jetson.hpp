@@ -252,11 +252,6 @@ public:
    */
   std::optional<common::Image> process(const common::Image & image) override
   {
-    if (!is_ready()) {
-      std::cerr << "JetsonVideoCompressor is not ready. Skip this frame" << std::endl;
-      return std::nullopt;
-    }
-
     auto processed = this->process_impl(image);
     // always return nullopt because processed (encoded) result will be handled in the other thread
     return std::nullopt;
