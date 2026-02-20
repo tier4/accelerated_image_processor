@@ -18,6 +18,7 @@
 
 #include <gtest/gtest.h>
 
+#include <cstdint>
 #include <optional>
 #include <stdexcept>
 #include <string>
@@ -86,8 +87,8 @@ public:
     for (uint32_t i = 0; i < images_.size(); i++) {
       auto & image = images_[i];
       image.frame_id = frame_id;
-      // image.timestamp = timestamp + (i * 100'000'000ULL);  // + (i * 100ms)
-      image.timestamp = timestamp;
+      image.timestamp =
+        timestamp + (i * 100 * 100'000'000ULL);  // + (i * 100ms), which emurate 10fps
       image.width = width;
       image.height = height;
       image.step = step;
@@ -107,6 +108,7 @@ public:
     index_ = 0;
     image_size_ = images_[0].data.size();  // Save representative image size
     frame_from_first_i_frame_ = std::nullopt;
+    num_received_frame_ = 0;
   }
 
   const std::string frame_id = "camera";
@@ -130,7 +132,7 @@ public:
   void check(const common::Image & result)
   {
     EXPECT_EQ(result.frame_id, frame_id);
-    EXPECT_EQ(result.timestamp, timestamp);
+    EXPECT_EQ(result.timestamp, timestamp + (num_received_frame_++ * 100 * 100'000'000ULL));
     EXPECT_EQ(result.height, height);
     EXPECT_EQ(result.width, width);
     EXPECT_EQ(result.format, Fmt);
@@ -168,5 +170,6 @@ private:
   size_t index_;
   size_t image_size_;
   std::optional<size_t> frame_from_first_i_frame_;
+  uint64_t num_received_frame_;
 };
 }  // namespace accelerated_image_processor::compression

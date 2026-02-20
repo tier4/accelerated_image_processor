@@ -142,10 +142,11 @@ EncResult JetsonVideoCompressor::init_encoder(const common::Image & image)
       "Failed to set I Frame interval");
 
     // Set frame rate
-    // rate is specified in [numerator (second), denominator (frames)] format
+    // rate is specified in [numerator (frames), denominator (second)] format
     CHECK_NVENC(
       encoder_->setFrameRate(
-        encoder_params_.frame_rate_numerator, encoder_params_.frame_rate_denominator),
+        static_cast<uint32_t>(encoder_params_.frame_rate_numerator),
+        static_cast<uint32_t>(encoder_params_.frame_rate_denominator)),
       "Failed to set frame rate");
 
     CHECK_NVENC(
@@ -392,6 +393,10 @@ common::Image JetsonVideoCompressor::process_impl(const common::Image & image)
     // NOTE: Since nanosecond order timestamp resolution, such as provided by ROS timestamp, will be
     // lost in v4l2_buf.timestamp (microsecond order), actual timestamp is derived to the output
     // result via timestamp_map_
+    // NOTE: If the time gap between the current and previous frames is much larger/smaller than
+    // what the frame rate (encoder_params_.frame_rate_numerator /
+    // encoder_params_.frame_rate_denominator) expects, the encoder may output a warning such as:
+    // "NVENC_H265: Unsupported frameRate (Supported: 1.0 - 60.0), setting to default value 30.00"
     v4l2_buf.flags |= V4L2_BUF_FLAG_TIMESTAMP_COPY;
     v4l2_buf.timestamp.tv_sec = image.timestamp / 1'000'000'000ULL;
     v4l2_buf.timestamp.tv_usec = (image.timestamp % 1'000'000'000ULL) / 1'000ULL;
