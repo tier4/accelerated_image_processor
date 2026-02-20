@@ -25,6 +25,8 @@
 #include <cstdint>
 #include <iostream>
 #include <memory>
+#include <ostream>
+#include <stdexcept>
 #include <string>
 
 // Header that defines ffmpeg flags
@@ -55,18 +57,24 @@ EncResult JetsonVideoCompressor::collect_params(EncoderParameter & params)
   params.use_max_performance_mode = this->parameter_value<bool>("use_max_performance");
   params.target_bits_per_pixel = this->parameter_value<double>("target_bits_per_pixel");
 
-  if (auto r = this->collect_codec_params_impl(); !r.ok) {
-    return r;
-  }
-
   return EncResult{EncStatus{true, ""}};
 }
 
 EncResult JetsonVideoCompressor::init_encoder(const common::Image & image)
 {
   // gather parameters
-  if (!collect_params(encoder_params_).ok) {
-    return EncResult(record_error("Failed to correct parameters"));
+  if (auto res = collect_params(encoder_params_); !res.ok) {
+    return EncResult(record_error("Failed to correct parameters (" + res.status.message + ")"));
+  }
+
+  if (auto res = this->collect_codec_params_impl(encoder_params_); !res.ok) {
+    return EncResult(
+      record_error("Failed to correct codec dedicated parameters (" + res.status.message + ")"));
+  }
+
+  // Confirm the given combination of parameters is valid
+  if (auto [is_valid, msg] = validate_compression_type_compatibility(); !is_valid) {
+    return EncResult(record_error("Invalid parameters (" + msg + ")"));
   }
 
   output_plane_fds_.assign(encoder_params_.buffer_length, -1);
@@ -75,9 +83,11 @@ EncResult JetsonVideoCompressor::init_encoder(const common::Image & image)
 
   // Configure encoder output (codec individual)
   {
-    if (!this->set_capture_plane_format_impl(image.width, image.height, image.step * image.height)
-           .ok)
-      return EncResult(record_error("Failed to set capture plane format"));
+    if (auto res =
+          this->set_capture_plane_format_impl(image.width, image.height, image.step * image.height);
+        !res.ok)
+      return EncResult(
+        record_error("Failed to set capture plane format (" + res.status.message + ")"));
   }
 
   // Configure encoder input
@@ -92,8 +102,9 @@ EncResult JetsonVideoCompressor::init_encoder(const common::Image & image)
   //   almost all them are specified to be executed after setting ouput/capture plane format
   //   and before requesting any plane buffers
   {
-    if (!this->init_codec_impl().ok) {
-      return EncResult(record_error("Codec specific configuration failed"));
+    if (auto res = this->init_codec_impl(); !res.ok) {
+      return EncResult(
+        record_error("Codec specific configuration failed (" + res.status.message + ")"));
     }
   }
 
@@ -164,8 +175,9 @@ EncResult JetsonVideoCompressor::init_encoder(const common::Image & image)
 
   // Configure output plane (encoder input) so that it allows direct memory access buffer
   {
-    if (!setup_output_plane(image.height, image.width).ok) {
-      return EncResult(record_error("Failed to setup output DMA buffer"));
+    if (auto res = setup_output_plane(image.height, image.width); !res.ok) {
+      return EncResult(
+        record_error("Failed to setup output DMA buffer (" + res.status.message + ")"));
     }
   }
 
@@ -298,8 +310,7 @@ common::Image JetsonVideoCompressor::process_impl(const common::Image & image)
 {
   if (state_ != State::READY) {
     if (!init_encoder(image).ok) {
-      std::cerr << "Encoder initialization failed: " << last_error_ << std::endl;
-      return common::Image();
+      throw std::runtime_error("Encoder initialization failed: " + last_error_);
     }
   }
 

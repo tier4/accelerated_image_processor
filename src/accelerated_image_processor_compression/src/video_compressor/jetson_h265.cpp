@@ -18,6 +18,7 @@
 
 #include <memory>
 #include <string>
+#include <tuple>
 #include <unordered_map>
 
 namespace accelerated_image_processor::compression
@@ -71,8 +72,55 @@ public:
   {
   }
 
+  /**
+   * @brief override impelmentation to validate the compatibility of the current compression
+   * parameters.
+   */
+  std::tuple<bool, std::string> validate_compression_type_compatibility() override
+  {
+    // Load the latest parameters if the encoder is uninitialized; use the current config otherwise
+    EncoderParameter latest_params;
+    if (this->state_ == State::UNINITIALIZED) {
+      this->collect_params(latest_params);
+    } else {
+      latest_params = this->encoder_params_;
+    }
+
+    this->collect_codec_params_impl(
+      latest_params);  // this udpates class member `h264_profile_` and `h264_level_`
+
+    auto ret = validate_compression_type_compatibility_impl(
+      latest_params.compression_type, this->h265_profile_, this->h265_level_);
+    return {ret.ok, ret.status.message};
+  }
+
 protected:
-  EncResult collect_codec_params_impl() override
+  /**
+   * @brief class dedicated implementation to validate parameter compatibility
+   */
+  EncResult validate_compression_type_compatibility_impl(
+    const VideoCompressionType & type, const v4l2_mpeg_video_h265_profile & profile,
+    const v4l2_mpeg_video_h265_level & level)
+  {
+    // lossless compression requires high bitrate. lower level forces encoder work in bitrate that
+    // is not enough for lossless compression, which may causes encoder initialization failure
+    // and/or FD DMA mapping for capture plane. Though it is not explicitly documented, this class
+    // treat the higher level is the only valid one for lossless.
+    if (
+      type == VideoCompressionType::LOSSLESS &&
+      (level != V4L2_MPEG_VIDEO_H265_LEVEL_6_1_HIGH_TIER &&
+       level != V4L2_MPEG_VIDEO_H265_LEVEL_6_2_HIGH_TIER)) {
+      return EncResult(EncStatus(
+        false,
+        "Lossless compression is only supported with "
+        "level 6_1_HIGH_TIER or 6_2_HIGH_TIER"));
+    }
+
+    return EncResult::success();
+  }
+
+  EncResult collect_codec_params_impl(
+    [[maybe_unused]] const EncoderParameter & general_params) override
   {
     h265_profile_ = string_to_enum<v4l2_mpeg_video_h265_profile>(
       this->parameter_value<std::string>("h265.profile"), h265_profile_map);

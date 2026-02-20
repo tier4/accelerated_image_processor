@@ -25,6 +25,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <tuple>
 #include <unordered_map>
 
 namespace accelerated_image_processor::compression
@@ -81,6 +82,25 @@ public:
   }
 
   ~VideoCompressor() override = default;
+
+  /**
+   * @brief Validates the compatibility of the current compression parameters.
+   *
+   * This method checks whether the configured compression settings are compatible
+   * with the underlying hardware and software capabilities. It returns a tuple
+   * containing a boolean flag indicating success and an optional message
+   * describing any incompatibilities.
+   *
+   * @return std::tuple<bool, std::string> A tuple where the first element is
+   * true if the parameters are compatible, false otherwise; the second element
+   * contains an explanatory message when the parameters are not compatible.
+   */
+  virtual std::tuple<bool, std::string> validate_compression_type_compatibility()
+  {
+    bool is_compatible = true;
+    std::string message = "";
+    return {is_compatible, message};
+  }
 };
 //!< @brief Factory function to create a JetsonH264Compressor.
 std::unique_ptr<VideoCompressor> make_jetson_h264_compressor();

@@ -75,7 +75,8 @@ protected:
    */
   auto & header_cache() { return header_cache_; }
 
-  EncResult collect_codec_params_impl() override
+  EncResult collect_codec_params_impl(
+    [[maybe_unused]] const EncoderParameter & general_params) override
   {
     enable_tile_ = this->parameter_value<bool>("av1.enable_tile");
     log2_num_tile_row_ = this->parameter_value<int>("av1.log2_num_tile_row");

@@ -287,7 +287,8 @@ protected:
   /**
    * @brief codec dedicated parameter collection
    */
-  virtual EncResult collect_codec_params_impl() = 0;
+  virtual EncResult collect_codec_params_impl(
+    [[maybe_unused]] const EncoderParameter & general_params) = 0;
 
   /**
    * @brief codec dedicated setup steps for capture plane (encoder output)
@@ -328,11 +329,29 @@ protected:
     std::memcpy(copy_destination.data(), payload_ptr, payload_size);
   }
 
+  /**
+   * @brief Collects and validates encoder parameters from the compressor's
+   *        dedicated parameter map.
+   *
+   * This function merges the general encoder parameters (buffer length,
+   * compression type, frame rate, etc.) with codec‑specific parameters
+   * collected by the derived class implementation of
+   * `collect_codec_params_impl`.  The resulting `EncoderParameter` struct
+   * is stored in `encoder_params_` for later use during initialization.
+   *
+   * @param params Reference to an `EncoderParameter` struct that will be
+   *               populated with the collected values.
+   *
+   * @return An `EncResult` indicating success or failure.  On failure the
+   *         `EncStatus` will contain an explanatory message and the
+   *         compressor state will be set to `ERROR`.
+   */
+  EncResult collect_params(EncoderParameter & params);
+
   NvVideoEncoder * encoder_;
   EncoderParameter encoder_params_;
 
 private:
-  EncResult collect_params(EncoderParameter & params);
   EncResult init_encoder(const common::Image & image);
   EncResult setup_output_plane(const int & height, const int & width);
   void fill_encoder_input_async(void);

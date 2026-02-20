@@ -75,8 +75,15 @@ TEST_P(TestH265Compressor, JetsonVideoCompressorH265ProfileLevelTypeCombo)
   EXPECT_EQ(compressor->parameter_value<std::string>("h265.level"), level);
   EXPECT_EQ(compressor->parameter_value<std::string>("compression_type"), type);
 
+  auto [is_valid_combination, msg] = compressor->validate_compression_type_compatibility();
+
   for (auto i = 0; i < TestH265Compressor::NUM_FRAMES; i++) {
-    compressor->process(get_image());
+    if (!is_valid_combination) {
+      EXPECT_THROW(compressor->process(get_image()), std::runtime_error);
+      SUCCEED();  // If exception throw is correctly detected, this test case is success
+    } else {
+      EXPECT_NO_THROW(compressor->process(get_image()));
+    }
   }
 }
 

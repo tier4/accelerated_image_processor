@@ -13,11 +13,13 @@
 // limitations under the License.
 
 #include "jetson.hpp"
+#include "jetson_error_helper.hpp"
 
 #include <accelerated_image_processor_common/helper.hpp>
 
 #include <memory>
 #include <string>
+#include <tuple>
 #include <unordered_map>
 
 namespace accelerated_image_processor::compression
@@ -34,6 +36,7 @@ public:
       {"BASELINE", V4L2_MPEG_VIDEO_H264_PROFILE_BASELINE},
       {"MAIN", V4L2_MPEG_VIDEO_H264_PROFILE_MAIN},
       {"HIGH", V4L2_MPEG_VIDEO_H264_PROFILE_HIGH},
+      {"HIGH_444", V4L2_MPEG_VIDEO_H264_PROFILE_HIGH_444_PREDICTIVE},
     };
 
   inline static const std::unordered_map<std::string, v4l2_mpeg_video_h264_level> h264_level_map = {
@@ -55,8 +58,66 @@ public:
   {
   }
 
+  /**
+   * @brief override impelmentation to validate the compatibility of the current compression
+   * parameters.
+   */
+  std::tuple<bool, std::string> validate_compression_type_compatibility() override
+  {
+    // Load the latest parameters if the encoder is uninitialized; use the current config otherwise
+    EncoderParameter latest_params;
+    if (this->state_ == State::UNINITIALIZED) {
+      this->collect_params(latest_params);
+    } else {
+      latest_params = this->encoder_params_;
+    }
+
+    this->collect_codec_params_impl(
+      latest_params);  // this udpates class member `h264_profile_` and `h264_level_`
+
+    auto ret = validate_compression_type_compatibility_impl(
+      latest_params.compression_type, this->h264_profile_, this->h264_level_);
+    return {ret.ok, ret.status.message};
+  }
+
 protected:
-  EncResult collect_codec_params_impl() override
+  /**
+   * @brief class dedicated implementation to validate parameter compatibility
+   */
+  EncResult validate_compression_type_compatibility_impl(
+    const VideoCompressionType & type, const v4l2_mpeg_video_h264_profile & profile,
+    const v4l2_mpeg_video_h264_level & level)
+  {
+    // Lossless encoding is supported only for HIGH_444 level
+    if (
+      type == VideoCompressionType::LOSSLESS &&
+      profile != V4L2_MPEG_VIDEO_H264_PROFILE_HIGH_444_PREDICTIVE) {
+      return EncResult(
+        EncStatus(false, "Lossless compression is only supported for HIGH_444 level in H264"));
+    }
+
+    // HIGH_444 level does not support non-lossless (lossy) mode
+    if (
+      type == VideoCompressionType::LOSSY &&
+      profile == V4L2_MPEG_VIDEO_H264_PROFILE_HIGH_444_PREDICTIVE) {
+      return EncResult(
+        EncStatus(false, "HIGH_444 level only support Lossless compression type in H264"));
+    }
+
+    // lossless compression requires high bitrate. lower level forces encoder work in bitrate that
+    // is not enough for lossless compression, which may causes encoder initialization failure
+    // and/or FD DMA mapping for capture plane. Though it is not explicitly documented, this class
+    // treat the highest level is the only valid one for lossless.
+    if (type == VideoCompressionType::LOSSLESS && level != V4L2_MPEG_VIDEO_H264_LEVEL_5_1) {
+      return EncResult(
+        EncStatus(false, "Lossless compression is only supported with level 5_1 in H264"));
+    }
+
+    return EncResult::success();
+  }
+
+  EncResult collect_codec_params_impl(
+    [[maybe_unused]] const EncoderParameter & general_params) override
   {
     h264_profile_ = string_to_enum<v4l2_mpeg_video_h264_profile>(
       this->parameter_value<std::string>("h264.profile"), h264_profile_map);

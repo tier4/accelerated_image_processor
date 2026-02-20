@@ -75,8 +75,15 @@ TEST_P(TestH264Compressor, JetsonVideoCompressorH264ProfileLevelTypeCombo)
   EXPECT_EQ(compressor->parameter_value<std::string>("h264.level"), level);
   EXPECT_EQ(compressor->parameter_value<std::string>("compression_type"), type);
 
+  auto [is_valid_combination, msg] = compressor->validate_compression_type_compatibility();
+
   for (auto i = 0; i < TestH264Compressor::NUM_FRAMES; i++) {
-    compressor->process(get_image());
+    if (!is_valid_combination) {
+      EXPECT_THROW(compressor->process(get_image()), std::runtime_error);
+      SUCCEED();  // If exception throw is correctly detected, this test case is success
+    } else {
+      EXPECT_NO_THROW(compressor->process(get_image()));
+    }
   }
 }
 
@@ -84,7 +91,7 @@ INSTANTIATE_TEST_SUITE_P(
   JetsonVideoCompressorH264Combo, TestH264Compressor,
   ::testing::Combine(
     // Available profiles
-    ::testing::Values("BASELINE", "MAIN", "HIGH"),
+    ::testing::Values("BASELINE", "MAIN", "HIGH", "HIGH_444"),
     // Avaiable levels
     ::testing::Values(
       "1_0", "1B", "1_1", "1_2", "1_3", "2_0", "2_1", "2_2", "3_0", "3_1", "3_2", "4_0", "4_1",
