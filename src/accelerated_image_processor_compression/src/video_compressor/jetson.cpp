@@ -525,7 +525,7 @@ bool JetsonVideoCompressor::encoder_capture_plane_dq_callback(
     "Failed to Queuing buffer to capture plane");
 
   // call postprocess
-  compressor_object->post_process(processed);
+  compressor_object->postprocess(processed);
 
   return true;
 }

@@ -113,7 +113,7 @@ public:
       return std::nullopt;
     }
 
-    post_process(processed);
+    postprocess(processed);
 
     return processed;
   };
@@ -122,7 +122,7 @@ public:
    * @brief Execute post process
    * @param processed The image to be post-processed
    */
-  void post_process(Image & processed)
+  void postprocess(Image & processed)
   {
     std::visit(
       [&processed](auto & f) {
