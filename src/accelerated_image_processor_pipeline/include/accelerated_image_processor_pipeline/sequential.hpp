@@ -21,6 +21,7 @@
 
 #include <memory>
 #include <optional>
+#include <stdexcept>
 #include <string>
 #include <type_traits>
 #include <utility>
@@ -70,11 +71,16 @@ public:
   template <class P, class... Args>
   Sequential & append(const std::string & ns, Args &&... args)
   {
+    std::unique_ptr<P> processor = nullptr;
     if constexpr (std::is_same_v<P, Rectifier>) {
-      sequence_.emplace_back(ns, create_rectifier(std::forward<Args>(args)...));
+      processor = create_rectifier(std::forward<Args>(args)...);
     } else if constexpr (std::is_same_v<P, compression::Compressor>) {
-      sequence_.emplace_back(ns, compression::create_compressor(std::forward<Args>(args)...));
+      processor = compression::create_compressor(std::forward<Args>(args)...);
     }
+
+    if (!processor) throw std::runtime_error("Failed to create processor");
+    sequence_.emplace_back(ns, std::move(processor));
+
     return *this;
   }
 
@@ -96,12 +102,16 @@ public:
     class... Args>
   Sequential & append(const std::string & ns, F fn, Args &&... args)
   {
+    std::unique_ptr<P> processor = nullptr;
     if constexpr (std::is_same_v<P, Rectifier>) {
-      sequence_.emplace_back(ns, create_rectifier<F>(std::forward<Args>(args)..., fn));
+      processor = create_rectifier<F>(std::forward<Args>(args)..., fn);
     } else if constexpr (std::is_same_v<P, compression::Compressor>) {
-      sequence_.emplace_back(
-        ns, compression::create_compressor<F>(std::forward<Args>(args)..., fn));
+      processor = compression::create_compressor<F>(std::forward<Args>(args)..., fn);
     }
+
+    if (!processor) throw std::runtime_error("Failed to create processor");
+    sequence_.emplace_back(ns, std::move(processor));
+
     return *this;
   }
 
@@ -121,12 +131,16 @@ public:
   template <class P, class Obj, void (Obj::*Method)(const common::Image &), class... Args>
   Sequential & append(const std::string & ns, Obj * obj, Args &&... args)
   {
+    std::unique_ptr<P> processor = nullptr;
     if constexpr (std::is_same_v<P, Rectifier>) {
-      sequence_.emplace_back(ns, create_rectifier<Obj, Method>(std::forward<Args>(args)..., obj));
+      processor = create_rectifier<Obj, Method>(std::forward<Args>(args)..., obj);
     } else if constexpr (std::is_same_v<P, compression::Compressor>) {
-      sequence_.emplace_back(
-        ns, compression::create_compressor<Obj, Method>(std::forward<Args>(args)..., obj));
+      processor = compression::create_compressor<Obj, Method>(std::forward<Args>(args)..., obj);
     }
+
+    if (!processor) throw std::runtime_error("Failed to create processor");
+    sequence_.emplace_back(ns, std::move(processor));
+
     return *this;
   }
 
