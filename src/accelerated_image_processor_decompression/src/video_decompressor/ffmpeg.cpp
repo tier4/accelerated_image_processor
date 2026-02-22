@@ -88,7 +88,7 @@ public:
     auto processed_vec = this->process_packet(image);
 
     for (auto & processed : processed_vec) {
-      this->post_process(processed);
+      this->postprocess(processed);
     }
 
     // always returns nullopt because returned value will not be consumed

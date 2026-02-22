@@ -60,7 +60,15 @@ install(TARGETS ${PROJECT_NAME} EXPORT export_${PROJECT_NAME})
 install(DIRECTORY include/${PROJECT_NAME} DESTINATION include)
 
 if(BUILD_TESTING)
-  # TODO(manato): add tests
+  find_package(ament_cmake_gtest REQUIRED)
+  ament_add_gtest(test_builder test/builder.cpp)
+  target_link_libraries(test_builder ${PROJECT_NAME})
+
+  pkg_check_modules(LIBAVFILTER REQUIRED IMPORTED_TARGET libavfilter)
+  ament_add_gtest(test_ffmpeg_video_decompressor
+                  test/ffmpeg_video_decompressor.cpp)
+  target_link_libraries(test_ffmpeg_video_decompressor ${PROJECT_NAME}
+                        PkgConfig::LIBAV PkgConfig::LIBAVFILTER)
 endif()
 
 ament_export_include_directories(include)
