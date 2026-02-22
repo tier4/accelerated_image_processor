@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 from os import PathLike
+from typing import Any
 
-import accelerated_image_processor.accelerated_image_processor_python_datatype as datatype_cpp
+import accelerated_image_processor.accelerated_image_processor_python_common as common_cpp
 import cv2
 import numpy as np
 
@@ -13,25 +14,34 @@ __all__ = [
     "Image",
     "CameraInfo",
     "Roi",
+    "ParameterMap",
+    "fetch_parameters",
 ]
 
+
 # ------- Enums -------
-ImageEncoding = datatype_cpp.ImageEncoding
-ImageEncoding.__doc__ = """Enumeration of image color encodings."""
+class ImageEncoding(common_cpp.ImageEncoding):
+    """Enumeration of image color encodings."""
 
-ImageFormat = datatype_cpp.ImageFormat
-ImageFormat.__doc__ = """Enumeration of image compression formats."""
 
-DistortionModel = datatype_cpp.DistortionModel
-DistortionModel.__doc__ = """Enumeration of distortion models."""
+class ImageFormat(common_cpp.ImageFormat):
+    """Enumeration of image compression formats."""
+
+
+class DistortionModel(common_cpp.DistortionModel):
+    """Enumeration of distortion models."""
 
 
 # ------- Image -------
-class Image(datatype_cpp.Image):
+class Image(common_cpp.Image):
     """Class representing an image."""
 
     @classmethod
-    def from_numpy(cls, data: np.ndarray, encoding=ImageEncoding.RGB) -> Image:
+    def from_numpy(
+        cls,
+        data: np.ndarray,
+        encoding: ImageEncoding = ImageEncoding.RGB,
+    ) -> Image:
         """Construct an image from a numpy array.
 
         Args:
@@ -79,8 +89,37 @@ class Image(datatype_cpp.Image):
         return cls.from_numpy(cv_image, ImageEncoding.RGB)
 
 
-CameraInfo = datatype_cpp.CameraInfo
-CameraInfo.__doc__ = """Class representing camera information."""
+class CameraInfo(common_cpp.CameraInfo):
+    """Class representing camera information."""
 
-Roi = datatype_cpp.Roi
-Roi.__doc__ = """Class representing a region of interest."""
+
+class Roi(common_cpp.Roi):
+    """Class representing a region of interest."""
+
+
+class ParameterMap(common_cpp.ParameterMap):
+    """Class representing a map of parameters."""
+
+
+class BaseProcessor(common_cpp.BaseProcessor):
+    """Base class for processors."""
+
+
+def fetch_parameters(config: dict[str, Any], processor: BaseProcessor) -> BaseProcessor:
+    """Fetch parameters from a configuration dictionary and set them on the processor.
+
+    Args:
+        config (dict[str, Any]): The configuration dictionary.
+        processor (BaseProcessor): The processor to set the parameters on.
+
+    Returns:
+        The processor with the parameters set.
+    """
+    # NOTE: processor.parameters cannot be modified directly
+    params = processor.parameters
+    for key, value in config.items():
+        if key in params:
+            params[key] = value
+    processor.parameters = params
+
+    return processor

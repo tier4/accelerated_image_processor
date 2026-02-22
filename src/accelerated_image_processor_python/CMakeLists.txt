@@ -16,24 +16,32 @@ find_package(ament_cmake REQUIRED)
 find_package(python_cmake_module REQUIRED)
 find_package(Python3 REQUIRED COMPONENTS Interpreter Development)
 find_package(Boost REQUIRED COMPONENTS python)
+
+# find accelerated_image_processor packages
 find_package(accelerated_image_processor_common REQUIRED)
+find_package(accelerated_image_processor_compression REQUIRED)
 
 set(CMAKE_SHARED_LIBRARY_PREFIX "")
 set(PYTHON_PACKAGE_NAME accelerated_image_processor)
 ament_python_install_package(${PYTHON_PACKAGE_NAME})
 
 set(PYTHON_MODULE_LIST) # container to store modules
-set(MODULE_NAMES datatype)
+set(MODULE_NAMES common compression)
 foreach(MODULE_NAME ${MODULE_NAMES})
   set(PYTHON_MODULE_NAME ${PROJECT_NAME}_${MODULE_NAME})
   add_library(${PYTHON_MODULE_NAME} MODULE "src/${MODULE_NAME}.cpp")
   target_include_directories(
     ${PYTHON_MODULE_NAME}
     PUBLIC ${BoostPython_INCLUDE_DIRS}
-           ${accelerated_image_processor_common_INCLUDE_DIRS})
+           ${accelerated_image_processor_common_INCLUDE_DIRS}
+           ${accelerated_image_processor_compression_INCLUDE_DIRS})
   target_link_libraries(
-    ${PYTHON_MODULE_NAME} Boost::python Python3::Python
-    accelerated_image_processor_common::accelerated_image_processor_common)
+    ${PYTHON_MODULE_NAME}
+    Boost::python
+    Python3::Python
+    accelerated_image_processor_common::accelerated_image_processor_common
+    accelerated_image_processor_compression::accelerated_image_processor_compression
+  )
   set_target_properties(${PYTHON_MODULE_NAME} PROPERTIES PREFIX "" SUFFIX ".so")
   list(APPEND PYTHON_MODULE_LIST ${PYTHON_MODULE_NAME})
 endforeach()
@@ -42,7 +50,7 @@ install(TARGETS ${PYTHON_MODULE_LIST}
 
 if(BUILD_TESTING)
   find_package(ament_cmake_pytest REQUIRED)
-  set(test_files test/test_datatype.py)
+  set(test_files test/test_common.py test/test_compression.py)
   foreach(test_file ${test_files})
     get_filename_component(test_name ${test_file} NAME_WE)
     ament_add_pytest_test(
