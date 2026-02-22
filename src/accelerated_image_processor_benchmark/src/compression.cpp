@@ -43,23 +43,16 @@ std::shared_ptr<argparse::ArgumentParser> make_compression_command()
   command->add_argument("--topic").help("Image topic name, only required if --bag is specified");
   // for synthetic images
   command->add_argument("--height")
-    .default_value(1080)
-    .help("Image height, only required if --bag is not specified")
-    .scan<'i', int>();
-  command->add_argument("--width")
-    .default_value(1920)
-    .help("Image width, only required if --bag is not specified")
-    .scan<'i', int>();
+    .default_value(int{1080})
+    .help("Image height, only required if --bag is not specified");
+  command->add_argument("--width").default_value(int{1920}).help(
+    "Image width, only required if --bag is not specified");
   command->add_argument("--seed")
-    .default_value(1)
-    .help("Random seed, only required if --bag is not specified")
-    .scan<'i', int>();
+    .default_value(uint64_t{1})
+    .help("Random seed, only required if --bag is not specified");
   // for warmup and iterations
-  command->add_argument("--warmup")
-    .default_value(10)
-    .help("Number of warmup iterations")
-    .scan<'u', size_t>();
-  command->add_argument("--iteration").default_value(100).scan<'u', size_t>();
+  command->add_argument("--warmup").default_value(size_t{10}).help("Number of warmups");
+  command->add_argument("--iteration").default_value(size_t{100}).help("Number of executions.");
 
   return command;
 }
@@ -103,7 +96,7 @@ void run_compression(const argparse::ArgumentParser & command)
   } else {
     const auto height = command.get<int>("--height");
     const auto width = command.get<int>("--width");
-    const auto seed = command.get<int>("--seed");
+    const auto seed = command.get<uint64_t>("--seed");
     std::cout << "Loading synthetic images:\n";
     std::cout << "  (Height, Width): (" << height << ", " << width << ")\n";
     images = benchmark::load_images(height, width, seed, num_iteration);
