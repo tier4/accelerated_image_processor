@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import cv2
+import numpy as np
 from accelerated_image_processor.datatype import (
     CameraInfo,
     DistortionModel,
@@ -8,6 +10,16 @@ from accelerated_image_processor.datatype import (
     ImageFormat,
     Roi,
 )
+
+
+def _make_image_array(height: int, width: int) -> np.ndarray:
+    image_array = np.zeros((height, width, 3), dtype=np.uint8)
+    for y in range(height):
+        for x in range(width):
+            image_array[y, x, 0] = x % 256
+            image_array[y, x, 1] = y % 256
+            image_array[y, x, 2] = (x + y) % 256
+    return image_array
 
 
 def test_image_initialization():
@@ -21,15 +33,36 @@ def test_image_initialization():
     image.step = width * 3
     image.encoding = ImageEncoding.RGB
     image.format = ImageFormat.RAW
+    image.data = _make_image_array(height, width).ravel().tolist()
 
-    data = []
-    for y in range(height):
-        for x in range(width):
-            data.append(x % 256)
-            data.append(y % 256)
-            data.append((x + y) % 256)
 
-    image.data = data
+def test_image_from_numpy():
+    height, width = 1080, 1920
+
+    image_array = _make_image_array(height, width)
+
+    image = Image.from_numpy(image_array)
+    assert image.height == height
+    assert image.width == width
+    assert image.step == width * 3
+    assert image.encoding == ImageEncoding.RGB
+    assert image.format == ImageFormat.RAW
+    assert len(image.data) == height * width * 3
+
+
+def test_image_from_file(tmp_path):
+    height, width = 1080, 1920
+
+    image_array = _make_image_array(height, width)
+    cv2.imwrite(str(tmp_path / "image.png"), image_array)
+
+    image = Image.from_file(tmp_path / "image.png")
+    assert image.height == height
+    assert image.width == width
+    assert image.step == width * 3
+    assert image.encoding == ImageEncoding.RGB
+    assert image.format == ImageFormat.RAW
+    assert len(image.data) == height * width * 3
 
 
 def test_camera_info_initialization():
