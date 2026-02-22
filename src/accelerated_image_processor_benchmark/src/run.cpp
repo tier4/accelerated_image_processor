@@ -19,12 +19,13 @@
 #include <exception>
 #include <iostream>
 
-using namespace accelerated_image_processor;  // NOLINT
-
 int main(int argc, char ** argv)
 {
+  using namespace accelerated_image_processor;  // NOLINT
+
   argparse::ArgumentParser program("accbench");
   program.add_description("Benchmark CLI");
+
   // Add subcommands
   const auto compression_command = benchmark::make_compression_command();
   program.add_subparser(*compression_command);
@@ -41,5 +42,7 @@ int main(int argc, char ** argv)
     benchmark::run_compression(*compression_command);
     return 0;
   } else {
+    std::cerr << "No valid subcommand exists" << std::endl;
+    return 1;
   }
 }

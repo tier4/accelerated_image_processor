@@ -34,25 +34,31 @@ std::shared_ptr<argparse::ArgumentParser> make_compression_command()
   auto command = std::make_shared<argparse::ArgumentParser>("compression");
   command->add_description("Benchmark CLI for image compression");
   command->add_argument("config").required().help("Filepath to the configuration file");
+  // for warmup and iterations
+  command->add_argument("--warmup").default_value(size_t{10}).nargs(1).help("Number of warmups");
+  command->add_argument("--iteration")
+    .default_value(size_t{100})
+    .nargs(1)
+    .help("Number of executions.");
   // for rosbag images
   command->add_argument("--bag").help("Directory path to the input rosbags");
   command->add_argument("--storage-id")
     .choices("sqlite3", "mcap")
     .default_value("sqlite3")
-    .help("Storage ID, only required if --bag is specified");
-  command->add_argument("--topic").help("Image topic name, only required if --bag is specified");
+    .nargs(1)
+    .help("Storage ID [required if --bag]");
+  command->add_argument("--topic").help("Image topic name [required if --bag]");
   // for synthetic images
   command->add_argument("--height")
     .default_value(int{1080})
-    .help("Image height, only required if --bag is not specified");
-  command->add_argument("--width").default_value(int{1920}).help(
-    "Image width, only required if --bag is not specified");
+    .nargs(1)
+    .help("Image height [required if --bag is NULL]");
+  command->add_argument("--width").default_value(int{1920}).nargs(1).help(
+    "Image width [required if --bag is NULL]");
   command->add_argument("--seed")
     .default_value(uint64_t{1})
-    .help("Random seed, only required if --bag is not specified");
-  // for warmup and iterations
-  command->add_argument("--warmup").default_value(size_t{10}).help("Number of warmups");
-  command->add_argument("--iteration").default_value(size_t{100}).help("Number of executions.");
+    .nargs(1)
+    .help("Random seed [required if --bag is NULL]");
 
   return command;
 }
@@ -65,7 +71,7 @@ void run_compression(const argparse::ArgumentParser & command)
   const auto num_iteration = command.get<size_t>("--iteration");
 
   // Load config from ROS parameter YAML file
-  const auto config = benchmark::load_config(config_path)["compressor"];
+  const auto config = load_config(config_path)["compressor"];
 
   // Build compressor
   auto compressor = compression::create_compressor(config["type"].as<std::string>());
@@ -74,7 +80,7 @@ void run_compression(const argparse::ArgumentParser & command)
   }
 
   // Observe output sizes via postprocess callback
-  benchmark::Benchmarker benchmarker(config, std::move(compressor));
+  Benchmarker benchmarker(config, std::move(compressor));
 
   // Prepare input images
   std::vector<common::Image> images;
@@ -92,14 +98,14 @@ void run_compression(const argparse::ArgumentParser & command)
               << "  Storage ID: " << storage_id << "\n"
               << "  Topic: " << topic << "\n";
 
-    images = benchmark::load_images(bag_dir, storage_id, topic, num_iteration);
+    images = load_images(bag_dir, storage_id, topic, num_iteration);
   } else {
     const auto height = command.get<int>("--height");
     const auto width = command.get<int>("--width");
     const auto seed = command.get<uint64_t>("--seed");
     std::cout << "Loading synthetic images:\n";
     std::cout << "  (Height, Width): (" << height << ", " << width << ")\n";
-    images = benchmark::load_images(height, width, seed, num_iteration);
+    images = load_images(height, width, seed, num_iteration);
   }
 
   // Run benchmark
