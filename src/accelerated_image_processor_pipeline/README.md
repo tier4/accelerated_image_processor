@@ -12,27 +12,48 @@ This package provides functionalities for image processing pipelines using vario
 
 ## Class Interface Diagram
 
-```mermaid
----
-title: Processor Class Diagram
+```plantuml
+@startuml
+!theme sandstone
 
-config:
-  class:
-    hideEmptyMembersBox: true
----
+title Processor Class Diagram
 
-classDiagram
-  class BaseProcessor {
-    <<Abstract>>
+skinparam backgroundColor gray
+skinparam groupInheritance 3
+skinparam classAttributeIconSize 0
+hide empty methods
+hide empty fields
+
+package "accelerated_image_processor::common" {
+  abstract class BaseProcessor
+}
+
+package "accelerated_image_processor::pipeline" {
+  enum RectifierBackend {
+    NPP
+    OPENCV_CUDA
+    CPU
   }
-  class Rectifier {
-    <<Abstract>>
+
+  abstract class Rectifier {
+    +alpha() : double
+    +backend() : RectifierBackend
+    +set_camera_info(camera_info)
+    +camera_info() : optional<CameraInfo>
+    +is_ready() : bool
   }
+
+  class NppRectifier
+  class OpenCvCudaRectifier
+  class CpuRectifier
 
   BaseProcessor <|-- Rectifier
   Rectifier <|-- NppRectifier
   Rectifier <|-- OpenCvCudaRectifier
   Rectifier <|-- CpuRectifier
+}
+
+@enduml
 ```
 
 ## Example Usage in ROS 2

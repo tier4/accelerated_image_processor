@@ -16,42 +16,72 @@ It also includes support for hardware acceleration on NVIDIA Jetson devices usin
 
 ## Class Interface Diagram
 
-```mermaid
----
-title: Compressor Class Diagram
+```plantuml
+@startuml
+!theme sandstone
 
-config:
-  class:
-    hideEmptyMembersBox: true
----
+title Processor Class Diagram
 
-classDiagram
-  class BaseProcessor {
-    <<Abstract>>
+skinparam backgroundColor gray
+skinparam groupInheritance 2
+skinparam classAttributeIconSize 0
+hide empty methods
+hide empty fields
+
+package "accelerated_image_processor::common" {
+  abstract class BaseProcessor
+}
+
+package "accelerated_image_processor::compression" {
+  enum CompressorBackend {
+    JETSON
+    NVJPEG
+    CPU
   }
-  class Compressor {
-    <<Abstract>>
+
+  enum CompressionType {
+    JPEG
+    H264
+    H265
+    AV1
   }
-  class JPEGCompressor {
-    <<Abstract>>
+
+  abstract class Compressor {
+    +backend() : CompressorBackend
   }
-  class VideoCompressor {
-    <<Abstract>>
+
+  abstract class JPEGCompressor {
+    +quality() : int
   }
-  class JetsonVideoCompressor {
-    <<Abstract>>
+
+  class JetsonJPEGCompressor
+  class NvJPEGCompressor
+  class CpuJPEGCompressor
+
+  abstract class VideoCompressor {
+    +validate_compression_type_compatibility() : tuple<bool, string>
   }
+
+  abstract class JetsonVideoCompressor
+  class JetsonH264Compressor
+  class JetsonH265Compressor
+  class JetsonAV1Compressor
 
   BaseProcessor <|-- Compressor
   Compressor <|-- JPEGCompressor
+  Compressor <|-- VideoCompressor
+
   JPEGCompressor <|-- JetsonJPEGCompressor
   JPEGCompressor <|-- NvJPEGCompressor
   JPEGCompressor <|-- CpuJPEGCompressor
-  Compressor <|-- VideoCompressor
+
   VideoCompressor <|-- JetsonVideoCompressor
   JetsonVideoCompressor <|-- JetsonH264Compressor
   JetsonVideoCompressor <|-- JetsonH265Compressor
   JetsonVideoCompressor <|-- JetsonAV1Compressor
+}
+
+@enduml
 ```
 
 ## Example Usage in ROS 2
