@@ -14,6 +14,46 @@ It also includes support for hardware acceleration on NVIDIA Jetson devices usin
 | `JetsonH265Compressor` | `H265` | [NvVideoEncoder](https://docs.nvidia.com/jetson/l4t-multimedia/classNvVideoEncoder.html) | Jetson |
 | `JetsonAV1Compressor`  | `AV1`  | [NvVideoEncoder](https://docs.nvidia.com/jetson/l4t-multimedia/classNvVideoEncoder.html) | Jetson |
 
+## Class Interface Diagram
+
+```mermaid
+---
+title: Compressor Class Diagram
+
+config:
+  class:
+    hideEmptyMembersBox: true
+---
+
+classDiagram
+  class BaseProcessor {
+    <<Abstract>>
+  }
+  class Compressor {
+    <<Abstract>>
+  }
+  class JPEGCompressor {
+    <<Abstract>>
+  }
+  class VideoCompressor {
+    <<Abstract>>
+  }
+  class JetsonVideoCompressor {
+    <<Abstract>>
+  }
+
+  BaseProcessor <|-- Compressor
+  Compressor <|-- JPEGCompressor
+  JPEGCompressor <|-- JetsonJPEGCompressor
+  JPEGCompressor <|-- NvJPEGCompressor
+  JPEGCompressor <|-- CpuJPEGCompressor
+  Compressor <|-- VideoCompressor
+  VideoCompressor <|-- JetsonVideoCompressor
+  JetsonVideoCompressor <|-- JetsonH264Compressor
+  JetsonVideoCompressor <|-- JetsonH265Compressor
+  JetsonVideoCompressor <|-- JetsonAV1Compressor
+```
+
 ## Example Usage in ROS 2
 
 The following code demonstrates how to leverage the compressor in your ROS 2 codebase:
@@ -21,6 +61,7 @@ The following code demonstrates how to leverage the compressor in your ROS 2 cod
 ```c++
 #include <accelerated_image_processor_common/datatype.hpp>
 #include <accelerated_image_processor_compression/builder.hpp>
+#include <accelerated_image_processor_ros/parameter.hpp>
 
 #include <rclcpp/rclcpp.hpp>
 
@@ -31,17 +72,12 @@ class SomeNode final : public rclcpp::Node
 public:
   explicit SomeNode(const rclcpp::NodeOptions & options) : Node("some_node", options)
   {
-    // Choose compression type
-    compression::CompressionType type = compression::CompressionType::JPEG;
+    // Instantiate compressor
+    auto type = compression::CompressionType::JPEG; // or another compression type
     compressor_ = compression::create_compressor<SomeNode, &SomeNode::publish>(type, this);
 
     // Update parameters of the compressor
-    for (auto & [name, value] : compressor_->parameters()) {
-      std::visit([&](auto & v) {
-        using T = std::decay_t<decltype(v)>;
-        v = this->declare_parameter<T>(name, v);
-      }, value);
-    }
+    fetch_parameters(this, compressor_.get(), "compressor");
 
     // Create a subscription and publisher
     subscription_ = this->create_subscription<sensor_msgs::msg::Image>(
