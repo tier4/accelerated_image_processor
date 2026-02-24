@@ -4,15 +4,18 @@ import accelerated_image_processor.accelerated_image_processor_python_compressio
 
 __all__ = [
     "create_compressor",
+    "CompressionBackend",
     "CompressionType",
 ]
 
 
+class CompressionBackend(compression_cpp.CompressionBackend):
+    """CompressionBackend is an enumeration that defines supported compression backends."""
+
+
 class CompressionType(compression_cpp.CompressionType):
-    """CompressionType is an enumeration that defines the compression types supported by the JPEGCompressor class."""
+    """CompressionType is an enumeration that defines the supported compression types."""
 
 
 create_compressor = compression_cpp.create_compressor
-create_compressor.__doc__ = (
-    """create_compressor is a function that creates a JPEGCompressor object."""
-)
+create_compressor.__doc__ = """Returns a concrete compressor instance."""

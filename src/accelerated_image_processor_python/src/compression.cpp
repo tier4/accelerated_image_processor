@@ -15,7 +15,7 @@
 #include "binding.hpp"
 
 #include <accelerated_image_processor_compression/builder.hpp>
-#include <accelerated_image_processor_compression/jpeg_compressor.hpp>
+#include <accelerated_image_processor_compression/compressor.hpp>
 
 #include <boost/python.hpp>
 
@@ -32,7 +32,8 @@ BOOST_PYTHON_MODULE(accelerated_image_processor_python_compression)
 
   // NOTE: Bind Compressor as an abstract base class, which cannot be instantiated directly.
   bp::class_<compression::Compressor, boost::noncopyable>("Compressor", bp::no_init)
-    .def("process", &python::process_or_none)
+    .def("process", &python::process_or_none<compression::Compressor>)
+    .def_readonly("backend", &compression::Compressor::backend)
     .add_property(
       "parameters",
       +[](const compression::Compressor & self) { return python::to_dict(self.parameters()); },
@@ -40,9 +41,16 @@ BOOST_PYTHON_MODULE(accelerated_image_processor_python_compression)
         self.parameters() = python::from_dict(dict);
       });
 
-  // TODO(ktro2828): Add support of other compression types.
+  bp::enum_<compression::CompressorBackend>("CompressionBackend")
+    .value("JETSON", compression::CompressorBackend::JETSON)
+    .value("NVJPEG", compression::CompressorBackend::NVJPEG)
+    .value("CPU", compression::CompressorBackend::CPU);
+
   bp::enum_<compression::CompressionType>("CompressionType")
-    .value("JPEG", compression::CompressionType::JPEG);
+    .value("JPEG", compression::CompressionType::JPEG)
+    .value("H264", compression::CompressionType::H264)
+    .value("H265", compression::CompressionType::H265)
+    .value("AV1", compression::CompressionType::AV1);
 
   bp::def(
     "create_compressor",
