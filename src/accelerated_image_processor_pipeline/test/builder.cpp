@@ -15,6 +15,7 @@
 #include "accelerated_image_processor_pipeline/builder.hpp"
 
 #include "accelerated_image_processor_pipeline/rectifier.hpp"
+#include "test_utility.hpp"
 
 #include <gtest/gtest.h>
 
@@ -40,24 +41,6 @@ void check_rectifier_type(const std::unique_ptr<Rectifier> & rectifier)
   EXPECT_NE(ptr, nullptr);
 
   EXPECT_EQ(ptr->backend(), ExpectedBackend);
-}
-
-/**
- * @brief Dummy class to register postprocess function.
- */
-struct DummyClass
-{
-  /**
-   * @brief Dummy free function for postprocess.
-   */
-  void dummy_function(const common::Image &) {}
-};
-
-/**
- * @brief Dummy free function for postprocess.
- */
-void dummy_function(const common::Image &)
-{
 }
 }  // namespace
 

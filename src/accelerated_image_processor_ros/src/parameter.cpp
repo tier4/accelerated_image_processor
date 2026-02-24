@@ -22,11 +22,19 @@
 
 namespace accelerated_image_processor::ros
 {
+namespace
+{
+inline std::string format_prefix(const std::string & prefix, const std::string & ns)
+{
+  return prefix.empty() ? ns : prefix + "." + ns;
+}
+}  // namespace
+
 void fetch_parameters(
   rclcpp::Node * node, common::BaseProcessor * processor, const std::string & prefix)
 {
   for (auto & [name, value] : processor->parameters()) {
-    const auto & param_name = prefix.empty() ? name : prefix + "." + name;
+    const auto param_name = format_prefix(prefix, name);
     std::visit(
       [&](auto & v) {
         using T = std::decay_t<decltype(v)>;
@@ -37,6 +45,15 @@ void fetch_parameters(
         }
       },
       value);
+  }
+}
+
+void fetch_parameters(
+  rclcpp::Node * node, pipeline::Sequential & sequential, const std::string & prefix)
+{
+  for (auto & child : sequential.items()) {
+    const auto child_prefix = format_prefix(prefix, child.ns);
+    fetch_parameters(node, child.processor.get(), child_prefix);
   }
 }
 }  // namespace accelerated_image_processor::ros

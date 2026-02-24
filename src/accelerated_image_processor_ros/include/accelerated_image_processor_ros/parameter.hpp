@@ -15,6 +15,7 @@
 #pragma once
 
 #include <accelerated_image_processor_common/processor.hpp>
+#include <accelerated_image_processor_pipeline/sequential.hpp>
 #include <rclcpp/node.hpp>
 
 #include <string>
@@ -40,5 +41,26 @@ void fetch_parameters(
 inline void fetch_parameters(rclcpp::Node * node, common::BaseProcessor * processor)
 {
   fetch_parameters(node, processor, "");
+}
+
+/**
+ * @brief Fetch parameters from ROS parameter server and set them to the sequential processor.
+ *
+ * @param node The ROS node to fetch parameters from.
+ * @param sequential The sequential processor to set the parameters to.
+ * @param prefix The prefix of the parameter names.
+ */
+void fetch_parameters(
+  rclcpp::Node * node, pipeline::Sequential & sequential, const std::string & prefix);
+
+/**
+ * @brief Fetch parameters from ROS parameter server and set them to the sequential processor.
+ *
+ * @param node The ROS node to fetch parameters from.
+ * @param sequential The sequential processor to set the parameters to.
+ */
+inline void fetch_parameters(rclcpp::Node * node, pipeline::Sequential & sequential)
+{
+  fetch_parameters(node, sequential, "");
 }
 }  // namespace accelerated_image_processor::ros
