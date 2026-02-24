@@ -25,7 +25,8 @@ TEST_F(TestRectifier, OpenCvCudaRectificationDefault)
   auto rectifier = make_opencv_cuda_rectifier();
   rectifier->register_postprocess<TestRectifier, &TestRectifier::check>(this);
   rectifier->set_camera_info(get_camera_info());
-  rectifier->process(get_image());
+  const auto result = rectifier->process(get_image());
+  EXPECT_TRUE(result);
 }
 
 TEST_F(TestRectifier, OpenCvCudaRectificationLowAlpha)
@@ -39,7 +40,8 @@ TEST_F(TestRectifier, OpenCvCudaRectificationLowAlpha)
   }
   EXPECT_EQ(rectifier->parameter_value<double>("alpha"), 0.0);
   rectifier->set_camera_info(get_camera_info());
-  rectifier->process(get_image());
+  const auto result = rectifier->process(get_image());
+  EXPECT_TRUE(result);
 }
 
 TEST_F(TestRectifier, OpenCvCudaRectificationHighAlpha)
@@ -53,7 +55,8 @@ TEST_F(TestRectifier, OpenCvCudaRectificationHighAlpha)
   }
   EXPECT_EQ(rectifier->parameter_value<double>("alpha"), 1.0);
   rectifier->set_camera_info(get_camera_info());
-  rectifier->process(get_image());
+  const auto result = rectifier->process(get_image());
+  EXPECT_TRUE(result);
 }
 }  // namespace accelerated_image_processor::pipeline
 #else

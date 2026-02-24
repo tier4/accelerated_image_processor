@@ -24,7 +24,8 @@ TEST_F(TestJPEGCompressor, JetsonCompressionDefault)
 {
   auto compressor = make_jetsonjpeg_compressor();
   compressor->register_postprocess<TestJPEGCompressor, &TestJPEGCompressor::check>(this);
-  compressor->process(get_image());
+  const auto result = compressor->process(get_image());
+  EXPECT_TRUE(result);
 }
 
 TEST_F(TestJPEGCompressor, JetsonCompressionWithLowQuality)
@@ -37,7 +38,8 @@ TEST_F(TestJPEGCompressor, JetsonCompressionWithLowQuality)
     }
   }
   EXPECT_EQ(compressor->parameter_value<int>("quality"), 10);
-  compressor->process(get_image());
+  const auto result = compressor->process(get_image());
+  EXPECT_TRUE(result);
 }
 
 TEST_F(TestJPEGCompressor, JetsonCompressionWithHighQuality)
@@ -50,7 +52,8 @@ TEST_F(TestJPEGCompressor, JetsonCompressionWithHighQuality)
     }
   }
   EXPECT_EQ(compressor->parameter_value<int>("quality"), 90);
-  compressor->process(get_image());
+  const auto result = compressor->process(get_image());
+  EXPECT_TRUE(result);
 }
 }  // namespace accelerated_image_processor::compression
 #else
