@@ -97,7 +97,7 @@ public:
    * @param image The input image.
    * @return The processed image if the process is successful, otherwise std::nullopt.
    */
-  std::optional<common::Image> process(const Image & image)
+  virtual std::optional<common::Image> process(const Image & image)
   {
     if (!is_ready()) {
       // TODO(ktro2828): Update to return a type that describes if the process success or not
@@ -113,6 +113,17 @@ public:
       return std::nullopt;
     }
 
+    postprocess(processed);
+
+    return processed;
+  };
+
+  /**
+   * @brief Execute post process
+   * @param processed The image to be post-processed
+   */
+  void postprocess(Image & processed)
+  {
     std::visit(
       [&processed](auto & f) {
         using T = std::decay_t<decltype(f)>;
@@ -125,9 +136,7 @@ public:
         }
       },
       storage_);
-
-    return processed;
-  };
+  }
 
   /**
    * @brief Check the processor is ready to run processing.

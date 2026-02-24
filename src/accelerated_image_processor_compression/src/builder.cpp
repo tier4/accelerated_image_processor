@@ -14,7 +14,9 @@
 
 #include "accelerated_image_processor_compression/builder.hpp"
 
+#include "accelerated_image_processor_compression/compressor.hpp"
 #include "accelerated_image_processor_compression/jpeg_compressor.hpp"
+#include "accelerated_image_processor_compression/video_compressor.hpp"
 
 #include <algorithm>
 #include <cctype>
@@ -52,8 +54,12 @@ CompressionType to_compression_type(const std::string & str)
   const auto s = normalize_str(str);
   if (s == "JPEG") {
     return CompressionType::JPEG;
-  } else if (s == "VIDEO") {
-    return CompressionType::VIDEO;
+  } else if (s == "H264") {
+    return CompressionType::H264;
+  } else if (s == "H265") {
+    return CompressionType::H265;
+  } else if (s == "AV1") {
+    return CompressionType::AV1;
   } else {
     throw std::invalid_argument("Invalid compression type: " + str);
   }
@@ -72,8 +78,24 @@ std::unique_ptr<Compressor> create_compressor(CompressionType type)
 #else
       throw std::runtime_error("No JPEG compressor available");
 #endif
-    case CompressionType::VIDEO:
-      throw std::runtime_error("VIDEO compression is not supported yet");
+    case CompressionType::H264:
+#ifdef JETSON_AVAILABLE
+      return make_jetson_h264_compressor();
+#else
+      throw std::runtime_error("H264 compression is not supported on this platform");
+#endif
+    case CompressionType::H265:
+#ifdef JETSON_AVAILABLE
+      return make_jetson_h265_compressor();
+#else
+      throw std::runtime_error("H265 compression is not supported on this platform");
+#endif
+    case CompressionType::AV1:
+#ifdef JETSON_AVAILABLE
+      return make_jetson_av1_compressor();
+#else
+      throw std::runtime_error("AV1 compression is not supported on this platform");
+#endif
     default:
       throw std::invalid_argument("Invalid compression type");
   }

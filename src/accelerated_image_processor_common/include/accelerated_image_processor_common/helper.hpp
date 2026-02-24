@@ -16,6 +16,7 @@
 
 #include <cstdio>
 #include <iostream>
+#include <string>
 
 namespace accelerated_image_processor::common
 {
@@ -67,4 +68,23 @@ namespace accelerated_image_processor::common
       exit(1);                                                                            \
     }                                                                                     \
   }
+
+/**
+ * @brief Macro to check for errors and print a message if the VPI status is not
+ * VPI_SUCCESS
+ *
+ * @param status The VPI status.
+ */
+#define CHECK_VPI(call)                                                                \
+  {                                                                                    \
+    VPIStatus _e = (call);                                                             \
+    if (_e != VPI_SUCCESS) {                                                           \
+      char msg_buf[VPI_MAX_STATUS_MESSAGE_LENGTH];                                     \
+      vpiGetLastStatusMessage(msg_buf, VPI_MAX_STATUS_MESSAGE_LENGTH);                 \
+      std::cerr << "VPI failure: \'#" << _e << "\' at " << __FILE__ << ":" << __LINE__ \
+                << ", (reason: " << std::string(msg_buf) << ")" << std::endl;          \
+      exit(1);                                                                         \
+    }                                                                                  \
+  }
+
 }  // namespace accelerated_image_processor::common

@@ -37,7 +37,7 @@ namespace accelerated_image_processor::compression
 class NvJPEGCompressor final : public JPEGCompressor
 {
 public:
-  NvJPEGCompressor() : JPEGCompressor(JPEGBackend::NVJPEG)
+  NvJPEGCompressor() : JPEGCompressor(CompressorBackend::NVJPEG)
   {
     CHECK_CUDA(cudaStreamCreate(&stream_));
     CHECK_NVJPEG(nvjpegCreateSimple(&handle_));

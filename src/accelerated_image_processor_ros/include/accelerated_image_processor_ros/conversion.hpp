@@ -17,6 +17,7 @@
 #include <accelerated_image_processor_common/datatype.hpp>
 #include <rclcpp/time.hpp>
 
+#include <ffmpeg_image_transport_msgs/msg/ffmpeg_packet.hpp>
 #include <sensor_msgs/msg/camera_info.hpp>
 #include <sensor_msgs/msg/compressed_image.hpp>
 #include <sensor_msgs/msg/image.hpp>
@@ -146,4 +147,20 @@ std::string to_ros_distortion_model(common::DistortionModel model);
  * @return sensor_msgs::msg::RegionOfInterest
  */
 sensor_msgs::msg::RegionOfInterest to_ros_roi(const common::Roi & roi);
+
+/// --- From common::Image to ffmpeg_image_transport_msgs::msg::FFMPEGPacket ---
+
+/**
+ * @brief Convert common::Image to ffmpeg_image_transport_msgs::msg::FFMPEGPacket.
+ * @param image common::Image message
+ * @return ffmpeg_image_transport_msgs::msg::FFMPEGPacket
+ */
+ffmpeg_image_transport_msgs::msg::FFMPEGPacket to_ros_ffmpeg(const common::Image & image);
+
+/**
+ * @brief Convert common::ImageFormat to ffmpeg_image_transport_msgs::msg::FFMPEGPacket encoding.
+ * @param format Format of common::Image.
+ * @return std::string
+ */
+std::string to_ros_ffmpeg_encoding(common::ImageFormat format);
 }  // namespace accelerated_image_processor::ros
