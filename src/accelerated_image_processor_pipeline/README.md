@@ -10,6 +10,31 @@ This package provides functionalities for image processing pipelines using vario
 |               | `OpenCvCudaRectifier` | [OpenCV CUDA](https://opencv.org/platforms/cuda/)                                  | GPU    |
 |               | `CpuRectifier`        | [OpenCV](https://opencv.org/)                                                      | CPU    |
 
+## Class Interface Diagram
+
+```mermaid
+---
+title: Processor Class Diagram
+
+config:
+  class:
+    hideEmptyMembersBox: true
+---
+
+classDiagram
+  class BaseProcessor {
+    <<Abstract>>
+  }
+  class Rectifier {
+    <<Abstract>>
+  }
+
+  BaseProcessor <|-- Rectifier
+  Rectifier <|-- NppRectifier
+  Rectifier <|-- OpenCvCudaRectifier
+  Rectifier <|-- CpuRectifier
+```
+
 ## Example Usage in ROS 2
 
 The following code demonstrates how to use each processor in your ROS 2 codebase.
@@ -19,6 +44,7 @@ The following code demonstrates how to use each processor in your ROS 2 codebase
 ```c++
 #include <accelerated_image_processor_common/datatype.hpp>
 #include <accelerated_image_processor_pipeline/builder.hpp>
+#include <accelerated_image_processor_ros/parameter.hpp>
 
 #include <rclcpp/rclcpp.hpp>
 
@@ -29,15 +55,11 @@ class SomeNode final : public rclcpp::Node
 public:
   explicit SomeNode(const rclcpp::NodeOptions & options) : Node("some_node", options)
   {
+    // Instantiate rectifier
     rectifier_ = pipeline::create_rectifier<SomeNode, &SomeNode::publish>(this);
 
     // Update parameters of the rectifier
-    for (auto & [name, value] : rectifier_->parameters()) {
-      std::visit([&](auto & v) {
-        using T = std::decay_t<decltype(v)>;
-        v = this->declare_parameter<T>(name, v);
-      }, value);
-    }
+    fetch_parameters(this, rectifier_.get(), "rectifier");
 
     // Create a subscription and publisher
     image_subscription_ = this->create_subscription<sensor_msgs::msg::Image>(
