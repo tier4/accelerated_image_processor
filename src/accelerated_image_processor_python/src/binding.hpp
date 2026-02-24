@@ -141,7 +141,8 @@ inline bp::dict to_dict(const common::ParameterMap & map)
 /**
  * @brief Returns processed image or None. This is a wrapper for the process method.
  */
-inline bp::object process_or_none(common::BaseProcessor * self, const common::Image & image)
+template <class ProcessorT>
+inline bp::object process_or_none(ProcessorT * self, const common::Image & image)
 {
   auto result = self->process(image);
   return result.has_value() ? bp::object(*result) : bp::object();

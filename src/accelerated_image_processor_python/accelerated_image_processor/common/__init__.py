@@ -8,6 +8,9 @@ import cv2
 import numpy as np
 
 __all__ = [
+    "is_jetson_available",
+    "is_nvjpeg_available",
+    "is_turbojpeg_available",
     "ImageEncoding",
     "ImageFormat",
     "DistortionModel",
@@ -17,6 +20,16 @@ __all__ = [
     "ParameterMap",
     "fetch_parameters",
 ]
+
+# ------- Backends -------
+is_jetson_available = common_cpp.is_jetson_available
+is_jetson_available.__doc__ = "Return True if Jetson backend is available."
+
+is_nvjpeg_available = common_cpp.is_nvjpeg_available
+is_nvjpeg_available.__doc__ = "Return True if NVJPEG backend is available."
+
+is_turbojpeg_available = common_cpp.is_turbojpeg_available
+is_turbojpeg_available.__doc__ = "Return True if TurboJPEG backend is available."
 
 
 # ------- Enums -------
