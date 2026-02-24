@@ -38,8 +38,6 @@ namespace accelerated_image_processor::benchmark
 namespace
 {
 #ifdef __GNUG__
-namespace
-{
 /**
  * @brief Demangle a C++ type name for GCC/Clang compiler.
  *
@@ -53,7 +51,6 @@ std::string demangle(const char * name)
     abi::__cxa_demangle(name, NULL, NULL, &status), std::free};
   return (status == 0) ? res.get() : name;
 }
-}  // namespace
 #else
 /**
  * @brief Demangle a C++ type name for non-GCC/Clang compiler.
