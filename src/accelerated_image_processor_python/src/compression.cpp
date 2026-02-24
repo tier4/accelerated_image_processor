@@ -19,10 +19,91 @@
 
 #include <boost/python.hpp>
 
+#include <chrono>
+#include <condition_variable>
+#include <deque>
+#include <memory>
+#include <mutex>
 #include <string>
+#include <utility>
 
 namespace bp = boost::python;                 // NOLINT
 using namespace accelerated_image_processor;  // NOLINT
+
+namespace
+{
+/**
+ * @brief Python-facing proxy for compression::Compressor.
+ *
+ * This proxy is required because Jetson video encoders emit encoded frames asynchronously via
+ * postprocess callbacks, while Python users expect Compressor.process() to synchronously return an
+ * Image (or None on failure).
+ *
+ * Keeping this adaptation in the Python binding layer preserves the original C++ compressor
+ * behavior and timing semantics used by existing C++ tests, while still providing a convenient
+ * Python API that can wait briefly and return the callback-produced frame.
+ */
+class PythonCompressorProxy
+{
+public:
+  explicit PythonCompressorProxy(std::unique_ptr<compression::Compressor> compressor)
+  : compressor_(std::move(compressor))
+  {
+    if (compressor_ && compressor_->backend() == compression::CompressorBackend::JETSON) {
+      compressor_
+        ->register_postprocess<PythonCompressorProxy, &PythonCompressorProxy::on_postprocess>(this);
+      await_async_result_ = true;
+    }
+  }
+
+  std::optional<common::Image> process(const common::Image & image)
+  {
+    if (!compressor_) {
+      return std::nullopt;
+    }
+
+    if (auto result = compressor_->process(image); result.has_value()) {
+      return result;
+    }
+
+    if (!await_async_result_) {
+      return std::nullopt;
+    }
+
+    std::unique_lock<std::mutex> lock(result_queue_mutex_);
+    if (!result_queue_cv_.wait_for(
+          lock, std::chrono::milliseconds(500), [this]() { return !result_queue_.empty(); })) {
+      return std::nullopt;
+    }
+
+    auto result = std::move(result_queue_.front());
+    result_queue_.pop_front();
+    return result;
+  }
+
+  compression::CompressorBackend backend() const { return compressor_->backend(); }
+
+  common::ParameterMap & parameters() { return compressor_->parameters(); }
+  const common::ParameterMap & parameters() const { return compressor_->parameters(); }
+
+private:
+  void on_postprocess(const common::Image & image)
+  {
+    {
+      std::lock_guard<std::mutex> lock(result_queue_mutex_);
+      result_queue_.push_back(image);
+    }
+    result_queue_cv_.notify_one();
+  }
+
+  std::unique_ptr<compression::Compressor> compressor_;
+  bool await_async_result_{false};
+
+  std::mutex result_queue_mutex_;
+  std::condition_variable result_queue_cv_;
+  std::deque<common::Image> result_queue_;
+};
+}  // namespace
 
 BOOST_PYTHON_MODULE(accelerated_image_processor_python_compression)
 {
@@ -30,14 +111,15 @@ BOOST_PYTHON_MODULE(accelerated_image_processor_python_compression)
   // Compressor
   // -----------
 
-  // NOTE: Bind Compressor as an abstract base class, which cannot be instantiated directly.
-  bp::class_<compression::Compressor, boost::noncopyable>("Compressor", bp::no_init)
-    .def("process", &python::process_or_none<compression::Compressor>)
-    .def_readonly("backend", &compression::Compressor::backend)
+  // NOTE: Bind PythonCompressorProxy as an abstract base class which is named Compressor and cannot
+  // be instantiated directly.
+  bp::class_<PythonCompressorProxy, boost::noncopyable>("Compressor", bp::no_init)
+    .def("process", &python::process_or_none<PythonCompressorProxy>)
+    .add_property("backend", &PythonCompressorProxy::backend)
     .add_property(
       "parameters",
-      +[](const compression::Compressor & self) { return python::to_dict(self.parameters()); },
-      +[](compression::Compressor & self, const bp::dict & dict) {
+      +[](const PythonCompressorProxy & self) { return python::to_dict(self.parameters()); },
+      +[](PythonCompressorProxy & self, const bp::dict & dict) {
         self.parameters() = python::from_dict(dict);
       });
 
@@ -54,15 +136,15 @@ BOOST_PYTHON_MODULE(accelerated_image_processor_python_compression)
 
   bp::def(
     "create_compressor",
-    +[](const std::string & type) -> compression::Compressor * {
-      return compression::create_compressor(type).release();
+    +[](const std::string & type) -> PythonCompressorProxy * {
+      return new PythonCompressorProxy(compression::create_compressor(type));
     },
     bp::return_value_policy<bp::manage_new_object>());
 
   bp::def(
     "create_compressor",
-    +[](const compression::CompressionType & type) -> compression::Compressor * {
-      return compression::create_compressor(type).release();
+    +[](const compression::CompressionType & type) -> PythonCompressorProxy * {
+      return new PythonCompressorProxy(compression::create_compressor(type));
     },
     bp::return_value_policy<bp::manage_new_object>());
 }
