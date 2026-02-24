@@ -32,10 +32,8 @@ namespace accelerated_image_processor::decompression
  * @brief a free function to check the decoded result
  *
  * In FFmpeg, a single packet can contain multiple frames. The ffmpeg_video_decompressor
- * extracts each frame one by one and forwards it to postprocess().
- * Because of this, process() never returns a frame directly – it
- * always returns std::nullopt. This function is therefore registered
- * as a callback to handle decoded frames instead of producing them.
+ * extracts each frame one by one and feeds it to postprocess().
+ * This function is registered as a callback to check the every decoded frames.
  */
 template <int WIDTH, int HEIGHT>
 void check_ffmpeg_video_decompressor_result(const common::Image & decoded)

@@ -91,8 +91,13 @@ public:
       this->postprocess(processed);
     }
 
-    // always returns nullopt because returned value will not be consumed
-    return std::nullopt;
+    // For streaming cases, although one ffmpeg packet MAY contain multiple frames, it typically
+    // contains one frame. For this reason, here returns the first element of the decoded results.
+    if (processed_vec.empty()) {
+      return std::nullopt;
+    } else {
+      return processed_vec[0];
+    }
   }
 
 private:
