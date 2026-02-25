@@ -1,5 +1,7 @@
-cmake_minimum_required(VERSION 3.14)
+cmake_minimum_required(VERSION 3.16)
 project(accelerated_image_processor_python)
+
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
 if(NOT CMAKE_CXX_STANDARD)
   set(CMAKE_CXX_STANDARD 17)
@@ -16,6 +18,15 @@ find_package(ament_cmake REQUIRED)
 find_package(python_cmake_module REQUIRED)
 find_package(Python3 REQUIRED COMPONENTS Interpreter Development)
 find_package(Boost REQUIRED COMPONENTS python)
+
+# When scikit-build-core drives the build it defines the SKBUILD variable, so
+# always force PYTHON_INSTALL_DIR to the in-tree package layout in that scenario
+# to avoid polluting the outer environment.
+if(SKBUILD)
+  set(PYTHON_INSTALL_DIR
+      "."
+      CACHE PATH "Python install base directory" FORCE)
+endif()
 
 # find accelerated_image_processor packages
 find_package(accelerated_image_processor_common REQUIRED)

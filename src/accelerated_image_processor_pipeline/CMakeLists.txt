@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.14)
+cmake_minimum_required(VERSION 3.16)
 project(accelerated_image_processor_pipeline LANGUAGES CXX CUDA)
 
 if(NOT CMAKE_CXX_STANDARD)
@@ -57,8 +57,11 @@ target_link_libraries(
   $<$<TARGET_EXISTS:CUDA::cudart>:CUDA::cudart>)
 ament_target_dependencies(${PROJECT_NAME} accelerated_image_processor_common)
 
-set_property(TARGET ${PROJECT_NAME} PROPERTY INTERFACE_INCLUDE_DIRECTORIES
-                                             $<INSTALL_INTERFACE:include>)
+set_property(
+  TARGET ${PROJECT_NAME}
+  PROPERTY INTERFACE_INCLUDE_DIRECTORIES
+           $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+           $<INSTALL_INTERFACE:include>)
 install(TARGETS ${PROJECT_NAME} EXPORT export_${PROJECT_NAME})
 install(DIRECTORY include/${PROJECT_NAME} DESTINATION include)
 

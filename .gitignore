@@ -18,4 +18,6 @@ log/
 /cfg/*.py
 
 # Python
+.python-version
 *.pyc
+*.lock
