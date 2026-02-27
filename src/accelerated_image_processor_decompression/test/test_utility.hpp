@@ -124,18 +124,36 @@ public:
     inputs->pad_idx = 0;
     inputs->next = nullptr;
 
+    auto free_allocated_resources = [&graph, &inputs, &outputs]() {
+      if (graph) {
+        avfilter_graph_free(&graph);
+      }
+      if (inputs) {
+        avfilter_inout_free(&inputs);
+      }
+      if (outputs) {
+        avfilter_inout_free(&outputs);
+      }
+    };
+
     // av_log_set_level(AV_LOG_DEBUG);
 
     if (avfilter_graph_parse_ptr(graph, filter_descr.c_str(), &inputs, &outputs, nullptr) < 0) {
+      free_allocated_resources();
       throw std::runtime_error("Failed to parse filter graph");
     }
     if (avfilter_graph_config(graph, nullptr) < 0) {
+      free_allocated_resources();
       throw std::runtime_error("Failed to configure filter graph");
     }
+
+    avfilter_inout_free(&inputs);
+    avfilter_inout_free(&outputs);
 
     // 2. Find encoder
     const AVCodec * codec = avcodec_find_encoder_by_name(CodecName::value);
     if (!codec) {
+      free_allocated_resources();
       throw std::runtime_error("Codec not found");
     }
     encoder_ctx_ = avcodec_alloc_context3(codec);
@@ -162,6 +180,10 @@ public:
     }
 
     if (avcodec_open2(encoder_ctx_, codec, nullptr) < 0) {
+      free_allocated_resources();
+      if (encoder_ctx_) {
+        avcodec_free_context(&encoder_ctx_);
+      }
       throw std::runtime_error("Could not open encoder");
     }
 

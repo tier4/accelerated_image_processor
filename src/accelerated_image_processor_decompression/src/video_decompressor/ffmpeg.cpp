@@ -77,6 +77,7 @@ public:
     if (dst_bgr_dev_) {
       nppiFree(dst_bgr_dev_);
     }
+    CHECK_CUDA(cudaStreamDestroy(stream_));
   }
 
   /**
@@ -114,6 +115,9 @@ private:
     if (packet_) {
       av_packet_free(&packet_);
     }
+    if (decoded_frame_) {
+      av_frame_free(&decoded_frame_);
+    }
     if (codec_ctx_) {
       avcodec_free_context(&codec_ctx_);
     }
@@ -143,6 +147,7 @@ private:
     // TODO(manato): expose device type as a parameter would beneficial especially for non-CUDA user
     hw_device_ctx_ = av_hwdevice_ctx_alloc(AV_HWDEVICE_TYPE_CUDA);
     if (!hw_device_ctx_) {
+      cleanup_decoder();
       return DecoderInitResult(false, "Failed to allocate CUDA HW device context");
     }
 
@@ -153,6 +158,7 @@ private:
       // Extract CUcontext from cuda stream using CUDA driver API
       CUcontext cu_context;
       if (cuStreamGetCtx(reinterpret_cast<CUstream>(stream_), &cu_context) != CUDA_SUCCESS) {
+        cleanup_decoder();
         return DecoderInitResult(false, "Extracting CUcontext failed");
       }
       AVHWDeviceContext * av_hw_device_ctx =
@@ -168,6 +174,7 @@ private:
     //   but will respect the stream we already assigned
     int err = av_hwdevice_ctx_init(hw_device_ctx_);
     if (err < 0) {
+      cleanup_decoder();
       char err_buf[128];
       av_strerror(err, err_buf, sizeof(err_buf));
       return DecoderInitResult(false, std::string("Failed to init HW device context: ") + err_buf);
@@ -177,6 +184,7 @@ private:
     std::string codec_name = image_format_to_string(fmt);
     const AVCodec * codec = avcodec_find_decoder_by_name(codec_name.c_str());
     if (!codec) {
+      cleanup_decoder();
       return DecoderInitResult(false, "Codec not found: " + codec_name);
     }
 
@@ -196,18 +204,21 @@ private:
 
     // Open Codec
     if (avcodec_open2(codec_ctx_, codec, nullptr) < 0) {
+      cleanup_decoder();
       return DecoderInitResult(false, "Failed to open codec");
     }
 
     // Allocate packet wrapper
     packet_ = av_packet_alloc();
     if (!packet_) {
+      cleanup_decoder();
       return DecoderInitResult(false, "Failed to allocate AVPacket");
     }
 
     // Allocate region to store the decoded result
     decoded_frame_ = av_frame_alloc();
     if (!decoded_frame_) {
+      cleanup_decoder();
       return DecoderInitResult(false, "Failed to allocate AVFrame");
     }
 
