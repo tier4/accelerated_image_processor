@@ -15,16 +15,35 @@ find_package(ament_cmake_auto REQUIRED)
 find_package(CUDAToolkit)
 ament_auto_find_build_dependencies()
 
-file(GLOB_RECURSE SOURCE_FILES src/*.cpp)
-ament_auto_add_library(${PROJECT_NAME} SHARED ${SOURCE_FILES})
+ament_auto_add_library(${PROJECT_NAME}_peripheral SHARED src/parameter.cpp
+                       src/qos.cpp src/conversion.cpp)
+
+target_include_directories(
+  ${PROJECT_NAME}_peripheral
+  PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+         $<INSTALL_INTERFACE:include>)
+
+ament_auto_add_library(${PROJECT_NAME} SHARED src/imgproc_node.cpp)
 
 target_include_directories(
   ${PROJECT_NAME} PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
                          $<INSTALL_INTERFACE:include>)
 
+target_link_libraries(${PROJECT_NAME} ${PROJECT_NAME}_peripheral)
+
+ament_auto_add_library(${PROJECT_NAME}_decompress SHARED
+                       src/decompress_node.cpp)
+
+target_link_libraries(${PROJECT_NAME}_decompress ${PROJECT_NAME}_peripheral)
+
 rclcpp_components_register_node(
   ${PROJECT_NAME} PLUGIN "accelerated_image_processor::ros::ImgProcNode"
   EXECUTABLE ${PROJECT_NAME}_imgproc_node)
+
+rclcpp_components_register_node(
+  ${PROJECT_NAME}_decompress PLUGIN
+  "accelerated_image_processor::ros::DecompressNode" EXECUTABLE
+  ${PROJECT_NAME}_decompress_node)
 
 if(BUILD_TESTING)
   find_package(ament_cmake_gtest REQUIRED)

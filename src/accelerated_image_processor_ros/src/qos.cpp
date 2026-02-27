@@ -57,4 +57,41 @@ bool find_qos(
     return false;
   }
 }
+
+std::string find_topic_type(
+  rclcpp::Node * node, const std::string & topic_name, int throttle_period_ms)
+{
+  const auto qos_list = node->get_publishers_info_by_topic(topic_name);
+  if (qos_list.size() < 1) {
+    RCLCPP_INFO_STREAM_THROTTLE(
+      node->get_logger(), *node->get_clock(), throttle_period_ms,
+      "Waiting for topic: " << topic_name << " ...");
+    return "";
+  } else if (qos_list.size() > 1) {
+    RCLCPP_ERROR_STREAM_THROTTLE(
+      node->get_logger(), *node->get_clock(), throttle_period_ms,
+      "Multiple publishers found for topic: " << topic_name << ". Cannot determine proper type");
+
+    return "";
+  } else {
+    RCLCPP_INFO_STREAM_THROTTLE(
+      node->get_logger(), *node->get_clock(), throttle_period_ms,
+      "Type is acquired for topic: " << topic_name);
+
+    return qos_list[0].topic_type();
+  }
+}
+
+bool find_topic_type(
+  rclcpp::Node * node, const std::string & topic_name, std::string & topic_type,
+  int throttle_period_ms)
+{
+  topic_type = find_topic_type(node, topic_name, throttle_period_ms);
+
+  if (topic_type.empty()) {
+    return false;
+  } else {
+    return true;
+  }
+}
 }  // namespace accelerated_image_processor::ros

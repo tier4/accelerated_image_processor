@@ -25,6 +25,7 @@
 #include <std_msgs/msg/header.hpp>
 
 #include <string>
+#include <vector>
 
 namespace accelerated_image_processor::ros
 {
@@ -163,4 +164,27 @@ ffmpeg_image_transport_msgs::msg::FFMPEGPacket to_ros_ffmpeg(const common::Image
  * @return std::string
  */
 std::string to_ros_ffmpeg_encoding(common::ImageFormat format);
+
+/// --- From ffmpeg_image_transport_msgs::msg::FFMPEGPacket to common::Image ---
+/**
+ * @brief split string by ',' or ';' and return separated elements
+ * @param input_string std::string to be split
+ * @return std::vector<std::string>
+ */
+std::vector<std::string> split_string_by_comma_and_semicolon(const std::string & input_string);
+
+/**
+ * @brief Convert std::string to common::ImageFormat
+ * @param encoding_str std::string to be converted
+ * @return common::ImageFormat
+ */
+common::ImageFormat from_ros_ffmpeg_encoding(const std::string & encoding_str);
+
+/**
+ * @brief Convert ffmpeg_image_transport_msgs::msg::FFMPEGPacket to common::Image
+ * @param msg ffmpeg_image_transport_msgs::msg::FFMPEGPacket to be converted
+ * @return common::Image
+ */
+common::Image from_ros_ffmpeg(const ffmpeg_image_transport_msgs::msg::FFMPEGPacket & msg);
+
 }  // namespace accelerated_image_processor::ros
