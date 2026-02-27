@@ -30,7 +30,7 @@ class FfmpegVideoDecompressor;
 enum class VideoBackend : uint8_t { FFMPEG };
 
 /**
- * @brief Abstract base class for Jetson Video compressors.
+ * @brief Abstract base class for video decompressors.
  */
 class VideoDecompressor : public common::BaseProcessor
 {
@@ -48,7 +48,7 @@ public:
   VideoBackend backend() const { return backend_; }
 
 private:
-  const VideoBackend backend_;  //!< Compression backend type.
+  const VideoBackend backend_;  //!< Decompression backend type.
 };
 //!< @brief Factory function to create a FfmpegVideoDecompressor.
 std::unique_ptr<VideoDecompressor> make_ffmpeg_video_decompressor();

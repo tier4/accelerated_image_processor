@@ -132,7 +132,7 @@ private:
       case common::ImageFormat::AV1:
         return "av1";
       default:
-        throw std::runtime_error("Unsuported format was detected");
+        throw std::runtime_error("Unsupported format was detected");
     }
   }
 
@@ -147,7 +147,7 @@ private:
     }
 
     // Inject the CUDA Stream
-    //   safely modify the specific HW context settings nwo because initialization hasn't happened
+    //   safely modify the specific HW context settings now because initialization hasn't happened
     //   yet
     {
       // Extract CUcontext from cuda stream using CUDA driver API
@@ -202,23 +202,23 @@ private:
     // Allocate packet wrapper
     packet_ = av_packet_alloc();
     if (!packet_) {
-      return DecoderInitResult(false, "Failed to allcate AVPacket");
+      return DecoderInitResult(false, "Failed to allocate AVPacket");
     }
 
     // Allocate region to store the decoded result
     decoded_frame_ = av_frame_alloc();
     if (!decoded_frame_) {
-      return DecoderInitResult(false, "Failed to allcate AVFrame");
+      return DecoderInitResult(false, "Failed to allocate AVFrame");
     }
 
     return DecoderInitResult(true, "");
   }
 
   /**
-   * @brief core process implementation that handles input image (ffmpeg packat) and returns the
+   * @brief core process implementation that handles input image (ffmpeg packet) and returns the
    * vector of Image
    *
-   * Because one ffmpeg packet may include multiple frames, process_imple, which is the pure virtual
+   * Because one ffmpeg packet may include multiple frames, process_impl, which is the pure virtual
    * function that returns one image as a decoding result,  can not be applicable for this class.
    */
   std::vector<common::Image> process_packet(const common::Image & image)
@@ -277,7 +277,7 @@ private:
       // Release references explicitly
       // Although receive_frame unrefs at the start, we manually unref here
       // to return the GPU surface to the pool IMMEDIATELY.
-      // If we wait until the next callback, we might starve teh decoder's surface pool
+      // If we wait until the next callback, we might starve the decoder's surface pool
       av_frame_unref(decoded_frame_);
     }
 

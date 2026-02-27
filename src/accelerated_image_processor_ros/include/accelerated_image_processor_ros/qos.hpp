@@ -51,7 +51,7 @@ bool find_qos(
  * @param node The ROS node to use for querying the topic.
  * @param topic_name The name of the topic to query.
  * @param throttle_period_ms The period in milliseconds to throttle the logging.
- * @return std::string The type for the topic, or std::nullopt if no
+ * @return std::string The type for the topic, or an empty string if no
  * publishers are found or if multiple publishers are found.
  */
 std::string find_topic_type(

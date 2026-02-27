@@ -8,7 +8,6 @@
   <arg name="output/image_raw" default="/image_raw"/>
 
   <node pkg="accelerated_image_processor_ros" exec="accelerated_image_processor_ros_decompress_node" output="screen">
-  <!-- <node pkg="accelerated_image_processor_ros" exec="accelerated_image_processor_ros_decompress_node" output="screen" launch-prefix="gdbserver :12345"> -->
     <param from="$(var param_path)" allow_substs="true"/>
     <remap from="image_raw/compressed" to="$(var input/image_raw/compressed)"/>
     <remap from="image_raw" to="$(var output/image_raw)"/>

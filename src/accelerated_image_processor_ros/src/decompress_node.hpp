@@ -50,7 +50,7 @@ private:
 
   /**
    * @brief Callback function for publishing decompressed images.
-   * @param image The decompressed image compressed and to be published.
+   * @param image The decompressed image to be published.
    */
   void publish_decompressed(const common::Image & image);
 
@@ -65,7 +65,5 @@ private:
   rclcpp::TimerBase::SharedPtr qos_request_timer_;
 
   std::optional<TaskWorker> decompression_worker_;
-
-  bool use_jpeg_compression_;
 };
 }  // namespace accelerated_image_processor::ros

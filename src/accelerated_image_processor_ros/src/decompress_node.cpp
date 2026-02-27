@@ -84,7 +84,7 @@ void DecompressNode::determine_qos(const int max_task_length)
 
   decompression_worker_.emplace(max_task_length);
 
-  // once all queries received, stop the timer callback1
+  // once all queries received, stop the timer callback
   qos_request_timer_->cancel();
 }
 
