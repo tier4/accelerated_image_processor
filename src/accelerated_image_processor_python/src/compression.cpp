@@ -49,10 +49,12 @@ public:
   explicit PythonCompressorProxy(std::unique_ptr<compression::Compressor> compressor)
   : compressor_(std::move(compressor))
   {
-    if (compressor_ && compressor_->backend() == compression::CompressorBackend::JETSON) {
+    if (compressor_) {
       compressor_
         ->register_postprocess<PythonCompressorProxy, &PythonCompressorProxy::on_postprocess>(this);
-      await_async_result_ = true;
+      if (compressor_->backend() == compression::CompressorBackend::JETSON) {
+        await_async_result_ = true;
+      }
     }
   }
 
@@ -86,9 +88,36 @@ public:
   common::ParameterMap & parameters() { return compressor_->parameters(); }
   const common::ParameterMap & parameters() const { return compressor_->parameters(); }
 
+  void register_postprocess(const bp::object & callback)
+  {
+    if (callback.is_none()) {
+      callback_ = bp::object();
+      callback_enabled_ = false;
+      return;
+    }
+
+    if (!PyCallable_Check(callback.ptr())) {
+      PyErr_SetString(PyExc_TypeError, "callback must be callable");
+      bp::throw_error_already_set();
+    }
+
+    callback_ = callback;
+    callback_enabled_ = true;
+  }
+
 private:
   void on_postprocess(const common::Image & image)
   {
+    if (callback_enabled_) {
+      PyGILState_STATE gil_state = PyGILState_Ensure();
+      try {
+        callback_(image);
+      } catch (const bp::error_already_set &) {
+        PyErr_Print();
+      }
+      PyGILState_Release(gil_state);
+    }
+
     {
       std::lock_guard<std::mutex> lock(result_queue_mutex_);
       result_queue_.push_back(image);
@@ -98,6 +127,8 @@ private:
 
   std::unique_ptr<compression::Compressor> compressor_;
   bool await_async_result_{false};
+  bool callback_enabled_{false};
+  bp::object callback_;
 
   std::mutex result_queue_mutex_;
   std::condition_variable result_queue_cv_;
@@ -115,6 +146,7 @@ BOOST_PYTHON_MODULE(accelerated_image_processor_python_compression)
   // be instantiated directly.
   bp::class_<PythonCompressorProxy, boost::noncopyable>("Compressor", bp::no_init)
     .def("process", &python::process_or_none<PythonCompressorProxy>)
+    .def("register_postprocess", &PythonCompressorProxy::register_postprocess)
     .add_property("backend", &PythonCompressorProxy::backend)
     .add_property(
       "parameters",
