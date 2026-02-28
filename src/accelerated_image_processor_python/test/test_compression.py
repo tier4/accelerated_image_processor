@@ -38,6 +38,10 @@ def test_jpeg_compressor(
     compressor = create_compressor(compression_type)
     assert compressor is not None
 
+    compressor.register_postprocess(
+        lambda image: print(f"Processed image (H, W)={image.height}, {image.width}")
+    )
+
     result = compressor.process(image)
     assert result is not None
     assert result.format == compression_format
@@ -76,6 +80,10 @@ def test_jetson_video_compressor(
 
     compressor = create_compressor(compression_type)
     assert compressor is not None
+
+    compressor.register_postprocess(
+        lambda image: print(f"Processed image (H, W)={image.height}, {image.width}")
+    )
 
     result = compressor.process(image)
     assert result is not None
