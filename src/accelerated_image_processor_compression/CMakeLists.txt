@@ -1,8 +1,8 @@
-cmake_minimum_required(VERSION 3.14)
+cmake_minimum_required(VERSION 3.16)
 project(accelerated_image_processor_compression LANGUAGES CXX CUDA)
 
 # Set CMAKE_MODULE_PATH to include the custom cmake modules
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/")
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake/")
 
 if(NOT CMAKE_CXX_STANDARD)
   set(CMAKE_CXX_STANDARD 17)
@@ -141,8 +141,11 @@ if(JETSON_FOUND)
   target_link_libraries(${PROJECT_NAME} ${PROJECT_NAME}_jetson)
 endif()
 
-set_property(TARGET ${PROJECT_NAME} PROPERTY INTERFACE_INCLUDE_DIRECTORIES
-                                             $<INSTALL_INTERFACE:include>)
+set_property(
+  TARGET ${PROJECT_NAME}
+  PROPERTY INTERFACE_INCLUDE_DIRECTORIES
+           $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+           $<INSTALL_INTERFACE:include>)
 
 if(JETSON_FOUND)
   install(TARGETS ${PROJECT_NAME} ${PROJECT_NAME}_jetson

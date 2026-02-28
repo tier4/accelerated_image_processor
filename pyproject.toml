@@ -1,0 +1,24 @@
+[build-system]
+requires = ["scikit-build-core", "catkin_pkg"]
+build-backend = "scikit_build_core.build"
+
+[project]
+name = "accelerated_image_processor"
+version = "0.0.0"
+description = "GPU-accelerated image processing library"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "opencv-python>=4.0",
+]
+
+[tool.scikit-build]
+cmake.source-dir = "src/accelerated_image_processor_python"
+cmake.version = ">=3.15"
+
+[dependency-groups]
+dev = [
+    "lark>=1.3.1",
+    "pytest>=9.0.2",
+    "pyyaml>=6.0.3",
+]
