@@ -503,6 +503,67 @@ TEST(TestConversionToRosRoi, CopyFields)
   EXPECT_EQ(result.width, roi.width);
   EXPECT_EQ(result.do_rectify, roi.do_rectify);
 }
+
+TEST(TestSplitStringByCommaAndSemicolon, Simple)
+{
+  auto result = split_string_by_comma_and_semicolon("foo,bar;baz");
+  std::vector<std::string> expected{"foo", "bar", "baz"};
+  EXPECT_EQ(result, expected);
+}
+
+TEST(TestSplitStringByCommaAndSemicolon, NoDelimiter)
+{
+  auto result = split_string_by_comma_and_semicolon("single");
+  std::vector<std::string> expected{"single"};
+  EXPECT_EQ(result, expected);
+}
+
+// Test from_ros_ffmpeg_encoding
+TEST(TestFromRosFfmpegEncoding, Simple)
+{
+  EXPECT_EQ(from_ros_ffmpeg_encoding("h264"), common::ImageFormat::H264);
+  EXPECT_EQ(from_ros_ffmpeg_encoding("hevc"), common::ImageFormat::H265);
+  EXPECT_EQ(from_ros_ffmpeg_encoding("av1"), common::ImageFormat::AV1);
+}
+
+TEST(TestFromRosFfmpegEncoding, CommaAndSemicolon)
+{
+  EXPECT_EQ(from_ros_ffmpeg_encoding("h264,foo"), common::ImageFormat::H264);
+  EXPECT_EQ(from_ros_ffmpeg_encoding("hevc;bar"), common::ImageFormat::H265);
+  EXPECT_EQ(from_ros_ffmpeg_encoding("av1,baz"), common::ImageFormat::AV1);
+}
+
+TEST(TestFromRosFfmpegEncoding, UnsupportedThrows)
+{
+  EXPECT_THROW(from_ros_ffmpeg_encoding("foo"), std::runtime_error);
+}
+
+// Test from_ros_ffmpeg
+TEST(TestFromRosFfmpeg, ConvertMessage)
+{
+  ffmpeg_image_transport_msgs::msg::FFMPEGPacket pkt;
+  pkt.header.frame_id = "frame_id";
+  pkt.header.stamp.sec = 1;
+  pkt.header.stamp.nanosec = 2;
+  pkt.width = 640;
+  pkt.height = 480;
+  pkt.encoding = "h264";
+  pkt.pts = 12345678;
+  pkt.flags = 7u;
+  pkt.is_bigendian = true;
+  pkt.data = std::vector<uint8_t>{1, 2, 3, 4, 5, 6};
+
+  auto img = from_ros_ffmpeg(pkt);
+
+  EXPECT_EQ(img.frame_id, pkt.header.frame_id);
+  EXPECT_EQ(img.timestamp, 1000000000LL + 2LL);
+  EXPECT_EQ(img.width, pkt.width);
+  EXPECT_EQ(img.height, pkt.height);
+  EXPECT_EQ(img.format, common::ImageFormat::H264);
+  EXPECT_EQ(img.flags.value(), 7u);
+  EXPECT_EQ(img.is_bigendian, true);
+  EXPECT_EQ(img.data, pkt.data);
+}
 }  // namespace accelerated_image_processor::ros
 
 int main(int argc, char ** argv)

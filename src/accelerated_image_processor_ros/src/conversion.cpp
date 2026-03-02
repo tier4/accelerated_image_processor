@@ -22,6 +22,7 @@
 
 #include <stdexcept>
 #include <string>
+#include <vector>
 
 namespace accelerated_image_processor::ros
 {
@@ -231,4 +232,62 @@ ffmpeg_image_transport_msgs::msg::FFMPEGPacket to_ros_ffmpeg(const common::Image
     .is_bigendian(image.is_bigendian)
     .data(image.data);
 }
+
+/// --- From ffmpeg_image_transport_msgs::msg::FFMPEGPacket to common::Image ---
+
+std::vector<std::string> split_string_by_comma_and_semicolon(const std::string & input_string)
+{
+  auto split_by_delimiter = [](const std::vector<std::string> & str_vec, const char delimiter) {
+    std::vector<std::string> return_vec;
+    for (const auto & str : str_vec) {
+      std::stringstream ss{str};
+      std::string buf;
+      while (std::getline(ss, buf, delimiter)) {
+        return_vec.push_back(buf);
+      }
+    }
+    return return_vec;
+  };
+
+  std::vector<std::string> input_string_vec = {input_string};
+  auto comma_separated = split_by_delimiter(input_string_vec, ',');
+  auto semicolon_separated = split_by_delimiter(comma_separated, ';');
+  return semicolon_separated;
+}
+
+common::ImageFormat from_ros_ffmpeg_encoding(const std::string & encoding_str)
+{
+  // Because some encoders provide ';' or ',' separated strings that include codec, the
+  // original image plane format, ...etc., split it into the elements and try each to see if it
+  // can be recognized as a valid codec
+  auto codec_candidates = split_string_by_comma_and_semicolon(encoding_str);
+  for (const auto & candidate : codec_candidates) {
+    if (candidate == "h264") {
+      return common::ImageFormat::H264;
+    } else if (candidate == "hevc") {
+      return common::ImageFormat::H265;
+    } else if (candidate == "av1") {
+      return common::ImageFormat::AV1;
+    } else {
+      continue;
+    }
+  }
+  throw std::runtime_error("Supported codec is not found");
+}
+
+common::Image from_ros_ffmpeg(const ffmpeg_image_transport_msgs::msg::FFMPEGPacket & msg)
+{
+  common::Image output;
+  output.frame_id = msg.header.frame_id;
+  output.timestamp = from_ros_time(msg.header.stamp);
+  output.height = msg.height;
+  output.width = msg.width;
+  output.format = from_ros_ffmpeg_encoding(msg.encoding);
+  output.pts = msg.pts;
+  output.flags = msg.flags;
+  output.is_bigendian = msg.is_bigendian;
+  output.data = msg.data;
+  return output;
+}
+
 }  // namespace accelerated_image_processor::ros

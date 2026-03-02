@@ -44,4 +44,28 @@ std::optional<rclcpp::QoS> find_qos(
 bool find_qos(
   rclcpp::Node * node, const std::string & topic_name, rclcpp::QoS & qos,
   int throttle_period_ms = 1000);
+
+/**
+ * @brief Try to find the topic type for a given topic.
+ *
+ * @param node The ROS node to use for querying the topic.
+ * @param topic_name The name of the topic to query.
+ * @param throttle_period_ms The period in milliseconds to throttle the logging.
+ * @return std::string The type for the topic, or an empty string if no
+ * publishers are found or if multiple publishers are found.
+ */
+std::string find_topic_type(
+  rclcpp::Node * node, const std::string & topic_name, int throttle_period_ms = 1000);
+
+/**
+ * @brief Try to find the topic type for a given topic.
+ *
+ * @param node The ROS node to use for querying the topic.
+ * @param topic_name The name of the topic to query.
+ * @param topic_type The type for the topic.
+ * @return bool True if the topic type was found, false otherwise.
+ */
+bool find_topic_type(
+  rclcpp::Node * node, const std::string & topic_name, std::string & topic_type,
+  int throttle_period_ms = 1000);
 }  // namespace accelerated_image_processor::ros
