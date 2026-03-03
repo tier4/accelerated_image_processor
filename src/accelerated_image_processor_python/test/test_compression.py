@@ -58,7 +58,7 @@ def test_fetch_parameters_for_jpeg_compressor():
 
 @pytest.mark.skipif(
     not is_jetson_available(),
-    reason="Skip testing jeton video encoder because jetson is not available",
+    reason="Skip testing jetson video encoder because jetson is not available",
 )
 @pytest.mark.parametrize(
     "compression_type, compression_format",

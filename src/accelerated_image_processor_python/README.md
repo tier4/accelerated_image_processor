@@ -13,7 +13,7 @@ Currently, the main public modules are:
 
 You can choose two types of installation depending on your demand.
 
-### 1. Install with Python Package Manger
+### 1. Install with Python Package Manager
 
 - `pip`
 
