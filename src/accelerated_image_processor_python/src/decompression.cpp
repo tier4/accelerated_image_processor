@@ -55,7 +55,21 @@ public:
     return decompressor_->process(image);
   }
 
-  void register_postprocess(const bp::object & callback) { callback_ = callback; }
+  void register_postprocess(const bp::object & callback)
+  {
+    // Treat None as disabling the postprocess callback
+    if (callback.is_none()) {
+      callback_ = bp::object();
+      return;
+    }
+
+    // Ensure that the provided object is callable
+    if (!PyCallable_Check(callback.ptr())) {
+      PyErr_SetString(PyExc_TypeError, "register_postprocess expects a callable or None");
+      bp::throw_error_already_set();
+    }
+    callback_ = callback;
+  }
 
 private:
   void on_postprocess(const common::Image & image)
