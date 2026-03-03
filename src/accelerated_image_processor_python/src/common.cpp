@@ -165,6 +165,7 @@ BOOST_PYTHON_MODULE(accelerated_image_processor_python_common)
   // ------- Parameter -------
   bp::class_<common::ParameterMap>("ParameterMap")
     .def("from_dict", &python::from_dict)
+    .staticmethod("from_dict")
     .def("to_dict", &python::to_dict);
 
   // ------- BaseProcessor -------
