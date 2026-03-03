@@ -71,6 +71,9 @@ public:
     callback_ = callback;
   }
 
+  common::ParameterMap & parameters() { return decompressor_->parameters(); }
+  const common::ParameterMap & parameters() const { return decompressor_->parameters(); }
+
 private:
   void on_postprocess(const common::Image & image)
   {
@@ -91,10 +94,8 @@ BOOST_PYTHON_MODULE(accelerated_image_processor_python_decompression)
     .def("register_postprocess", &PythonDecompressorProxy::register_postprocess)
     .add_property(
       "parameters",
-      +[](const decompression::VideoDecompressor & self) {
-        return python::to_dict(self.parameters());
-      },
-      +[](decompression::VideoDecompressor & self, const bp::dict & dict) {
+      +[](const PythonDecompressorProxy & self) { return python::to_dict(self.parameters()); },
+      +[](PythonDecompressorProxy & self, const bp::dict & dict) {
         self.parameters() = python::from_dict(dict);
       });
 
