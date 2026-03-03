@@ -119,7 +119,8 @@ install(TARGETS ${PYTHON_MODULE_LIST}
 
 if(BUILD_TESTING)
   find_package(ament_cmake_pytest REQUIRED)
-  set(test_files test/test_common.py test/test_compression.py)
+  set(test_files test/test_common.py test/test_compression.py
+                 test/test_decompression.py)
   foreach(test_file ${test_files})
     get_filename_component(test_name ${test_file} NAME_WE)
     ament_add_pytest_test(
