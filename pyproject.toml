@@ -9,12 +9,13 @@ description = "GPU-accelerated image processing library"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
+    "numpy>=1.21.0",
     "opencv-python>=4.0",
 ]
 
 [tool.scikit-build]
 cmake.source-dir = "src/accelerated_image_processor_python"
-cmake.version = ">=3.15"
+cmake.version = ">=3.16"
 
 [dependency-groups]
 dev = [
