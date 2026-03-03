@@ -48,7 +48,10 @@ template <typename T>
 void list_to_vector(std::vector<T> & vec, const bp::object & iterable)
 {
   bp::list py_list(iterable);
-  for (bp::ssize_t i = 0; i < bp::len(py_list); ++i) {
+  const auto len = bp::len(py_list);
+  vec.clear();
+  vec.reserve(static_cast<size_t>(len));
+  for (bp::ssize_t i = 0; i < len; ++i) {
     vec.push_back(bp::extract<T>(py_list[i]));
   }
 }
