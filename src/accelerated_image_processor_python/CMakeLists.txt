@@ -27,6 +27,7 @@ find_package(Boost REQUIRED COMPONENTS python)
 # find accelerated_image_processor packages
 find_package(accelerated_image_processor_common REQUIRED)
 find_package(accelerated_image_processor_compression REQUIRED)
+find_package(accelerated_image_processor_decompression REQUIRED)
 
 # define python package name
 set(PYTHON_PACKAGE_NAME accelerated_image_processor)
@@ -45,7 +46,8 @@ if(SKBUILD)
 
   # list of shared libraries to be installed into target python package
   # directory
-  set(_aip_embedded_targets accelerated_image_processor_compression)
+  set(_aip_embedded_targets accelerated_image_processor_compression
+                            accelerated_image_processor_decompression)
 
   set(_aip_python_lib_dir "${PYTHON_INSTALL_DIR}/${PYTHON_PACKAGE_NAME}")
   foreach(_aip_target IN LISTS _aip_embedded_targets)
@@ -82,7 +84,8 @@ function(aip_add_python_module module_suffix)
     ${module_name}
     PUBLIC ${BoostPython_INCLUDE_DIRS}
            ${accelerated_image_processor_common_INCLUDE_DIRS}
-           ${accelerated_image_processor_compression_INCLUDE_DIRS})
+           ${accelerated_image_processor_compression_INCLUDE_DIRS}
+           ${accelerated_image_processor_decompression_INCLUDE_DIRS})
 
   target_link_libraries(
     ${module_name}
@@ -90,7 +93,9 @@ function(aip_add_python_module module_suffix)
     Python3::Python
     accelerated_image_processor_common::accelerated_image_processor_common
     accelerated_image_processor_compression::accelerated_image_processor_compression
+    accelerated_image_processor_decompression::accelerated_image_processor_decompression
   )
+
   set_target_properties(
     ${module_name}
     PROPERTIES PREFIX ""
@@ -107,6 +112,7 @@ set(PYTHON_MODULE_LIST)
 
 aip_add_python_module(common)
 aip_add_python_module(compression)
+aip_add_python_module(decompression)
 
 install(TARGETS ${PYTHON_MODULE_LIST}
         LIBRARY DESTINATION "${PYTHON_INSTALL_DIR}/${PYTHON_PACKAGE_NAME}")
