@@ -34,6 +34,8 @@ def test_image_initialization():
     image.encoding = ImageEncoding.RGB
     image.format = ImageFormat.RAW
     image.data = _make_image_array(height, width).ravel().tolist()
+    image.pts = 0
+    image.flags = False
 
 
 def test_image_from_numpy():

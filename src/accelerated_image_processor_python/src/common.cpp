@@ -72,6 +72,52 @@ bool is_turbojpeg_available()
 {
   return IS_TURBOJPEG_AVAILABLE;
 }
+
+/**
+ * @brief Returns the pts of the image as a Python object.
+ */
+bp::object get_pts(const common::Image & image)
+{
+  if (image.pts.has_value()) {
+    return bp::object(image.pts.value());
+  }
+  return bp::object();  // return None
+}
+
+/**
+ * @brief Sets the pts of the image from a Python object.
+ */
+void set_pts(common::Image & image, const bp::object & pts)
+{
+  if (pts.is_none()) {
+    image.pts = std::nullopt;
+  } else {
+    image.pts = bp::extract<uint64_t>(pts);
+  }
+}
+
+/**
+ * @brief Returns the flags of the image as a Python object.
+ */
+bp::object get_flags(const common::Image & image)
+{
+  if (image.flags.has_value()) {
+    return bp::object(image.flags.value());
+  }
+  return bp::object();  // return None
+}
+
+/**
+ * @brief Sets the flags of the image from a Python object.
+ */
+void set_flags(common::Image & image, const bp::object & flags)
+{
+  if (flags.is_none()) {
+    image.flags = std::nullopt;
+  } else {
+    image.flags = bp::extract<bool>(flags);
+  }
+}
 }  // namespace
 
 BOOST_PYTHON_MODULE(accelerated_image_processor_python_common)
@@ -115,8 +161,8 @@ BOOST_PYTHON_MODULE(accelerated_image_processor_python_common)
       +[](common::Image & self, const bp::object & iterable) {
         python::list_to_vector<uint8_t>(self.data, iterable);
       })
-    .def_readwrite("pts", &common::Image::pts)
-    .def_readwrite("flags", &common::Image::flags)
+    .add_property("pts", &get_pts, &set_pts)
+    .add_property("flags", &get_flags, &set_flags)
     .def("is_valid", &common::Image::is_valid);
 
   // ------- CameraInfo -------
