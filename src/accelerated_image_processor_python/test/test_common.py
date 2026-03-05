@@ -60,7 +60,7 @@ def test_image_from_file(tmp_path):
     assert image.height == height
     assert image.width == width
     assert image.step == width * 3
-    assert image.encoding == ImageEncoding.RGB
+    assert image.encoding == ImageEncoding.BGR
     assert image.format == ImageFormat.RAW
     assert len(image.data) == height * width * 3
 

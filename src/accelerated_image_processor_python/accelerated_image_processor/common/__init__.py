@@ -98,8 +98,7 @@ class Image(common_cpp.Image):
         cv_image = cv2.imread(str(filepath), cv2.IMREAD_COLOR)
         if cv_image is None:
             raise ValueError(f"Failed to read image: {filepath}")
-        cv_image = cv2.cvtColor(cv_image, cv2.COLOR_BGR2RGB)
-        return cls.from_numpy(cv_image, ImageEncoding.RGB)
+        return cls.from_numpy(cv_image, ImageEncoding.BGR)
 
 
 class CameraInfo(common_cpp.CameraInfo):
