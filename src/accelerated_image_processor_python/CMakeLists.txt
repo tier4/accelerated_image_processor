@@ -80,21 +80,20 @@ function(aip_add_python_module module_suffix)
                                                             "${_AIP_RPATH}")
   endif()
 
-  target_include_directories(
-    ${module_name}
-    PUBLIC ${BoostPython_INCLUDE_DIRS}
-           ${accelerated_image_processor_common_INCLUDE_DIRS}
-           ${accelerated_image_processor_compression_INCLUDE_DIRS}
-           ${accelerated_image_processor_decompression_INCLUDE_DIRS})
-
-  target_link_libraries(
-    ${module_name}
-    Boost::python
-    Python3::Python
-    accelerated_image_processor_common::accelerated_image_processor_common
-    accelerated_image_processor_compression::accelerated_image_processor_compression
-    accelerated_image_processor_decompression::accelerated_image_processor_decompression
+  set(target_include_dirs ${accelerated_image_processor_common_INCLUDE_DIRS})
+  set(target_libs
+      accelerated_image_processor_${module_suffix}::accelerated_image_processor_${module_suffix}
   )
+  if(NOT ${module_name} STREQUAL "common")
+    list(APPEND target_include_dirs
+         ${accelerated_image_processor_${module_suffix}_INCLUDE_DIRS})
+  endif()
+
+  target_include_directories(${module_name} PUBLIC ${BoostPython_INCLUDE_DIRS}
+                                                   ${target_include_dirs})
+
+  target_link_libraries(${module_name} Boost::python Python3::Module
+                        ${target_libs})
 
   set_target_properties(
     ${module_name}
