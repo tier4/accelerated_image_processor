@@ -52,7 +52,7 @@ void list_to_vector(std::vector<T> & vec, const bp::object & iterable)
   vec.clear();
   vec.reserve(static_cast<size_t>(len));
   for (bp::ssize_t i = 0; i < len; ++i) {
-    vec.push_back(bp::extract<T>(py_list[i]));
+    vec.emplace_back(bp::extract<T>(py_list[i]));
   }
 }
 
