@@ -1,0 +1,11 @@
+/**:
+  ros__parameters:
+    max_task_length: 5
+    compressor:
+      type: h265
+      target_bits_per_pixel: 0.6
+      h265:
+        level: 5_1_HIGH_TIER
+        profile: MAIN
+    rectifier:
+      do_rectify: false

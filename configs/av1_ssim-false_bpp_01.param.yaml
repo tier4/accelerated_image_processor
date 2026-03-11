@@ -1,0 +1,12 @@
+/**:
+  ros__parameters:
+    max_task_length: 5
+    compressor:
+      type: av1
+      target_bits_per_pixel: 0.1
+      av1:
+        enable_tile: false
+        enable_ssim_rdo: false
+        enable_cdf_update: true
+    rectifier:
+      do_rectify: false

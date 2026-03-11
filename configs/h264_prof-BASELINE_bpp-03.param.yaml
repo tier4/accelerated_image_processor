@@ -1,0 +1,11 @@
+/**:
+  ros__parameters:
+    max_task_length: 5
+    compressor:
+      type: h264
+      target_bits_per_pixel: 0.3
+      h264:
+        level: 5_1
+        profile: BASELINE
+    rectifier:
+      do_rectify: false
