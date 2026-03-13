@@ -25,9 +25,17 @@ script_dir = Path().resolve().absolute()
 #                      'rosbag2_2023_03_29-01_17_43')
 # INPUT_BAG_PATH = str(script_dir / 'ssd_mount_point' / 'rosbag_20230329' /
 #                      'rosbag2_2023_03_29-10_17_44-1_camera6')
-INPUT_BAG_PATH = str(
-    script_dir / "ssd_mount_point" / "rosbag_20230329" / "rosbag2_2023_03_29-13_42_59_camera7"
-)
+
+# ==================== NOTE: Edit the following two paths
+SSH_MOUNT_POINT = "/media/kotarouetake/Extreme SSD/"
+ROS_BAG = "rosbag2_2023_03_29-10_17_44-1_camera6"
+# ROS_BAG = "rosbag2_2023_03_29-11_21_07_camera6"
+# ROS_BAG = "rosbag2_2023_03_29-13_42_59_camera7"
+# ROS_BAG = "rosbag2_2023_03_29-14_31_11_camera7"
+
+# ==================
+
+INPUT_BAG_PATH = str(script_dir / SSH_MOUNT_POINT / "rosbag_20230329" / ROS_BAG)
 # INPUT_BAG_PATH = str('/tmp/input_bag')
 
 # OUTPUT_BAG_DIR = str(script_dir / 'ssd_mount_point' / 'rosbag_20230329' /
@@ -36,13 +44,7 @@ INPUT_BAG_PATH = str(
 # OUTPUT_BAG_DIR = str(script_dir / 'ssd_mount_point' / 'rosbag_20230329' /
 #                      'compressed' / 'rosbag2_2023_03_29-10_17_44-1_camera6'
 #                      )
-OUTPUT_BAG_DIR = str(
-    script_dir
-    / "ssd_mount_point"
-    / "rosbag_20230329"
-    / "compressed"
-    / "rosbag2_2023_03_29-13_42_59_camera7"
-)
+OUTPUT_BAG_DIR = str(script_dir / SSH_MOUNT_POINT / "rosbag_20230329" / "compressed" / ROS_BAG)
 # OUTPUT_BAG_DIR = str('/tmp/output_rosbags')
 
 # YAML_DIR = 'config_yamls'                    # パラメータのYAMLファイルがあるディレクトリ
@@ -50,12 +52,12 @@ YAML_DIR = str(script_dir / "configs")
 
 # INPUT_TOPIC = '/sensing/camera/camera0/image_rect_color'  # 圧縮ノードへ送る入力トピック名
 # OUTPUT_TOPIC = '/sensing/camera/camera0/image_rect_color/compressed'  # 圧縮ノードから受け取る出力トピック名
-# INPUT_TOPIC = '/sensing/camera/camera6/image_raw'  # 圧縮ノードへ送る入力トピック名
-# OUTPUT_TOPIC = '/sensing/camera/camera6/image_raw/compressed'  # 圧縮ノードから受け取る出力トピック名
-INPUT_TOPIC = "/sensing/camera/camera7/image_raw"  # 圧縮ノードへ送る入力トピック名
+INPUT_TOPIC = "/sensing/camera/camera6/image_raw"  # 圧縮ノードへ送る入力トピック名
 OUTPUT_TOPIC = (
-    "/sensing/camera/camera7/image_raw/compressed"  # 圧縮ノードから受け取る出力トピック名
+    "/sensing/camera/camera6/image_raw/compressed"  # 圧縮ノードから受け取る出力トピック名
 )
+# INPUT_TOPIC = "/sensing/camera/camera7/image_raw"  # 圧縮ノードへ送る入力トピック名
+# OUTPUT_TOPIC = "/sensing/camera/camera7/image_raw/compressed"  # 圧縮ノードから受け取る出力トピック名
 
 COMPRESSION_NODE_CMD = [
     "ros2",
@@ -75,7 +77,6 @@ class CompressionType(Enum):
 
 
 class BagProcessor(Node):
-
     def __init__(self, output_bag_path, compression_type):
         super().__init__("bag_processor_node")
 
