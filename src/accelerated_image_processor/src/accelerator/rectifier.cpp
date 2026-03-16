@@ -8,8 +8,14 @@
 #include <nppi_support_functions.h>
 #endif
 
+#ifdef ROS_DISTRO_HUMBLE
 #include <image_geometry/pinhole_camera_model.h>
 #include <cv_bridge/cv_bridge.h>
+#else
+#include <image_geometry/pinhole_camera_model.hpp>
+#include <cv_bridge/cv_bridge.hpp>
+#endif
+
 #include <opencv2/imgcodecs.hpp>
 
 #ifdef OPENCV_CUDA_AVAILABLE
