@@ -22,6 +22,15 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic -Wunused-function)
 endif()
 
+# Set ROS_DISTRO macros
+set(ROS_DISTRO $ENV{ROS_DISTRO})
+if(${ROS_DISTRO} STREQUAL "rolling")
+    add_compile_definitions(ROS_DISTRO_ROLLING)
+elseif(${ROS_DISTRO} STREQUAL "humble")
+    add_compile_definitions(ROS_DISTRO_HUMBLE)
+elseif(${ROS_DISTRO} STREQUAL "jazzy")
+    add_compile_definitions(ROS_DISTRO_JAZZY)
+endif()
 
 find_package(CUDA)
 find_package(NVJPEG)
