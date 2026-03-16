@@ -59,15 +59,10 @@ public:
    * @brief Set camera information before rectified, and compute the rectified camera information
    * under the hood.
    */
-  void set_camera_info(const common::CameraInfo & camera_info)
+  void set_camera_info(const common::CameraInfo & camera_info) override
   {
     camera_info_ = prepare_maps(camera_info);
   }
-
-  /**
-   * @brief Return the rectified camera information if it has value, otherwise std::nullopt.
-   */
-  const std::optional<common::CameraInfo> & camera_info() const { return camera_info_; }
 
   /**
    * @brief Return true if Rectifier::set_camera_info() was invoked and the rectified camera
@@ -81,8 +76,6 @@ protected:
    * This function is called in Rectifier::set_camera_info() under the hood.
    */
   virtual common::CameraInfo prepare_maps(const common::CameraInfo & camera_info) = 0;
-
-  std::optional<common::CameraInfo> camera_info_{std::nullopt};  //!< Rectified camera info.
 
 private:
   const RectifierBackend backend_;  //!< Rectification backend type.
