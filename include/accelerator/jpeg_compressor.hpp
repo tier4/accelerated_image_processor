@@ -42,6 +42,7 @@ public:
     ~CPUCompressor();
 
     CompressedImage::UniquePtr compress(const Image &msg, int quality = 90, int format = TJPF_RGB, int sampling = TJ_420);
+    CompressedImage::UniquePtr compress(const Image &msg, int quality, ImageFormat format, int sampling = TJ_420);
 private:
     tjhandle handle_;
     unsigned char *jpegBuf_;
