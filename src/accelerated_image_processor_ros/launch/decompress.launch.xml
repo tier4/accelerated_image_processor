@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<launch>
+  <!-- parameter file -->
+  <arg name="param_path" default="$(find-pkg-share accelerated_image_processor_ros)/config/decompress.param.yaml"/>
+
+  <!-- I/O topics -->
+  <arg name="input/image_raw/compressed" default="/image_raw/compressed"/>
+  <arg name="output/image_raw" default="/image_raw"/>
+
+  <node pkg="accelerated_image_processor_ros" exec="accelerated_image_processor_ros_decompress_node" output="screen">
+    <param from="$(var param_path)" allow_substs="true"/>
+    <remap from="image_raw/compressed" to="$(var input/image_raw/compressed)"/>
+    <remap from="image_raw" to="$(var output/image_raw)"/>
+  </node>
+</launch>
