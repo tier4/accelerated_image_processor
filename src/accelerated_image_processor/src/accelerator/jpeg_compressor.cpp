@@ -77,6 +77,11 @@ CompressedImage::UniquePtr CPUCompressor::compress(const Image &msg, int quality
 
     return compressed_msg;
 }
+
+CompressedImage::UniquePtr CPUCompressor::compress(const Image &msg, int quality, ImageFormat format, int sampling) {
+    const int tj_pixel_format = (format == ImageFormat::BGR) ? TJPF_BGR : TJPF_RGB;
+    return compress(msg, quality, tj_pixel_format, sampling);
+}
 #endif
 
 #ifdef JETSON_AVAILABLE
