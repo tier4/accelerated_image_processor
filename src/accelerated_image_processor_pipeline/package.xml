@@ -10,6 +10,7 @@
   <buildtool_depend>ament_cmake_auto</buildtool_depend>
 
   <depend>accelerated_image_processor_common</depend>
+  <depend>accelerated_image_processor_compression</depend>
   <depend>libopencv-dev</depend>
 
   <test_depend>ament_lint_auto</test_depend>
