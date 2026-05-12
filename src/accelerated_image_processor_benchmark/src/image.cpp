@@ -55,7 +55,7 @@ common::Image make_synthetic_image(
 {
   common::Image image;
   image.frame_id = "benchmark";
-  image.timestamp = 0;
+  image.timestamp = index;
   image.height = static_cast<uint32_t>(height);
   image.width = static_cast<uint32_t>(width);
   image.step = static_cast<uint32_t>(width * 3);

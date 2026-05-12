@@ -17,6 +17,7 @@
 #include "accelerated_image_processor_benchmark/utility.hpp"
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <functional>
 #include <iostream>
@@ -32,6 +33,8 @@ namespace accelerated_image_processor::benchmark
 {
 namespace
 {
+constexpr auto processing_timeout = std::chrono::seconds(30);
+
 /**
  * @brief Calculate the percentile of a vector of values.
  *
@@ -94,27 +97,30 @@ void Benchmarker::run(
   const std::vector<common::Image> & images, const size_t num_warmups, const size_t num_iterations)
 {
   // Set source bytes
-  this->set_source_bytes(images);
+  this->set_source_bytes(images, num_iterations);
 
   auto try_processing = [this, &images](size_t iter_idx) {
     const auto idx = iter_idx % images.size();
+    this->tic(images[idx]);
     processor_->process(images[idx]);
   };
 
   // Warmup
   std::cout << ">>> Starting warmup [n = " << num_warmups << "]" << std::endl;
+  this->reset_processed();
   for (size_t i = 0; i < num_warmups; ++i) {
     try_processing(i);
   }
+  this->wait_for_processed(num_warmups);
   std::cout << "<<< ✨Finished warmup" << std::endl;
 
   // Iterations
   std::cout << ">>> Starting iterations [n = " << num_iterations << "]" << std::endl;
   this->reset_processed();
   for (size_t i = 0; i < num_iterations; ++i) {
-    this->tic();
     try_processing(i);
   }
+  this->wait_for_processed(num_iterations);
   std::cout << "<<< ✨Finished iterations" << std::endl;
 
   // Print benchmark results
@@ -123,40 +129,90 @@ void Benchmarker::run(
 
 void Benchmarker::on_image(const common::Image & image)
 {
-  iter_ms_.push_back(toc());
-  processed_bytes_ += static_cast<uint64_t>(image.data.size());
-  processed_count_++;
+  const auto elapsed_ms = toc(image);
+
+  std::lock_guard<std::mutex> lock(mutex_);
+  if (elapsed_ms) {
+    iter_ms_.push_back(elapsed_ms.value());
+    processed_bytes_ += static_cast<uint64_t>(image.data.size());
+    processed_count_++;
+    benchmark_end_time_ = std::chrono::steady_clock::now();
+  } else {
+    unmatched_count_++;
+  }
+  processed_cv_.notify_all();
 }
 
 void Benchmarker::reset_processed()
 {
+  std::lock_guard<std::mutex> lock(mutex_);
   processed_bytes_ = 0;
   processed_count_ = 0;
+  unmatched_count_ = 0;
   iter_ms_.clear();
-  start_time_.reset();
+  start_times_.clear();
+  benchmark_start_time_.reset();
+  benchmark_end_time_.reset();
 }
 
-void Benchmarker::tic()
+void Benchmarker::tic(const common::Image & image)
 {
-  start_time_.emplace(std::chrono::steady_clock::now());
+  std::lock_guard<std::mutex> lock(mutex_);
+  const auto now = std::chrono::steady_clock::now();
+  start_times_[image.timestamp].push_back(now);
+  if (!benchmark_start_time_) {
+    benchmark_start_time_ = now;
+  }
 }
 
-double Benchmarker::toc() const
+std::optional<double> Benchmarker::toc(const common::Image & image)
 {
-  if (!start_time_) return 0.0;
-  auto end_time = std::chrono::steady_clock::now();
-  return std::chrono::duration<double, std::milli>(end_time - start_time_.value()).count();
+  const auto end_time = std::chrono::steady_clock::now();
+  std::lock_guard<std::mutex> lock(mutex_);
+  auto it = start_times_.find(image.timestamp);
+  if (it == start_times_.end() || it->second.empty()) {
+    return std::nullopt;
+  }
+
+  const auto start_time = it->second.front();
+  it->second.pop_front();
+  if (it->second.empty()) {
+    start_times_.erase(it);
+  }
+
+  return std::chrono::duration<double, std::milli>(end_time - start_time).count();
 }
 
-void Benchmarker::set_source_bytes(const std::vector<common::Image> & images)
+bool Benchmarker::wait_for_processed(size_t expected_count)
 {
-  source_bytes_ = std::accumulate(
-    images.begin(), images.end(), 0ull,
-    [](uint64_t sum, const common::Image & img) { return sum + img.data.size(); });
+  std::unique_lock<std::mutex> lock(mutex_);
+  const bool completed = processed_cv_.wait_for(lock, processing_timeout, [this, expected_count] {
+    return processed_count_ >= expected_count;
+  });
+
+  if (!completed) {
+    std::cout << "Warning: timed out waiting for processed images (" << processed_count_ << "/"
+              << expected_count << ")\n";
+  }
+
+  return completed;
+}
+
+void Benchmarker::set_source_bytes(
+  const std::vector<common::Image> & images, const size_t num_iterations)
+{
+  uint64_t source_bytes = 0;
+  for (size_t i = 0; i < num_iterations; ++i) {
+    source_bytes += static_cast<uint64_t>(images[i % images.size()].data.size());
+  }
+
+  std::lock_guard<std::mutex> lock(mutex_);
+  source_bytes_ = source_bytes;
 }
 
 double Benchmarker::compare_bytes() const
 {
+  std::lock_guard<std::mutex> lock(mutex_);
   return source_bytes_ > 0
            ? 100.0 * static_cast<double>(source_bytes_ - processed_bytes_) / source_bytes_
            : std::numeric_limits<double>::quiet_NaN();
@@ -164,38 +220,86 @@ double Benchmarker::compare_bytes() const
 
 double Benchmarker::total_ms() const
 {
+  std::lock_guard<std::mutex> lock(mutex_);
   return std::accumulate(iter_ms_.begin(), iter_ms_.end(), 0.0, std::plus<double>());
 }
 
 double Benchmarker::average_ms() const
 {
-  return processed_count_ > 0 ? total_ms() / processed_count_
+  std::lock_guard<std::mutex> lock(mutex_);
+  const double total_ms =
+    std::accumulate(iter_ms_.begin(), iter_ms_.end(), 0.0, std::plus<double>());
+  return processed_count_ > 0 ? total_ms / processed_count_
                               : std::numeric_limits<double>::quiet_NaN();
 }
 
 double Benchmarker::percentile_ms(double p) const
 {
+  std::lock_guard<std::mutex> lock(mutex_);
   return percentile(iter_ms_, p);
 }
 
 double Benchmarker::fps() const
 {
-  return processed_count_ > 0 ? 1000.0 * processed_count_ / total_ms()
-                              : std::numeric_limits<double>::quiet_NaN();
+  std::lock_guard<std::mutex> lock(mutex_);
+  if (!benchmark_start_time_ || !benchmark_end_time_ || processed_count_ == 0) {
+    return std::numeric_limits<double>::quiet_NaN();
+  }
+
+  const auto wall_ms = std::chrono::duration<double, std::milli>(
+                         benchmark_end_time_.value() - benchmark_start_time_.value())
+                         .count();
+  return wall_ms > 0.0 ? 1000.0 * processed_count_ / wall_ms
+                       : std::numeric_limits<double>::quiet_NaN();
 }
 
 void Benchmarker::print() const
 {
+  std::vector<double> iter_ms;
+  uint64_t source_bytes = 0;
+  uint64_t processed_bytes = 0;
+  uint64_t processed_count = 0;
+  uint64_t unmatched_count = 0;
+  double wall_ms = std::numeric_limits<double>::quiet_NaN();
+
+  {
+    std::lock_guard<std::mutex> lock(mutex_);
+    iter_ms = iter_ms_;
+    source_bytes = source_bytes_;
+    processed_bytes = processed_bytes_;
+    processed_count = processed_count_;
+    unmatched_count = unmatched_count_;
+    if (benchmark_start_time_ && benchmark_end_time_) {
+      wall_ms = std::chrono::duration<double, std::milli>(
+                  benchmark_end_time_.value() - benchmark_start_time_.value())
+                  .count();
+    }
+  }
+
+  const double total_ms = std::accumulate(iter_ms.begin(), iter_ms.end(), 0.0, std::plus<double>());
+  const double average_ms =
+    processed_count > 0 ? total_ms / processed_count : std::numeric_limits<double>::quiet_NaN();
+  const double fps =
+    wall_ms > 0.0 ? 1000.0 * processed_count / wall_ms : std::numeric_limits<double>::quiet_NaN();
+  const double storage_reduction =
+    source_bytes > 0 ? 100.0 * static_cast<double>(source_bytes - processed_bytes) / source_bytes
+                     : std::numeric_limits<double>::quiet_NaN();
+
   std::cout << "------------------ Benchmark Summary ------------------\n";
 
-  std::cout << "Storage Reduction: " << compare_bytes() << "% "  // Reduction rate[%]
-            << "(" << format_bytes(source_bytes_) << " -> "      // Source size
-            << format_bytes(processed_bytes_) << ")\n";          // Processed size
+  std::cout << "Storage Reduction: " << storage_reduction << "% "  // Reduction rate[%]
+            << "(" << format_bytes(source_bytes) << " -> "         // Source size
+            << format_bytes(processed_bytes) << ")\n";             // Processed size
 
-  std::cout << "Iteration ms: [Average]=" << average_ms()  // Average
-            << ", [50%tile]=" << percentile_ms(50)         // 50%tile
-            << ", [90%tile]=" << percentile_ms(90)         // 90%tile
-            << ", [FPS]=" << fps() << "\n";                // FPS
+  std::cout << "Latency ms: [Average]=" << average_ms     // Average
+            << ", [50%tile]=" << percentile(iter_ms, 50)  // 50%tile
+            << ", [90%tile]=" << percentile(iter_ms, 90)  // 90%tile
+            << ", [FPS]=" << fps << "\n";                 // FPS
+
+  if (unmatched_count > 0) {
+    std::cout << "Warning: " << unmatched_count
+              << " output frames were not matched to benchmark inputs.\n";
+  }
 
   std::cout << "-------------------------------------------------------\n";
 }

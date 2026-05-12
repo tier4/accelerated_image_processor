@@ -16,6 +16,9 @@ To get help, run `accbench -h`.
 
 To get help, run `accbench compression -h`.
 
+For asynchronous processors, benchmark outputs are matched to inputs by `common::Image::timestamp`.
+Processors must preserve the input timestamp in their processed output for latency measurement.
+
 #### Synthetic Image Data
 
 ```bash

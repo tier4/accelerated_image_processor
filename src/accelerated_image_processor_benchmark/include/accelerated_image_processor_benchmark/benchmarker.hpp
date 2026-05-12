@@ -20,9 +20,13 @@
 #include <yaml-cpp/yaml.h>
 
 #include <chrono>
+#include <condition_variable>
 #include <cstdint>
+#include <deque>
 #include <memory>
+#include <mutex>
 #include <optional>
+#include <unordered_map>
 #include <vector>
 
 namespace accelerated_image_processor::benchmark
@@ -56,19 +60,26 @@ private:
 
   /**
    * @brief Start the benchmark timer.
+   * @param image The image to process.
    */
-  void tic();
+  void tic(const common::Image & image);
 
   /**
    * @brief Stop the benchmark timer.
    */
-  double toc() const;
+  std::optional<double> toc(const common::Image & image);
+
+  /**
+   * @brief Wait until the specified number of images are processed.
+   */
+  bool wait_for_processed(size_t expected_count);
 
   /**
    * @brief Set the source bytes for benchmarking.
    * @param images The images to process.
+   * @param num_iterations The number of benchmark iterations.
    */
-  void set_source_bytes(const std::vector<common::Image> & images);
+  void set_source_bytes(const std::vector<common::Image> & images, size_t num_iterations);
 
   /**
    * @brief Compare the processed bytes with the source bytes.
@@ -106,7 +117,12 @@ private:
   uint64_t source_bytes_ = 0;
   uint64_t processed_bytes_ = 0;
   uint64_t processed_count_ = 0;
+  uint64_t unmatched_count_ = 0;
   std::vector<double> iter_ms_;
-  std::optional<std::chrono::steady_clock::time_point> start_time_;
+  std::unordered_map<int64_t, std::deque<std::chrono::steady_clock::time_point>> start_times_;
+  std::optional<std::chrono::steady_clock::time_point> benchmark_start_time_;
+  std::optional<std::chrono::steady_clock::time_point> benchmark_end_time_;
+  mutable std::mutex mutex_;
+  std::condition_variable processed_cv_;
 };
 }  // namespace accelerated_image_processor::benchmark
