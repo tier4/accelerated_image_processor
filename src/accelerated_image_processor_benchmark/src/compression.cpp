@@ -35,10 +35,15 @@ std::shared_ptr<argparse::ArgumentParser> make_compression_command()
   command->add_description("Benchmark CLI for image compression");
   command->add_argument("config").required().help("Filepath to the configuration file");
   // for warmup and iterations
-  command->add_argument("--warmup").default_value(size_t{10}).nargs(1).help("Number of warmups");
+  command->add_argument("--warmup")
+    .default_value(size_t{10})
+    .nargs(1)
+    .scan<'u', size_t>()
+    .help("Number of warmups");
   command->add_argument("--iteration")
     .default_value(size_t{100})
     .nargs(1)
+    .scan<'u', size_t>()
     .help("Number of executions.");
   // for rosbag images
   command->add_argument("--bag").help("Directory path to the input rosbags");
@@ -52,12 +57,14 @@ std::shared_ptr<argparse::ArgumentParser> make_compression_command()
   command->add_argument("--height")
     .default_value(int{1080})
     .nargs(1)
+    .scan<'i', int>()
     .help("Image height [required if --bag is NULL]");
-  command->add_argument("--width").default_value(int{1920}).nargs(1).help(
+  command->add_argument("--width").default_value(int{1920}).nargs(1).scan<'i', int>().help(
     "Image width [required if --bag is NULL]");
   command->add_argument("--seed")
     .default_value(uint64_t{1})
     .nargs(1)
+    .scan<'u', uint64_t>()
     .help("Random seed [required if --bag is NULL]");
 
   return command;
