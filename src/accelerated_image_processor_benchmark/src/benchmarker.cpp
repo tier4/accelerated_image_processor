@@ -26,6 +26,7 @@
 #include <numeric>
 #include <ostream>
 #include <string>
+#include <thread>
 #include <utility>
 #include <vector>
 
@@ -94,7 +95,8 @@ Benchmarker::Benchmarker(
 }
 
 void Benchmarker::run(
-  const std::vector<common::Image> & images, const size_t num_warmups, const size_t num_iterations)
+  const std::vector<common::Image> & images, const size_t num_warmups, const size_t num_iterations,
+  const std::optional<float> frame_rate)
 {
   // Set source bytes
   this->set_source_bytes(images, num_iterations);
@@ -116,8 +118,15 @@ void Benchmarker::run(
 
   // Iterations
   std::cout << ">>> Starting iterations [n = " << num_iterations << "]" << std::endl;
+  std::chrono::duration<float> sleep_sec;
+  if (frame_rate) {
+    sleep_sec = std::chrono::duration<float>(1.0f / frame_rate.value());
+  }
   this->reset_processed();
   for (size_t i = 0; i < num_iterations; ++i) {
+    if (frame_rate) {
+      std::this_thread::sleep_for(sleep_sec);
+    }
     try_processing(i);
   }
   this->wait_for_processed(num_iterations);

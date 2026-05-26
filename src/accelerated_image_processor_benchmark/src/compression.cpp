@@ -66,6 +66,10 @@ std::shared_ptr<argparse::ArgumentParser> make_compression_command()
     .nargs(1)
     .scan<'u', uint64_t>()
     .help("Random seed [required if --bag is NULL]");
+  command->add_argument("--framerate")
+    .nargs(1)  // No default value
+    .scan<'g', float>()
+    .help("Pseudo frame rate of feeding image frames to the compressor");
 
   return command;
 }
@@ -76,6 +80,7 @@ void run_compression(const argparse::ArgumentParser & command)
   const auto config_path = command.get<std::string>("config");
   const auto num_warmup = command.get<size_t>("--warmup");
   const auto num_iteration = command.get<size_t>("--iteration");
+  const auto frame_rate = command.present<float>("--framerate");
 
   // Load config from ROS parameter YAML file
   const auto config = load_config(config_path)["compressor"];
@@ -116,6 +121,6 @@ void run_compression(const argparse::ArgumentParser & command)
   }
 
   // Run benchmark
-  benchmarker.run(images, num_warmup, num_iteration);
+  benchmarker.run(images, num_warmup, num_iteration, frame_rate);
 }
 }  // namespace accelerated_image_processor::benchmark
