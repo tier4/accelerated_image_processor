@@ -14,6 +14,7 @@ endif()
 # find dependencies
 find_package(ament_cmake_auto REQUIRED)
 ament_auto_find_build_dependencies()
+find_package(CUDAToolkit)
 
 # fetch argparse
 include(FetchContent)
@@ -26,9 +27,10 @@ FetchContent_MakeAvailable(argparse)
 ament_auto_add_library(${PROJECT_NAME} src/compression.cpp src/benchmarker.cpp
                        src/image.cpp src/utility.cpp)
 target_include_directories(
-  ${PROJECT_NAME} PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-                         $<INSTALL_INTERFACE:include>)
-target_link_libraries(${PROJECT_NAME} argparse)
+  ${PROJECT_NAME}
+  PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+         $<INSTALL_INTERFACE:include> ${CUDAToolkit_INCLUDE_DIRS})
+target_link_libraries(${PROJECT_NAME} argparse CUDA::cudart)
 
 ament_auto_add_executable(accbench src/run.cpp)
 target_include_directories(

@@ -45,6 +45,11 @@ std::shared_ptr<argparse::ArgumentParser> make_compression_command()
     .nargs(1)
     .scan<'u', size_t>()
     .help("Number of executions.");
+  command->add_argument("--input-count")
+    .default_value(size_t{0})
+    .nargs(1)
+    .scan<'u', size_t>()
+    .help("Number of input images to preload. Defaults to --iteration.");
   // for rosbag images
   command->add_argument("--bag").help("Directory path to the input rosbags");
   command->add_argument("--storage-id")
@@ -80,6 +85,8 @@ void run_compression(const argparse::ArgumentParser & command)
   const auto config_path = command.get<std::string>("config");
   const auto num_warmup = command.get<size_t>("--warmup");
   const auto num_iteration = command.get<size_t>("--iteration");
+  const auto input_count_arg = command.get<size_t>("--input-count");
+  const auto input_count = input_count_arg == 0 ? num_iteration : input_count_arg;
   const auto frame_rate = command.present<float>("--framerate");
 
   // Load config from ROS parameter YAML file
@@ -110,14 +117,14 @@ void run_compression(const argparse::ArgumentParser & command)
               << "  Storage ID: " << storage_id << "\n"
               << "  Topic: " << topic << "\n";
 
-    images = load_images(bag_dir, storage_id, topic, num_iteration);
+    images = load_images(bag_dir, storage_id, topic, input_count);
   } else {
     const auto height = command.get<int>("--height");
     const auto width = command.get<int>("--width");
     const auto seed = command.get<uint64_t>("--seed");
     std::cout << "Loading synthetic images:\n";
     std::cout << "  (Height, Width): (" << height << ", " << width << ")\n";
-    images = load_images(height, width, seed, num_iteration);
+    images = load_images(height, width, seed, input_count);
   }
 
   // Run benchmark

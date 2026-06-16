@@ -16,6 +16,8 @@
 
 #include "accelerated_image_processor_benchmark/utility.hpp"
 
+#include <nvtx3/nvToolsExt.h>
+
 #include <algorithm>
 #include <chrono>
 #include <cmath>
@@ -123,6 +125,8 @@ void Benchmarker::run(
     sleep_sec = std::chrono::duration<float>(1.0f / frame_rate.value());
   }
   this->reset_processed();
+
+  nvtxRangePushA("compression_iterations");
   for (size_t i = 0; i < num_iterations; ++i) {
     if (frame_rate) {
       std::this_thread::sleep_for(sleep_sec);
@@ -130,6 +134,8 @@ void Benchmarker::run(
     try_processing(i);
   }
   this->wait_for_processed(num_iterations);
+  nvtxRangePop();
+
   std::cout << "<<< ✨Finished iterations" << std::endl;
 
   // Print benchmark results
