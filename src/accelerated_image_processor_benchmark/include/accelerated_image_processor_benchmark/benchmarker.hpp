@@ -44,7 +44,7 @@ public:
    */
   void run(
     const std::vector<common::Image> & images, const size_t num_warmups,
-    const size_t num_iterations);
+    const size_t num_iterations, const std::optional<float> frame_rate = std::nullopt);
 
 private:
   /**
