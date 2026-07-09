@@ -1,119 +1,102 @@
 # accelerated_image_processor
 
-A ROS2 package that provides GPU-accelerated image processing capabilities for efficient image rectification and compression. This package is designed to handle high-throughput image processing tasks using hardware acceleration when available.
+`accelerated_image_processor` is a set of C++ and Python libraries for accelerated image processing.
+It provides common image data structures, image/video compression, video decompression, rectification pipelines, ROS 2 nodes, and benchmark tools.
 
-## Features
+> [!NOTE]
+> `src/accelerated_image_processor` is a legacy implementation and is intentionally not described here.
+> The current implementation is split into the packages listed below.
 
-- GPU-accelerated image rectification using:
-  - NVIDIA Performance Primitives (NPP)
-  - OpenCV CPU implementation
-  - OpenCV CUDA implementation
-- Hardware-accelerated JPEG compression using:
-  - NVIDIA JPEG encoder (for Jetson platforms)
-  - NVIDIA NVJPEG library
-  - TurboJPEG (CPU fallback)
-- Configurable processing pipeline
-- Support for RGB8 and BGR8 image formats
-- Task queue management for handling high-throughput scenarios
-- ROS2 component-based architecture
+## Packages
 
-## Dependencies
+| Package                                     | Role                                                     | ROS dependency |
+| ------------------------------------------- | -------------------------------------------------------- | -------------- |
+| `accelerated_image_processor_common`        | Common datatypes, parameters, and processor base classes | No             |
+| `accelerated_image_processor_compression`   | JPEG/video compression processors                        | No             |
+| `accelerated_image_processor_decompression` | CUDA-accelerated FFmpeg video decompression              | No             |
+| `accelerated_image_processor_pipeline`      | Rectification processors                                 | No             |
+| `accelerated_image_processor_python`        | Python bindings for common/compression/decompression     | No             |
+| `accelerated_image_processor_ros`           | ROS 2 components/nodes and ROS message conversions       | Yes            |
+| `accelerated_image_processor_benchmark`     | Benchmark CLI/library                                    | Yes            |
 
-### Required
-- OpenCV
-#### For GPU/HW acceleration
-- CUDA Toolkit
-- NVIDIA Performance Primitives (NPP)
-- NVJPEG (for discrete GPU environment)
-- Jetson Multimedia API (for Jetson platforms)
-#### For CPU acceleration
-- libturbojpeg
+## Supported processors
+
+### Compression
+
+| Processor              | Format | Backend                                | Device/platform  |
+| ---------------------- | ------ | -------------------------------------- | ---------------- |
+| `CpuJPEGCompressor`    | `JPEG` | TurboJPEG                              | CPU              |
+| `NvJPEGCompressor`     | `JPEG` | nvJPEG                                 | CUDA-capable GPU |
+| `JetsonJPEGCompressor` | `JPEG` | Jetson Multimedia API                  | NVIDIA Jetson    |
+| `JetsonH264Compressor` | `H264` | Jetson Multimedia API / NvVideoEncoder | NVIDIA Jetson    |
+| `JetsonH265Compressor` | `H265` | Jetson Multimedia API / NvVideoEncoder | NVIDIA Jetson    |
+| `JetsonAV1Compressor`  | `AV1`  | Jetson Multimedia API / NvVideoEncoder | NVIDIA Jetson    |
+
+JPEG backend selection is automatic in priority order: Jetson, nvJPEG, then TurboJPEG.
+Video compression is currently Jetson-only.
+
+### Decompression
+
+| Processor                 | Input formats         | Backend           | Device/platform  |
+| ------------------------- | --------------------- | ----------------- | ---------------- |
+| `FfmpegVideoDecompressor` | `H264`, `H265`, `AV1` | FFmpeg + CUDA/NPP | CUDA-capable GPU |
+
+### Pipeline
+
+| Processor             | Task          | Backend                             | Device/platform  |
+| --------------------- | ------------- | ----------------------------------- | ---------------- |
+| `NppRectifier`        | Rectification | NVIDIA Performance Primitives (NPP) | CUDA-capable GPU |
+| `OpenCvCudaRectifier` | Rectification | OpenCV CUDA                         | CUDA-capable GPU |
+| `CpuRectifier`        | Rectification | OpenCV                              | CPU              |
+
+Rectifier backend selection is automatic in priority order: NPP, OpenCV CUDA, then CPU.
 
 ## Installation
 
-1. Install the required dependencies:
-```bash
-sudo apt install ros-$ROS_DISTRO-cv-bridge ros-$ROS_DISTRO-image-geometry libturbojpeg0-dev
-```
+### ROS 2 workspace build
 
-2. Clone this repository into your ROS2 workspace:
+Clone into a ROS 2 workspace and build only the current packages.
+
 ```bash
-cd ~/ros2_ws/src
 git clone https://github.com/tier4/accelerated_image_processor.git
+cd accelerated_image_processor
+
+rosdep update && rosdep install -y --from-paths src --ignore-src --rosdistro ${ROS_DISTRO}
+
+colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=Release
 ```
 
-3. Build the package:
+### Python package in a non-ROS CUDA environment
+
+This repository can be installed as a Python package without ROS 2.
+System packages are still required for native extensions.
+
+Example for Ubuntu 22.04 + CUDA environment:
+
 ```bash
-cd ~/ros2_ws
-colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=Release --packages-up-to accelerated_image_processor
+sudo apt update && sudo apt install -y \
+  build-essential \
+  cmake \
+  git \
+  libavcodec-dev \
+  libavutil-dev \
+  libboost-python-dev \
+  libopencv-dev \
+  libturbojpeg0-dev \
+  ninja-build \
+  pkg-config \
+  python3-dev \
+  python3-pip
 ```
 
-## Usage
+Install with `uv`:
 
-The package provides a ROS2 component that can be loaded either as a standalone node or as part of a component container.
-
-### Parameters
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `rect_impl` | string | "npp" | Rectification implementation to use ("npp", "opencv_cpu", or "opencv_gpu") |
-| `alpha` | double | 0.0 | Rectification alpha parameter |
-| `jpeg_quality` | int | 60 | JPEG compression quality (0-100) |
-| `do_rectify` | bool | true | Enable/disable image rectification |
-| `max_task_queue_length` | int | 5 | Maximum number of images that can be queued for processing. A smaller value may cause dropped frames, while a larger value may lead to increased latency and higher memory usage. |
-
-### Topics
-
-#### Subscribed Topics
-- `image_raw` (sensor_msgs/Image): Raw input image
-- `camera_info` (sensor_msgs/CameraInfo): Camera calibration information
-
-#### Published Topics
-- `image_rect` (sensor_msgs/Image): Rectified image
-- `image_rect/compressed` (sensor_msgs/CompressedImage): Compressed rectified image
-- `image_raw/compressed` (sensor_msgs/CompressedImage): Compressed raw image
-- `camera_info_rect` (sensor_msgs/CameraInfo): Camera calibration information for the rectified image
-
-### Launch Examples
-
-1. As a standalone node:
 ```bash
-ros2 run accelerated_image_processor accelerated_image_processor_node
+uv add git+https://github.com/tier4/accelerated_image_processor.git
 ```
 
-2. With custom parameters:
+Or install with `pip`:
+
 ```bash
-ros2 run accelerated_image_processor accelerated_image_processor_node --ros-args -p rect_impl:=npp -p jpeg_quality:=80
+pip install git+https://github.com/tier4/accelerated_image_processor.git
 ```
-
-## Camera Intrinsics Publication
-
-According to the [definition](https://docs.ros2.org/latest/api/sensor_msgs/msg/CameraInfo.html) of `sensor_msgs/msg/CameraInfo`, its parameters of `K` and `P` are described as follows:
-
-> ```
-> Intrinsic camera matrix, for the raw (distorted) images
->     [fx  0  cx]
-> K = [ 0 fy  cy]
->     [ 0  0   1]
-> ```
-
-> ```
-> the intrinsic (camera) matrix of the processed (rectified) image
->     [fx'  0  cx'  Tx]
-> P = [ 0  fy' cy'  Ty]
->     [ 0   0   1    0]
-> ```
-
-The contents of `K` in `camera_info_rect` published by this node will be identical to the upper-left 3x3 portion of `P` from the input `camera_info`, as long as the specified `alpha` value is the same as the original (i.e., the one used during camera calibration). Typically, `alpha==0.0` is used.
-
-However, this node allows the input of an arbitrary `alpha` value, which may result in `P` from the input `camera_info` not accurately representing the intrinsic values for undistorted output images.
-
-Therefore, this node publishes the camera info for the undistorted images. The updated camera info is generated by:
-
-1. Calculating a new camera matrix based on `K` and `D` from the input `camera_info`
-2. Copying the contents of input `camera_info` into the output `camera_info_rect`
-3. Filling `K` in the output `camera_info_rect` with the values calculated during step 1
-4. Setting `D` in the output `camera_info_rect` to zeros
-5. Filling the upper-left 3x3 portion of `P` in the output `camera_info_rect` with the values calculated during step 1.
-
-This updated camera info is useful for applications that require the intrinsic parameters of the rectified image for further processing.
