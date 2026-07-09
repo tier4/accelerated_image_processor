@@ -14,8 +14,10 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic -Wunused-function)
 endif()
 
-find_package(ament_cmake_auto REQUIRED)
-ament_auto_find_build_dependencies()
+if(NOT SKBUILD)
+  find_package(ament_cmake_auto REQUIRED)
+  ament_auto_find_build_dependencies()
+endif()
 
 # find_package(CUDA)
 find_package(CUDAToolkit)
@@ -53,13 +55,20 @@ target_link_libraries(
           ${CUDA_nppidei_LIBRARY} # data exchange and initialization functions
 )
 
-ament_target_dependencies(${PROJECT_NAME} PUBLIC
-                          accelerated_image_processor_common)
+if(SKBUILD)
+  target_link_libraries(
+    ${PROJECT_NAME}
+    PUBLIC
+      accelerated_image_processor_common::accelerated_image_processor_common)
+else()
+  ament_target_dependencies(${PROJECT_NAME} PUBLIC
+                            accelerated_image_processor_common)
+endif()
 
 install(TARGETS ${PROJECT_NAME} EXPORT export_${PROJECT_NAME})
 install(DIRECTORY include/${PROJECT_NAME} DESTINATION include)
 
-if(BUILD_TESTING)
+if(BUILD_TESTING AND NOT SKBUILD)
   find_package(ament_cmake_gtest REQUIRED)
   ament_add_gtest(test_builder test/builder.cpp)
   target_link_libraries(test_builder ${PROJECT_NAME})
@@ -71,7 +80,9 @@ if(BUILD_TESTING)
                         PkgConfig::LIBAV PkgConfig::LIBAVFILTER)
 endif()
 
-ament_export_include_directories(include)
-ament_export_targets(export_${PROJECT_NAME})
-ament_export_dependencies(accelerated_image_processor_common)
-ament_package()
+if(NOT SKBUILD)
+  ament_export_include_directories(include)
+  ament_export_targets(export_${PROJECT_NAME})
+  ament_export_dependencies(accelerated_image_processor_common)
+  ament_package()
+endif()
