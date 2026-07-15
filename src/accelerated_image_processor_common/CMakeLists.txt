@@ -11,7 +11,9 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
-find_package(ament_cmake REQUIRED)
+if(NOT SKBUILD)
+  find_package(ament_cmake REQUIRED)
+endif()
 
 add_library(${PROJECT_NAME} INTERFACE)
 
@@ -23,10 +25,12 @@ target_include_directories(
 install(TARGETS ${PROJECT_NAME} EXPORT export_${PROJECT_NAME})
 install(DIRECTORY include/${PROJECT_NAME} DESTINATION include)
 
-if(BUILD_TESTING)
+if(BUILD_TESTING AND NOT SKBUILD)
   find_package(ament_lint_auto REQUIRED)
   ament_lint_auto_find_test_dependencies()
 endif()
 
-ament_export_targets(export_${PROJECT_NAME})
-ament_package()
+if(NOT SKBUILD)
+  ament_export_targets(export_${PROJECT_NAME})
+  ament_package()
+endif()

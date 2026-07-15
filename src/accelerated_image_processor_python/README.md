@@ -15,6 +15,9 @@ You can choose two types of installation depending on your demand.
 
 ### 1. Install with Python Package Manager
 
+Python package manager based installation builds the bindings through PEP517/scikit-build-core and does not require `ament_cmake`.
+If you need ROS package integration (`ament_package`, `colcon test`), use the ROS 2 package build path below.
+
 - `pip`
 
   ```bash

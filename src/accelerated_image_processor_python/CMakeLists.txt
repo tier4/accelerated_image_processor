@@ -19,8 +19,10 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 endif()
 
 # find dependencies
-find_package(ament_cmake REQUIRED)
-find_package(python_cmake_module REQUIRED)
+if(NOT SKBUILD)
+  find_package(ament_cmake REQUIRED)
+  find_package(python_cmake_module REQUIRED)
+endif()
 find_package(Python3 REQUIRED COMPONENTS Interpreter Development)
 find_package(Boost REQUIRED COMPONENTS python)
 
@@ -31,7 +33,9 @@ find_package(accelerated_image_processor_decompression REQUIRED)
 
 # define python package name
 set(PYTHON_PACKAGE_NAME accelerated_image_processor)
-ament_python_install_package(${PYTHON_PACKAGE_NAME})
+if(NOT SKBUILD)
+  ament_python_install_package(${PYTHON_PACKAGE_NAME})
+endif()
 
 if(SKBUILD)
   # When scikit-build-core drives the build it defines the SKBUILD variable, so
@@ -116,7 +120,7 @@ aip_add_python_module(decompression)
 install(TARGETS ${PYTHON_MODULE_LIST}
         LIBRARY DESTINATION "${PYTHON_INSTALL_DIR}/${PYTHON_PACKAGE_NAME}")
 
-if(BUILD_TESTING)
+if(BUILD_TESTING AND NOT SKBUILD)
   find_package(ament_cmake_pytest REQUIRED)
   set(test_files test/test_common.py test/test_compression.py
                  test/test_decompression.py)
@@ -135,4 +139,6 @@ if(BUILD_TESTING)
   endforeach()
 endif()
 
-ament_package()
+if(NOT SKBUILD)
+  ament_package()
+endif()

@@ -14,8 +14,10 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic -Wunused-function)
 endif()
 
-find_package(ament_cmake_auto REQUIRED)
-ament_auto_find_build_dependencies()
+if(NOT SKBUILD)
+  find_package(ament_cmake_auto REQUIRED)
+  ament_auto_find_build_dependencies()
+endif()
 
 # --- Jetson available? ---
 if(EXISTS "/etc/nv_tegra_release")
@@ -81,7 +83,13 @@ target_link_libraries(
   $<$<TARGET_EXISTS:CUDA::nppidei>:CUDA::nppidei>
   $<$<TARGET_EXISTS:CUDA::nppig>:CUDA::nppig>
   $<$<TARGET_EXISTS:CUDA::nppisu>:CUDA::nppisu>)
-ament_target_dependencies(${PROJECT_NAME} accelerated_image_processor_common)
+if(SKBUILD)
+  target_link_libraries(
+    ${PROJECT_NAME}
+    accelerated_image_processor_common::accelerated_image_processor_common)
+else()
+  ament_target_dependencies(${PROJECT_NAME} accelerated_image_processor_common)
+endif()
 
 if(JETSON_FOUND)
   target_include_directories(${PROJECT_NAME}
@@ -106,8 +114,14 @@ if(JETSON_FOUND)
     /usr/src/jetson_multimedia_api/samples/common/classes/NvBufSurface.cpp)
   target_compile_definitions(${PROJECT_NAME}_jetson PRIVATE JETSON_AVAILABLE)
 
-  ament_target_dependencies(${PROJECT_NAME}_jetson
-                            accelerated_image_processor_common)
+  if(SKBUILD)
+    target_link_libraries(
+      ${PROJECT_NAME}_jetson
+      accelerated_image_processor_common::accelerated_image_processor_common)
+  else()
+    ament_target_dependencies(${PROJECT_NAME}_jetson
+                              accelerated_image_processor_common)
+  endif()
   target_include_directories(
     ${PROJECT_NAME}_jetson
     PRIVATE $<$<BOOL:${CUDAToolkit_FOUND}>:${CUDAToolkit_INCLUDE_DIRS}>
@@ -156,7 +170,7 @@ endif()
 
 install(DIRECTORY include/${PROJECT_NAME} DESTINATION include)
 
-if(BUILD_TESTING)
+if(BUILD_TESTING AND NOT SKBUILD)
   set(test_files test/builder.cpp test/cpu_jpeg_compressor.cpp
                  test/jetson_jpeg_compressor.cpp test/nv_jpeg_compressor.cpp)
 
@@ -191,7 +205,9 @@ if(BUILD_TESTING)
   endforeach()
 endif()
 
-ament_export_include_directories(include)
-ament_export_targets(export_${PROJECT_NAME})
-ament_export_dependencies(accelerated_image_processor_common)
-ament_package()
+if(NOT SKBUILD)
+  ament_export_include_directories(include)
+  ament_export_targets(export_${PROJECT_NAME})
+  ament_export_dependencies(accelerated_image_processor_common)
+  ament_package()
+endif()
