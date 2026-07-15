@@ -141,7 +141,7 @@ public:
     EXPECT_LE(result.data.size(), image_size_);
     // expect the pts field has values larger than zero
     EXPECT_TRUE(result.pts.has_value());
-    EXPECT_GT(result.pts.value(), 0);
+    EXPECT_GE(result.pts.value(), 0);
     // expect flag should be 0 or 1
     EXPECT_TRUE(result.flags.has_value());
     if (result.flags.value() == 1 && frame_from_first_i_frame_ == std::nullopt) {

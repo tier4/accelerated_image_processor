@@ -489,8 +489,8 @@ bool JetsonVideoCompressor::encoder_capture_plane_dq_callback(
   }
 
   // Get encode metadata
-  v4l2_ctrl_videoenc_outputbuf_metadata enc_metadata;
-  encoder->getMetadata(v4l2_buf->index, enc_metadata);
+  v4l2_ctrl_videoenc_outputbuf_metadata enc_metadata{};
+  const bool has_encoder_metadata = encoder->getMetadata(v4l2_buf->index, enc_metadata) == 0;
 
   // Create result data
   common::Image processed;
@@ -510,13 +510,19 @@ bool JetsonVideoCompressor::encoder_capture_plane_dq_callback(
     processed.timestamp = stamp_in_nanosecond;
     processed.height = callback_args->input_height;
     processed.width = callback_args->input_width;
+    // getMetadata() fills enc_metadata via V4L2 ioctl side effect. Use the buffer flag as the
+    // direct fallback so subscribers waiting for AV_PKT_FLAG_KEY can start reliably.
+    const bool is_keyframe =
+      (has_encoder_metadata && enc_metadata.KeyFrame) ||
+      (v4l2_buf->flags & V4L2_BUF_FLAG_KEYFRAME) != 0;
+
     processed.format = supported_codec_format_map.at(compressor_object->codec());
-    processed.pts = stamp_in_nanosecond / 1e3;  // [us]
-    processed.flags = enc_metadata.KeyFrame ? AV_PKT_FLAG_KEY : 0;
+    processed.pts = compressor_object->next_pts_++;
+    processed.flags = is_keyframe ? AV_PKT_FLAG_KEY : 0;
     processed.is_bigendian = is_big_endian;
 
     compressor_object->payload_copy_impl(
-      enc_metadata.KeyFrame, payload_info, callback_args, processed.data);
+      is_keyframe, payload_info, callback_args, processed.data);
   }
 
   // Now, v4l2_buffer can be queued again

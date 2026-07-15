@@ -18,6 +18,7 @@
 #include "jetson_precise_timestamp_map.hpp"
 
 #include <atomic>
+#include <cstdint>
 #include <iostream>
 #include <memory>
 #include <string>
@@ -376,6 +377,7 @@ private:
   std::unique_ptr<DqCallbackArgs> dq_callback_args_;
 
   int initial_frame_count_{0};
+  uint64_t next_pts_{0};
 };
 #endif  // JETSON_AVAILABLE
 }  // namespace accelerated_image_processor::compression
