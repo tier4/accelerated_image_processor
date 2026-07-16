@@ -20,6 +20,7 @@
 #include <accelerated_image_processor_compression/builder.hpp>
 #include <accelerated_image_processor_pipeline/builder.hpp>
 #include <rclcpp/publisher_base.hpp>
+#include <accelerated_image_processor_pipeline/sequential.hpp>
 #include <rclcpp/rclcpp.hpp>
 
 #include <ffmpeg_image_transport_msgs/msg/ffmpeg_packet.hpp>
@@ -78,8 +79,7 @@ private:
   // --- image processors ---
   std::unique_ptr<compression::Compressor> raw_compressor_;
 
-  std::unique_ptr<pipeline::Rectifier> raw_rectifier_;
-  std::unique_ptr<compression::Compressor> rectified_compressor_;
+  pipeline::Sequential raw_rectifier_;
 
   // --- subscriptions and publishers ---
   rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr image_subscription_;

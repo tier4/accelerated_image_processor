@@ -94,4 +94,22 @@ private:
   common::Image image_;
   common::CameraInfo camera_info_;
 };
+
+/**
+ * @brief Dummy class to register postprocess function.
+ */
+struct DummyClass
+{
+  /**
+   * @brief Dummy free function for postprocess.
+   */
+  void dummy_function(const common::Image &) {}
+};
+
+/**
+ * @brief Dummy free function for postprocess.
+ */
+inline void dummy_function(const common::Image &)
+{
+}
 }  // namespace accelerated_image_processor::pipeline

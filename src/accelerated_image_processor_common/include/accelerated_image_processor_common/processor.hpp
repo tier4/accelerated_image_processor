@@ -177,6 +177,16 @@ public:
     return std::get<T>(parameters_.at(key));
   }
 
+  /**
+   * @brief Set camera info, note that this function does nothing unless overridden.
+   */
+  virtual void set_camera_info(const common::CameraInfo &) {}
+
+  /**
+   * @brief Return the rectified camera information if it has value, otherwise std::nullopt.
+   */
+  const std::optional<common::CameraInfo> & camera_info() const { return camera_info_; }
+
 protected:
   /**
    * @brief Process the input image.
@@ -184,5 +194,7 @@ protected:
    * @return The processed image.
    */
   virtual Image process_impl(const Image & image) = 0;
+
+  std::optional<common::CameraInfo> camera_info_{std::nullopt};  //!< [maybe unused] Camera info
 };
 }  // namespace accelerated_image_processor::common

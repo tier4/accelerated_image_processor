@@ -18,6 +18,9 @@
 #include "accelerated_image_processor_ros/parameter.hpp"
 #include "accelerated_image_processor_ros/qos.hpp"
 
+#include <accelerated_image_processor_compression/builder.hpp>
+#include <accelerated_image_processor_pipeline/rectifier.hpp>
+
 #include <chrono>
 #include <memory>
 #include <string>
@@ -43,17 +46,14 @@ ImgProcNode::ImgProcNode(const rclcpp::NodeOptions & options) : Node("imgproc_no
 
   // rectifier (rectification & compression)
   if (do_rectify) {
-    // TODO(ktro2828):
-    // - Implement composable processor that embraces multiple processors
-    // - Enable to share a CUDA stream across multiple processors
-    raw_rectifier_ =
-      pipeline::create_rectifier<ImgProcNode, &ImgProcNode::publish_rectified_raw>(this);
-    rectified_compressor_ =
-      compression::create_compressor<ImgProcNode, &ImgProcNode::publish_rectified_compressed>(
-        compression_type, this);
+    // TODO(ktro2828): Enable to share a CUDA stream across multiple processors
+    raw_rectifier_
+      .append<pipeline::Rectifier, ImgProcNode, &ImgProcNode::publish_rectified_raw>(
+        "rectifier", this)
+      .append<compression::Compressor, ImgProcNode, &ImgProcNode::publish_rectified_compressed>(
+        "compressor", this, compression_type);
 
-    fetch_parameters(this, raw_rectifier_.get(), "rectifier");
-    fetch_parameters(this, rectified_compressor_.get(), "compressor");
+    fetch_parameters(this, raw_rectifier_);
   }
 
   qos_request_timer_ = rclcpp::create_timer(
@@ -132,19 +132,14 @@ void ImgProcNode::on_image(const sensor_msgs::msg::Image::ConstSharedPtr msg)
   if (rectification_worker_) {
     // NOTE: capture `msg` by value to extend the lifetime of the shared pointer at least until the
     // task is completed
-    rectification_worker_->add_task([this, image, msg]() {
-      const auto rectified = raw_rectifier_->process(*image);
-      if (rectified) {
-        rectified_compressor_->process(rectified.value());
-      }
-    });
+    rectification_worker_->add_task([this, image, msg]() { raw_rectifier_.process(*image); });
   }
 }
 
 void ImgProcNode::on_camera_info(const sensor_msgs::msg::CameraInfo::ConstSharedPtr msg)
 {
   auto camera_info = from_ros_info(*msg);
-  raw_rectifier_->set_camera_info(camera_info);
+  raw_rectifier_.set_camera_info(camera_info);
   info_subscription_.reset();
 }
 
@@ -166,7 +161,7 @@ void ImgProcNode::publish_compressed(const common::Image & image)
 void ImgProcNode::publish_rectified_raw(const common::Image & image)
 {
   auto raw = to_ros_raw(image);
-  auto info = to_ros_info(raw_rectifier_->camera_info().value());
+  auto info = to_ros_info(raw_rectifier_.camera_info().value());
   rectified_raw_publisher_->publish(std::move(raw));
   rectified_info_publisher_->publish(std::move(info));
 }
