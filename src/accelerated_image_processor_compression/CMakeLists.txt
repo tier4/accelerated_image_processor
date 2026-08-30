@@ -59,12 +59,36 @@ if(${NVMMAPI_FOUND})
   message("Jetson multimedia API found")
 endif()
 
-add_library(${PROJECT_NAME} SHARED src/builder.cpp src/jpeg_compressor/cpu.cpp
-                                   src/jpeg_compressor/nvjpeg.cpp)
+# --- NVENC (NvEncodeAPI) available? ---
+# NVENC is the video encoder of discrete NVIDIA GPUs, which is driven through
+# the headers nv-codec-headers provides. Jetson devices are excluded because
+# they expose their encoder via the Jetson multimedia API instead.
+set(NVENC_FOUND FALSE)
+if(NOT JETSON_FOUND AND CUDAToolkit_FOUND)
+  find_package(FFNVCODEC)
+  if(FFNVCODEC_FOUND)
+    set(NVENC_FOUND TRUE)
+    message(
+      "nv-codec-headers found (NvEncodeAPI ${FFNVCODEC_VERSION}): NVENC video compression enabled"
+    )
+  else()
+    message("nv-codec-headers NOT found: NVENC video compression disabled")
+  endif()
+endif()
+
+set(${PROJECT_NAME}_SOURCES src/builder.cpp src/jpeg_compressor/cpu.cpp
+                            src/jpeg_compressor/nvjpeg.cpp)
+if(NVENC_FOUND)
+  list(APPEND ${PROJECT_NAME}_SOURCES src/video_compressor/nvenc.cpp
+       src/video_compressor/nvenc_av1.cpp)
+endif()
+
+add_library(${PROJECT_NAME} SHARED ${${PROJECT_NAME}_SOURCES})
 
 target_compile_definitions(
   ${PROJECT_NAME}
   PUBLIC $<$<BOOL:${JETSON_FOUND}>:JETSON_AVAILABLE>
+         $<$<BOOL:${NVENC_FOUND}>:NVENC_AVAILABLE>
          $<$<BOOL:${NVJPEG_FOUND}>:NVJPEG_AVAILABLE>
          $<$<BOOL:${LibJpegTurbo_FOUND}>:TURBOJPEG_AVAILABLE>)
 target_include_directories(
@@ -73,7 +97,8 @@ target_include_directories(
 target_include_directories(
   ${PROJECT_NAME}
   PRIVATE $<$<BOOL:${CUDAToolkit_FOUND}>:${CUDAToolkit_INCLUDE_DIRS}>
-          $<$<BOOL:${NVJPEG_FOUND}>:${NVJPEG_INCLUDE_DIRS}>)
+          $<$<BOOL:${NVJPEG_FOUND}>:${NVJPEG_INCLUDE_DIRS}>
+          $<$<BOOL:${NVENC_FOUND}>:${FFNVCODEC_INCLUDE_DIRS}>)
 target_link_libraries(
   ${PROJECT_NAME}
   $<$<BOOL:${LibJpegTurbo_FOUND}>:${LibJpegTurbo_LIBRARIES}>
@@ -82,7 +107,12 @@ target_link_libraries(
   $<$<TARGET_EXISTS:CUDA::nppicc>:CUDA::nppicc>
   $<$<TARGET_EXISTS:CUDA::nppidei>:CUDA::nppidei>
   $<$<TARGET_EXISTS:CUDA::nppig>:CUDA::nppig>
-  $<$<TARGET_EXISTS:CUDA::nppisu>:CUDA::nppisu>)
+  $<$<TARGET_EXISTS:CUDA::nppisu>:CUDA::nppisu>
+  # The NVENC backend drives the encoder through the CUDA driver API and loads
+  # libnvidia-encode.so.1 dynamically at runtime
+  $<$<BOOL:${NVENC_FOUND}>:CUDA::cudart>
+  $<$<BOOL:${NVENC_FOUND}>:CUDA::cuda_driver>
+  $<$<BOOL:${NVENC_FOUND}>:${CMAKE_DL_LIBS}>)
 if(SKBUILD)
   target_link_libraries(
     ${PROJECT_NAME}
@@ -190,7 +220,7 @@ if(BUILD_TESTING AND NOT SKBUILD)
   set(long_test_files
       test/jetson_video_compressor_h264.cpp
       test/jetson_video_compressor_h265.cpp
-      test/jetson_video_compressor_av1.cpp)
+      test/jetson_video_compressor_av1.cpp test/nvenc_video_compressor_av1.cpp)
 
   find_package(GTest)
   enable_testing()

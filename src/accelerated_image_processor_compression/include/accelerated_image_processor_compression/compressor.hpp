@@ -25,10 +25,11 @@ namespace accelerated_image_processor::compression
  * @brief Compression backend type.
  *
  * @value JETSON  Jetson hardware accelerated backend.
+ * @value NVENC   NVIDIA NVENC (NvEncodeAPI) backend, which runs on a discrete NVIDIA GPU.
  * @value NVJPEG  NVIDIA NVJPEG backend.
  * @value CPU     CPU based backend.
  */
-enum class CompressorBackend : uint8_t { JETSON, NVJPEG, CPU };
+enum class CompressorBackend : uint8_t { JETSON, NVENC, NVJPEG, CPU };
 
 /**
  * @brief Compression type enum

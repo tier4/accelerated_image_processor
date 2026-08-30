@@ -34,6 +34,8 @@ class JetsonVideoCompressor;
 class JetsonH264Compressor;
 class JetsonH265Compressor;
 class JetsonAV1Compressor;
+class NvencVideoCompressor;
+class NvencAV1Compressor;
 
 /**
  * @brief Enumeration of video encoder mode and string map
@@ -63,7 +65,7 @@ EnumType string_to_enum(
 }
 
 /**
- * @brief Abstract base class for Jetson Video compressors.
+ * @brief Abstract base class for Video compressors.
  */
 class VideoCompressor : public Compressor
 {
@@ -108,4 +110,6 @@ std::unique_ptr<VideoCompressor> make_jetson_h264_compressor();
 std::unique_ptr<VideoCompressor> make_jetson_h265_compressor();
 //!< @brief Factory function to create a JetsonAV1Compressor.
 std::unique_ptr<VideoCompressor> make_jetson_av1_compressor();
+//!< @brief Factory function to create a NvencAV1Compressor.
+std::unique_ptr<VideoCompressor> make_nvenc_av1_compressor();
 }  // namespace accelerated_image_processor::compression

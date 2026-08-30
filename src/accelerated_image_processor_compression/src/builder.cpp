@@ -93,6 +93,8 @@ std::unique_ptr<Compressor> create_compressor(CompressionType type)
     case CompressionType::AV1:
 #ifdef JETSON_AVAILABLE
       return make_jetson_av1_compressor();
+#elif NVENC_AVAILABLE
+      return make_nvenc_av1_compressor();
 #else
       throw std::runtime_error("AV1 compression is not supported on this platform");
 #endif
