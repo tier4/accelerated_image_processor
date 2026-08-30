@@ -10,7 +10,9 @@
   <buildtool_depend>ament_cmake_auto</buildtool_depend>
 
   <depend>accelerated_image_processor_common</depend>
+  <depend>ffmpeg-dev</depend>
   <depend>libturbojpeg</depend>
+  <!-- The video compressors refer to the packet flags ffmpeg defines -->
 
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>
