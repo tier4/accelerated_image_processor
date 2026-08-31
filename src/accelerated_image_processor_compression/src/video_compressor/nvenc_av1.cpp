@@ -17,6 +17,7 @@
 #include <accelerated_image_processor_common/helper.hpp>
 
 #include <algorithm>
+#include <cmath>
 #include <memory>
 #include <string>
 
@@ -81,9 +82,11 @@ protected:
         return EncResult(
           EncStatus(false, "av1.log2_num_tile_row/col must be equal to or larger than 0"));
       }
+      const int log2_max_num_tile_rows = static_cast<int>(std::log2(NV_MAX_TILE_ROWS_AV1));
+      const int log2_max_num_tile_cols = static_cast<int>(std::log2(NV_MAX_TILE_COLS_AV1));
       if (
-        (1 << log2_num_tile_row_) > NV_MAX_TILE_ROWS_AV1 ||
-        (1 << log2_num_tile_col_) > NV_MAX_TILE_COLS_AV1) {
+        log2_num_tile_row_ > log2_max_num_tile_rows ||
+        log2_num_tile_col_ > log2_max_num_tile_cols) {
         return EncResult(EncStatus(
           false, "The number of AV1 tile rows/columns must not exceed " +
                    std::to_string(NV_MAX_TILE_ROWS_AV1)));
