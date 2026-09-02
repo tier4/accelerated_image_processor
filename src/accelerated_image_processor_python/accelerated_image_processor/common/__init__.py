@@ -94,18 +94,7 @@ class Image(common_cpp.Image):
         storage. Keep this Image alive and do not reassign ``data`` while a view
         is in use. Set ``copy=True`` for independently owned mutable storage.
         """
-        array = np.frombuffer(self, dtype=np.uint8)
-        if self.format == ImageFormat.RAW:
-            expected_size = int(self.height) * int(self.step)
-            if array.size != expected_size:
-                raise ValueError(
-                    f"RAW image data has {array.size} bytes, expected {expected_size}"
-                )
-            if self.step == self.width * 3:
-                array = array.reshape((self.height, self.width, 3))
-            else:
-                array = array.reshape((self.height, self.step))
-        return array.copy() if copy else array
+        return image_to_numpy(self, copy=copy)
 
     @classmethod
     def from_file(cls, filepath: PathLike) -> Image:
@@ -121,6 +110,25 @@ class Image(common_cpp.Image):
         if cv_image is None:
             raise ValueError(f"Failed to read image: {filepath}")
         return cls.from_numpy(cv_image, ImageEncoding.BGR)
+
+
+def image_to_numpy(image: Image, *, copy: bool = False) -> np.ndarray:
+    """Return image data as a NumPy array.
+
+    By default the array is a read-only, zero-copy view of the C++ image
+    storage. Keep this Image alive and do not reassign ``data`` while a view
+    is in use. Set ``copy=True`` for independently owned mutable storage.
+    """
+    array = np.frombuffer(image.data, dtype=np.uint8)
+    if image.format == ImageFormat.RAW:
+        expected_size = int(image.height) * int(image.step)
+        if array.size != expected_size:
+            raise ValueError(f"RAW image data has {array.size} bytes, expected {expected_size}")
+        if image.step == image.width * 3:
+            array = array.reshape((image.height, image.width, 3))
+        else:
+            array = array.reshape((image.height, image.step))
+    return array.copy() if copy else array
 
 
 class CameraInfo(common_cpp.CameraInfo):
