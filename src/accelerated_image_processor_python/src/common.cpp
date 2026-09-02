@@ -31,6 +31,27 @@ using namespace accelerated_image_processor;  // NOLINT
 
 namespace
 {
+int image_getbuffer(PyObject * exporter, Py_buffer * view, int flags)
+{
+  try {
+    bp::object object(bp::handle<>(bp::borrowed(exporter)));
+    auto & image = bp::extract<common::Image &>(object)();
+
+    // Export decoded storage read-only. The Python object is retained by the
+    // memoryview/NumPy array, so the vector remains alive for the view lifetime.
+    return PyBuffer_FillInfo(
+      view, exporter, image.data.empty() ? nullptr : image.data.data(),
+      static_cast<Py_ssize_t>(image.data.size()), 1, flags);
+  } catch (const bp::error_already_set &) {
+    return -1;
+  }
+}
+
+PyBufferProcs image_buffer_procs = {
+  image_getbuffer,
+  nullptr,
+};
+
 #ifdef JETSON_AVAILABLE
 constexpr bool IS_JETSON_AVAILABLE = true;
 #else
@@ -146,8 +167,8 @@ BOOST_PYTHON_MODULE(accelerated_image_processor_python_common)
     .value("EQUIDISTANT", common::DistortionModel::EQUIDISTANT);
 
   // ------- Image -------
-  bp::class_<common::Image>("Image")
-    .def_readwrite("frame_id", &common::Image::frame_id)
+  bp::class_<common::Image> image_class("Image");
+  image_class.def_readwrite("frame_id", &common::Image::frame_id)
     .def_readwrite("timestamp", &common::Image::timestamp)
     .def_readwrite("height", &common::Image::height)
     .def_readwrite("width", &common::Image::width)
@@ -159,11 +180,15 @@ BOOST_PYTHON_MODULE(accelerated_image_processor_python_common)
       "data",  // [uint8_t; height * width * step]
       +[](const common::Image & self) { return python::vector_to_list<uint8_t>(self.data); },
       +[](common::Image & self, const bp::object & iterable) {
-        python::list_to_vector<uint8_t>(self.data, iterable);
+        python::buffer_or_iterable_to_byte_vector(self.data, iterable);
       })
     .add_property("pts", &get_pts, &set_pts)
     .add_property("flags", &get_flags, &set_flags)
     .def("is_valid", &common::Image::is_valid);
+
+  auto * image_type = reinterpret_cast<PyTypeObject *>(image_class.ptr());
+  image_type->tp_as_buffer = &image_buffer_procs;
+  PyType_Modified(image_type);
 
   // ------- CameraInfo -------
   bp::class_<common::CameraInfo>("CameraInfo")

@@ -50,6 +50,27 @@ def test_image_from_numpy():
     assert image.encoding == ImageEncoding.RGB
     assert image.format == ImageFormat.RAW
     assert len(image.data) == height * width * 3
+    image_view = image.to_numpy()
+    assert image_view.shape == (height, width, 3)
+    assert not image_view.flags.writeable
+    np.testing.assert_array_equal(image_view, image_array)
+
+
+def test_image_buffer_input_is_independent_and_numpy_output_can_copy():
+    image_array = _make_image_array(8, 16)
+    image = Image.from_numpy(image_array)
+
+    image_array.fill(0)
+    assert np.any(image.to_numpy())
+
+    image_copy = image.to_numpy(copy=True)
+    assert image_copy.flags.writeable
+    image_copy.fill(0)
+    assert np.any(image.to_numpy())
+
+    image_view = image.to_numpy()
+    del image
+    assert np.any(image_view)
 
 
 def test_image_from_file(tmp_path):

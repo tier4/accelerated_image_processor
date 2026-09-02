@@ -73,7 +73,7 @@ class Image(common_cpp.Image):
         image.encoding = encoding
         image.format = ImageFormat.RAW
 
-        data_u8 = data.astype(np.uint8)
+        data_u8 = np.ascontiguousarray(data, dtype=np.uint8)
 
         height, width, channels = data_u8.shape
         if channels != 3:
@@ -81,9 +81,31 @@ class Image(common_cpp.Image):
         image.height = int(height)
         image.width = int(width)
         image.step = int(width * channels)
-        image.data = data_u8.ravel().tolist()
+        # The binding consumes the contiguous buffer with one bulk memcpy. The
+        # previous tolist() path converted every pixel byte through a Python int.
+        image.data = data_u8
 
         return image
+
+    def to_numpy(self, *, copy: bool = False) -> np.ndarray:
+        """Return image data as a NumPy array.
+
+        By default the array is a read-only, zero-copy view of the C++ image
+        storage. Keep this Image alive and do not reassign ``data`` while a view
+        is in use. Set ``copy=True`` for independently owned mutable storage.
+        """
+        array = np.frombuffer(self, dtype=np.uint8)
+        if self.format == ImageFormat.RAW:
+            expected_size = int(self.height) * int(self.step)
+            if array.size != expected_size:
+                raise ValueError(
+                    f"RAW image data has {array.size} bytes, expected {expected_size}"
+                )
+            if self.step == self.width * 3:
+                array = array.reshape((self.height, self.width, 3))
+            else:
+                array = array.reshape((self.height, self.step))
+        return array.copy() if copy else array
 
     @classmethod
     def from_file(cls, filepath: PathLike) -> Image:

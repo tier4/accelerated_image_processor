@@ -21,6 +21,7 @@
 #include <boost/python.hpp>
 
 #include <array>
+#include <cstring>
 #include <string>
 #include <vector>
 
@@ -54,6 +55,35 @@ void list_to_vector(std::vector<T> & vec, const bp::object & iterable)
   for (bp::ssize_t i = 0; i < len; ++i) {
     vec.emplace_back(bp::extract<T>(py_list[i]));
   }
+}
+
+/**
+ * @brief Copy a contiguous one-byte Python buffer into a byte vector.
+ *
+ * NumPy arrays, memoryviews, bytes, and bytearrays take this bulk-copy path. Other
+ * iterables retain the legacy element-by-element conversion for compatibility.
+ */
+inline void buffer_or_iterable_to_byte_vector(std::vector<uint8_t> & vec, const bp::object & object)
+{
+  Py_buffer view{};
+  if (PyObject_GetBuffer(object.ptr(), &view, PyBUF_CONTIG_RO) == 0) {
+    if (view.itemsize != 1) {
+      PyBuffer_Release(&view);
+      PyErr_SetString(PyExc_ValueError, "Image data buffer must have one-byte elements");
+      bp::throw_error_already_set();
+    }
+
+    vec.resize(static_cast<std::size_t>(view.len));
+    if (view.len > 0) {
+      std::memcpy(vec.data(), view.buf, static_cast<std::size_t>(view.len));
+    }
+    PyBuffer_Release(&view);
+    return;
+  }
+
+  // An unsupported-buffer error is expected for legacy list/tuple inputs.
+  PyErr_Clear();
+  list_to_vector<uint8_t>(vec, object);
 }
 
 /**
