@@ -62,7 +62,7 @@ image = Image.from_numpy(np.zeros((height, width, 3), dtype=np.uint8))
 
 # Read image storage without converting each byte to a Python list element.
 # This is a read-only, zero-copy NumPy view by default.
-image_array = image.to_numpy()
+array = image.to_numpy()
 ```
 
 ### 2. Compress an image

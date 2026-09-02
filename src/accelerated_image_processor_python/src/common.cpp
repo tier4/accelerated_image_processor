@@ -184,7 +184,8 @@ BOOST_PYTHON_MODULE(accelerated_image_processor_python_common)
       })
     .add_property("pts", &get_pts, &set_pts)
     .add_property("flags", &get_flags, &set_flags)
-    .def("is_valid", &common::Image::is_valid);
+    .def("is_valid", &common::Image::is_valid)
+    .def("to_numpy", &python::image_to_numpy, (bp::arg("self"), bp::arg("copy") = false));
 
   auto * image_type = reinterpret_cast<PyTypeObject *>(image_class.ptr());
   image_type->tp_as_buffer = &image_buffer_procs;

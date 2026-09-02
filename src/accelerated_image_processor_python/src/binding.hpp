@@ -19,6 +19,10 @@
 #include <accelerated_image_processor_common/processor.hpp>
 
 #include <boost/python.hpp>
+#include <boost/python/extract.hpp>
+#include <boost/python/tuple.hpp>
+
+#include <pyerrors.h>
 
 #include <array>
 #include <cstring>
@@ -179,5 +183,33 @@ inline bp::object process_or_none(ProcessorT * self, const common::Image & image
 {
   auto result = self->process(image);
   return result.has_value() ? bp::object(*result) : bp::object();
+}
+
+inline bp::object image_to_numpy(const bp::object & self, bool copy = false)
+{
+  const auto & image = bp::extract<const common::Image &>(self)();
+  bp::object np = bp::import("numpy");
+  bp::object frombuffer(np.attr("frombuffer"));
+  bp::object uint8(np.attr("uint8"));
+  bp::object array = frombuffer(self, uint8);
+
+  if (image.format == common::ImageFormat::RAW) {
+    const size_t expected_size =
+      static_cast<size_t>(image.height) * static_cast<size_t>(image.step);
+    const size_t actual_size = bp::extract<size_t>(array.attr("size"))();
+    if (actual_size != expected_size) {
+      PyErr_Format(
+        PyExc_ValueError, "RAW image data has %zu bytes, expected %zu", actual_size, expected_size);
+      bp::throw_error_already_set();
+    }
+
+    if (image.step == image.width * 3) {
+      array = array.attr("reshape")(bp::make_tuple(image.height, image.width, 3));
+    } else {
+      array = array.attr("reshape")(bp::make_tuple(image.height, image.step));
+    }
+  }
+
+  return copy ? array.attr("copy")() : array;
 }
 }  // namespace accelerated_image_processor::python
