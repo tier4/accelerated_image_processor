@@ -171,7 +171,7 @@ endif()
 install(DIRECTORY include/${PROJECT_NAME} DESTINATION include)
 
 if(BUILD_TESTING AND NOT SKBUILD)
-  set(test_files test/builder.cpp test/cpu_jpeg_compressor.cpp
+  set(test_files test/av1_obu.cpp test/builder.cpp test/cpu_jpeg_compressor.cpp
                  test/jetson_jpeg_compressor.cpp test/nv_jpeg_compressor.cpp)
 
   foreach(test_file IN LISTS test_files)
@@ -179,6 +179,11 @@ if(BUILD_TESTING AND NOT SKBUILD)
     ament_auto_add_gtest(${test_file_name}_${PROJECT_NAME} ${test_file})
     target_link_libraries(${test_file_name}_${PROJECT_NAME} ${PROJECT_NAME})
   endforeach()
+
+  # The AV1 OBU scanner test exercises an internal header under src/, which is
+  # not installed
+  target_include_directories(av1_obu.cpp_${PROJECT_NAME}
+                             PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
   # Treat some tests separately because they contains many test cases and cause
   # colcon test timeout if the tests are generated in the above way
@@ -196,8 +201,9 @@ if(BUILD_TESTING AND NOT SKBUILD)
 
     set(LONG_TEST_EXEC ${test_file_name}_${PROJECT_NAME})
     add_executable(${LONG_TEST_EXEC} ${test_file})
-    target_include_directories(${LONG_TEST_EXEC}
-                               PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+    target_include_directories(
+      ${LONG_TEST_EXEC} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include
+                                ${CMAKE_CURRENT_SOURCE_DIR}/src)
     target_link_libraries(${LONG_TEST_EXEC} ${PROJECT_NAME} GTest::GTest
                           GTest::Main)
     # divide a single test into separated cases

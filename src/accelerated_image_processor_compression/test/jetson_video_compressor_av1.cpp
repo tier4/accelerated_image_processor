@@ -14,11 +14,18 @@
 
 #include "accelerated_image_processor_compression/video_compressor.hpp"
 #include "test_utility.hpp"
+#include "video_compressor/av1_obu.hpp"
 
 #include <gtest/gtest.h>
 
+#include <atomic>
+#include <chrono>
+#include <cstddef>
+#include <cstdint>
+#include <optional>
 #include <stdexcept>
 #include <string>
+#include <thread>
 #include <tuple>
 
 #ifdef JETSON_AVAILABLE
@@ -29,6 +36,90 @@ using AV1ParamCombination = std::tuple<
   bool /* av1.enable_ssim_rdo */, bool /* av1.enable_cdf_update */,
   std::string /* compression_type  */>;
 using TestAV1Compressor = TestVideoCompressor<AV1ParamCombination>;
+
+/**
+ * @brief Fixture that additionally validates the OBU layout of every emitted AV1 packet
+ */
+class TestAV1RandomAccess : public TestAV1Compressor
+{
+public:
+  std::atomic<int> num_checked{0};
+
+  template <common::ImageFormat Fmt, int IFrameInterval>
+  void check_with_obu_layout(const common::Image & result)
+  {
+    this->check<Fmt, IFrameInterval>(result);
+
+    const uint8_t * data = result.data.data();
+    const size_t size = result.data.size();
+
+    size_t num_temporal_delimiter = 0;
+    size_t num_sequence_header = 0;
+    size_t num_frame = 0;  // OBU_FRAME_HEADER + OBU_FRAME (i.e. one shown frame each)
+    std::optional<av1_obu::ObuType> first_obu_type;
+    size_t first_obu_end = 0;
+    std::optional<size_t> first_sequence_header_pos;
+    std::optional<size_t> first_frame_pos;
+
+    size_t pos = 0;
+    while (const auto obu = av1_obu::next_obu(data, size, pos)) {
+      if (obu->offset == 0) {
+        first_obu_type = obu->type;
+        first_obu_end = obu->size;
+      }
+      switch (obu->type) {
+        case av1_obu::ObuType::TEMPORAL_DELIMITER:
+          num_temporal_delimiter++;
+          break;
+        case av1_obu::ObuType::SEQUENCE_HEADER:
+          num_sequence_header++;
+          if (!first_sequence_header_pos) {
+            first_sequence_header_pos = obu->offset;
+          }
+          break;
+        case av1_obu::ObuType::FRAME_HEADER:
+        case av1_obu::ObuType::FRAME:
+          num_frame++;
+          if (!first_frame_pos) {
+            first_frame_pos = obu->offset;
+          }
+          break;
+        default:
+          break;
+      }
+      pos += obu->size;
+    }
+
+    // The whole packet must parse as a series of OBUs (i.e. the IVF headers are stripped)
+    EXPECT_EQ(pos, size);
+    // Each packet must be exactly one temporal unit carrying exactly one shown frame
+    // (AV1 spec Section 7.5)
+    EXPECT_EQ(num_temporal_delimiter, 1U);
+    EXPECT_EQ(num_frame, 1U);
+    // The temporal unit must start with a temporal delimiter OBU (AV1 spec Section 7.5)
+    ASSERT_TRUE(first_obu_type.has_value());
+    EXPECT_EQ(*first_obu_type, av1_obu::ObuType::TEMPORAL_DELIMITER);
+
+    ASSERT_TRUE(result.flags.has_value());
+    if (result.flags.value() == 1) {
+      // Key frame packets must be self-contained random access points: a single sequence
+      // header OBU placed before the frame (AV1 spec Section 7.6.2)
+      EXPECT_EQ(num_sequence_header, 1U);
+      ASSERT_TRUE(first_sequence_header_pos.has_value());
+      ASSERT_TRUE(first_frame_pos.has_value());
+      // The sequence header must sit after the leading temporal delimiter and before the
+      // first frame-bearing OBU, i.e. TD -> SH -> frame (AV1 spec Section 7.5). The spec
+      // does not require SH to be immediately after TD (metadata OBUs may legally sit in
+      // between), so the position is range-checked rather than compared for equality
+      EXPECT_GE(*first_sequence_header_pos, first_obu_end);
+      EXPECT_LT(*first_sequence_header_pos, *first_frame_pos);
+    } else {
+      EXPECT_EQ(num_sequence_header, 0U);
+    }
+
+    num_checked++;
+  }
+};
 
 TEST_F(TestAV1Compressor, JetsonVideoCompressorAV1Default)
 {
@@ -50,6 +141,37 @@ TEST_F(TestAV1Compressor, JetsonVideoCompressorAV1Default)
   for (auto i = 0; i < TestAV1Compressor::NUM_FRAMES; i++) {
     compressor->process(get_image());
   }
+}
+
+TEST_F(TestAV1RandomAccess, KeyFramesAreSelfContainedRandomAccessPoints)
+{
+  auto compressor = make_jetson_av1_compressor();
+  constexpr int desired_i_frame_interval = 10;
+
+  compressor->register_postprocess<
+    TestAV1RandomAccess, &TestAV1RandomAccess::check_with_obu_layout<
+                           common::ImageFormat::AV1, desired_i_frame_interval>>(this);
+
+  for (auto & [name, value] : compressor->parameters()) {
+    if (name == "i_frame_interval") {
+      value = desired_i_frame_interval;
+    }
+  }
+
+  for (auto i = 0; i < TestAV1RandomAccess::NUM_FRAMES; i++) {
+    compressor->process(get_image());
+  }
+
+  // Wait until all fed frames are dequeued and checked while the compressor is fully alive.
+  // Otherwise the tail frames are processed during destruction, where virtual dispatch
+  // resolves payload_preprocess_impl / payload_copy_impl to the base class implementations
+  // and raw IVF-wrapped packets reach the checker
+  constexpr int expected_packets = TestAV1RandomAccess::NUM_FRAMES;
+  const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(10);
+  while (num_checked.load() < expected_packets && std::chrono::steady_clock::now() < deadline) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+  }
+  EXPECT_EQ(num_checked.load(), expected_packets);
 }
 
 TEST_P(TestAV1Compressor, JetsonVideoCompressorAV1ProfileLevelTypeCombo)
