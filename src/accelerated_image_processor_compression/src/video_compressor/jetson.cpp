@@ -29,13 +29,10 @@
 #include <stdexcept>
 #include <string>
 
-// Header that defines ffmpeg flags
-extern "C" {
-#include <libavcodec/avcodec.h>
-}
-
 namespace
 {
+constexpr uint8_t AV_PKT_FLAG_KEY = 0x0001;
+
 constexpr bool is_big_endian = (__BYTE_ORDER__ == __BIG_ENDIAN);
 }  // namespace
 
