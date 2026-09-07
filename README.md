@@ -3,21 +3,20 @@
 `accelerated_image_processor` is a set of C++ and Python libraries for accelerated image processing.
 It provides common image data structures, image/video compression, video decompression, rectification pipelines, ROS 2 nodes, and benchmark tools.
 
-> [!NOTE]
-> `src/accelerated_image_processor` is a legacy implementation and is intentionally not described here.
+> [!NOTE] > `src/accelerated_image_processor` is a legacy implementation and is intentionally not described here.
 > The current implementation is split into the packages listed below.
 
 ## Packages
 
-| Package                                     | Role                                                     | ROS dependency |
-| ------------------------------------------- | -------------------------------------------------------- | -------------- |
-| `accelerated_image_processor_common`        | Common datatypes, parameters, and processor base classes | No             |
-| `accelerated_image_processor_compression`   | JPEG/video compression processors                        | No             |
-| `accelerated_image_processor_decompression` | CUDA-accelerated FFmpeg video decompression              | No             |
-| `accelerated_image_processor_pipeline`      | Rectification processors                                 | No             |
-| `accelerated_image_processor_python`        | Python bindings for common/compression/decompression     | No             |
-| `accelerated_image_processor_ros`           | ROS 2 components/nodes and ROS message conversions       | Yes            |
-| `accelerated_image_processor_benchmark`     | Benchmark CLI/library                                    | Yes            |
+| Package                                                                                                  | Role                                                     | ROS dependency |
+| -------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- | -------------- |
+| [`accelerated_image_processor_common`](./src/accelerated_image_processor_common/README.md)               | Common datatypes, parameters, and processor base classes | No             |
+| [`accelerated_image_processor_compression`](./src/accelerated_image_processor_compression/README.md)     | JPEG/video compression processors                        | No             |
+| [`accelerated_image_processor_decompression`](./src/accelerated_image_processor_decompression/README.md) | CUDA-accelerated FFmpeg video decompression              | No             |
+| [`accelerated_image_processor_pipeline`](./src/accelerated_image_processor_pipeline/README.md)           | Rectification processors                                 | No             |
+| [`accelerated_image_processor_python`](./src/accelerated_image_processor_python/README.md)               | Python bindings for common/compression/decompression     | No             |
+| [`accelerated_image_processor_ros`](./src/accelerated_image_processor_ros/README.md)                     | ROS 2 components/nodes and ROS message conversions       | Yes            |
+| [`accelerated_image_processor_benchmark`](./src/accelerated_image_processor_benchmark/README.md)         | Benchmark CLI/library                                    | Yes            |
 
 ## Supported processors
 
