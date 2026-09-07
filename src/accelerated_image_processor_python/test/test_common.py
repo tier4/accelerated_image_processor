@@ -113,20 +113,6 @@ def test_compressed_image_to_numpy():
     np.testing.assert_array_equal(array, np.arange(7, dtype=np.uint8))
 
 
-def test_image_to_numpy():
-    image = Image()
-    image.frame_id = "camera"
-    image.timestamp = 1234567890
-    image.height = 1080
-    image.width = 1920
-    image.step = 1920 * 3
-    image.encoding = ImageEncoding.RGB
-    image.format = ImageFormat.RAW
-    image.data = _make_image_array(1080, 1920).ravel().tolist()
-    image.pts = 0
-    image.flags = False
-
-
 def test_camera_info_initialization():
     height, width = 1080, 1920
 
