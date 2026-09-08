@@ -59,6 +59,10 @@ image = Image.from_file("path/to/image")
 # Load an image from a numpy array
 height, width = 480, 640
 image = Image.from_numpy(np.zeros((height, width, 3), dtype=np.uint8))
+
+# Read image storage without converting each byte to a Python list element.
+# This is a read-only, zero-copy NumPy view by default.
+array = image.to_numpy()
 ```
 
 ### 2. Compress an image

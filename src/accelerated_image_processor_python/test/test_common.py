@@ -50,6 +50,27 @@ def test_image_from_numpy():
     assert image.encoding == ImageEncoding.RGB
     assert image.format == ImageFormat.RAW
     assert len(image.data) == height * width * 3
+    image_view = image.to_numpy()
+    assert image_view.shape == (height, width, 3)
+    assert not image_view.flags.writeable
+    np.testing.assert_array_equal(image_view, image_array)
+
+
+def test_image_buffer_input_is_independent_and_numpy_output_can_copy():
+    image_array = _make_image_array(8, 16)
+    image = Image.from_numpy(image_array)
+
+    image_array.fill(0)
+    assert np.any(image.to_numpy())
+
+    image_copy = image.to_numpy(copy=True)
+    assert image_copy.flags.writeable
+    image_copy.fill(0)
+    assert np.any(image.to_numpy())
+
+    image_view = image.to_numpy()
+    del image
+    assert np.any(image_view)
 
 
 def test_image_from_file(tmp_path):
@@ -65,6 +86,31 @@ def test_image_from_file(tmp_path):
     assert image.encoding == ImageEncoding.BGR
     assert image.format == ImageFormat.RAW
     assert len(image.data) == height * width * 3
+
+
+def test_image_to_numpy_with_padded_rows():
+    image = Image()
+    image.format = ImageFormat.RAW
+    image.height = 2
+    image.width = 2
+    image.step = 8
+    image.data = np.arange(16, dtype=np.uint8)
+
+    array = image.to_numpy()
+
+    assert array.shape == (2, 8)
+    np.testing.assert_array_equal(array, np.arange(16, dtype=np.uint8).reshape(2, 8))
+
+
+def test_compressed_image_to_numpy():
+    image = Image()
+    image.format = ImageFormat.JPEG
+    image.data = np.arange(7, dtype=np.uint8)
+
+    array = image.to_numpy()
+
+    assert array.shape == (7,)
+    np.testing.assert_array_equal(array, np.arange(7, dtype=np.uint8))
 
 
 def test_camera_info_initialization():

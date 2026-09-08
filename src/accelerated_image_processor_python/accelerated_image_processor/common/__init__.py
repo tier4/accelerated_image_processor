@@ -73,7 +73,7 @@ class Image(common_cpp.Image):
         image.encoding = encoding
         image.format = ImageFormat.RAW
 
-        data_u8 = data.astype(np.uint8)
+        data_u8 = np.ascontiguousarray(data, dtype=np.uint8)
 
         height, width, channels = data_u8.shape
         if channels != 3:
@@ -81,7 +81,9 @@ class Image(common_cpp.Image):
         image.height = int(height)
         image.width = int(width)
         image.step = int(width * channels)
-        image.data = data_u8.ravel().tolist()
+        # The binding consumes the contiguous buffer with one bulk memcpy. The
+        # previous tolist() path converted every pixel byte through a Python int.
+        image.data = data_u8
 
         return image
 
