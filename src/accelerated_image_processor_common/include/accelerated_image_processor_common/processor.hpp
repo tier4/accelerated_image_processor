@@ -17,6 +17,8 @@
 #include "accelerated_image_processor_common/datatype.hpp"
 #include "accelerated_image_processor_common/parameter.hpp"
 
+#include <exception>
+#include <mutex>
 #include <optional>
 #include <string>
 #include <type_traits>
@@ -64,6 +66,10 @@ private:
     auto * o = static_cast<Obj *>(p);
     if (o) (o->*Method)(img);
   }
+
+  std::exception_ptr exception_ptr_{nullptr};  //!< pointer for carrying exception to outside thread
+
+  mutable std::mutex exception_ptr_mtx_;  //!< mutex for serialize exception pointer access
 
 public:
   /**
@@ -175,6 +181,26 @@ public:
   const T & parameter_value(const std::string & key) const
   {
     return std::get<T>(parameters_.at(key));
+  }
+
+  /**
+   * @brief Return the captured exception
+   */
+  std::exception_ptr exception_ptr() const
+  {
+    std::lock_guard<std::mutex> lock(exception_ptr_mtx_);
+    return exception_ptr_;
+  }
+
+  /**
+   * @brief Setter of the exception pointer
+   */
+  void set_exception_ptr(std::exception_ptr ep)
+  {
+    std::lock_guard<std::mutex> lock(exception_ptr_mtx_);
+    if (!exception_ptr_) {  // Keep the root error cause (not overwritten by subsequent exception)
+      exception_ptr_ = std::move(ep);
+    }
   }
 
 protected:
