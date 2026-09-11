@@ -160,49 +160,49 @@ EncResult NvencVideoCompressor::init_cuda(const int gpu_id)
 {
   if (cu_context_) return EncResult::success();
 
-  NVENC_CHECK_CU(cuInit(0), "Failed to initialize the CUDA driver API");
+  NVENC_CHECK_CU_NO_THROW(cuInit(0), "Failed to initialize the CUDA driver API");
 
   int device_count = 0;
-  NVENC_CHECK_CUDA(cudaGetDeviceCount(&device_count), "Failed to count the CUDA devices");
+  NVENC_CHECK_CUDA_NO_THROW(cudaGetDeviceCount(&device_count), "Failed to count the CUDA devices");
   if (gpu_id < 0 || gpu_id >= device_count) {
     return EncResult(EncStatus(
       false, "gpu_id " + std::to_string(gpu_id) + " is out of range (" +
                std::to_string(device_count) + " CUDA device(s) found)"));
   }
 
-  NVENC_CHECK_CUDA(cudaSetDevice(gpu_id), "Failed to select the CUDA device");
-  NVENC_CHECK_CUDA(cudaStreamCreate(&stream_), "Failed to create a CUDA stream");
+  NVENC_CHECK_CUDA_NO_THROW(cudaSetDevice(gpu_id), "Failed to select the CUDA device");
+  NVENC_CHECK_CUDA_NO_THROW(cudaStreamCreate(&stream_), "Failed to create a CUDA stream");
 
   // NVENC takes the encode device as a CUcontext, hence pick up the context the CUDA runtime
   // has created for the stream above via the driver API
-  NVENC_CHECK_CU(
+  NVENC_CHECK_CU_NO_THROW(
     cuStreamGetCtx(reinterpret_cast<CUstream>(stream_), &cu_context_),
     "Failed to fetch the CUDA context of the stream");
 
   // Fill the NPP stream context so that the color conversion runs on the stream above
   {
     npp_stream_ctx_.hStream = stream_;
-    NVENC_CHECK_CUDA(
+    NVENC_CHECK_CUDA_NO_THROW(
       cudaGetDevice(&npp_stream_ctx_.nCudaDeviceId), "Failed to get the current CUDA device");
     cudaDeviceProp device_prop;
-    NVENC_CHECK_CUDA(
+    NVENC_CHECK_CUDA_NO_THROW(
       cudaGetDeviceProperties(&device_prop, npp_stream_ctx_.nCudaDeviceId),
       "Failed to get the CUDA device properties");
     npp_stream_ctx_.nMultiProcessorCount = device_prop.multiProcessorCount;
     npp_stream_ctx_.nMaxThreadsPerMultiProcessor = device_prop.maxThreadsPerMultiProcessor;
     npp_stream_ctx_.nMaxThreadsPerBlock = device_prop.maxThreadsPerBlock;
     npp_stream_ctx_.nSharedMemPerBlock = device_prop.sharedMemPerBlock;
-    NVENC_CHECK_CUDA(
+    NVENC_CHECK_CUDA_NO_THROW(
       cudaDeviceGetAttribute(
         &npp_stream_ctx_.nCudaDevAttrComputeCapabilityMajor, cudaDevAttrComputeCapabilityMajor,
         npp_stream_ctx_.nCudaDeviceId),
       "Failed to get the compute capability (major)");
-    NVENC_CHECK_CUDA(
+    NVENC_CHECK_CUDA_NO_THROW(
       cudaDeviceGetAttribute(
         &npp_stream_ctx_.nCudaDevAttrComputeCapabilityMinor, cudaDevAttrComputeCapabilityMinor,
         npp_stream_ctx_.nCudaDeviceId),
       "Failed to get the compute capability (minor)");
-    NVENC_CHECK_CUDA(
+    NVENC_CHECK_CUDA_NO_THROW(
       cudaStreamGetFlags(npp_stream_ctx_.hStream, &npp_stream_ctx_.nStreamFlags),
       "Failed to get the CUDA stream flags");
   }
@@ -228,9 +228,10 @@ EncResult NvencVideoCompressor::ensure_session(const int gpu_id)
   session_params.apiVersion = NVENCAPI_VERSION;
 
   void * session = nullptr;
-  NVENC_CHECK(
-    nvenc_.nvEncOpenEncodeSessionEx(&session_params, &session),
-    "Failed to open an NVENC encode session");
+  if (const auto stat = nvenc_.nvEncOpenEncodeSessionEx(&session_params, &session);
+      stat != NV_ENC_SUCCESS) {
+    return EncResult(EncStatus(false, "Failed to open an NVENC encode session"));
+  }
 
   // Confirm the driver/GPU combination exposes the codec this compressor encodes to
   {
@@ -317,33 +318,32 @@ EncResult NvencVideoCompressor::init_encoder(const common::Image & image)
   try {
     // gather parameters
     if (auto res = collect_params(encoder_params_); !res.ok) {
-      return EncResult(record_error("Failed to correct parameters (" + res.status.message + ")"));
+      throw std::runtime_error("Failed to correct parameters (" + res.status.message + ")");
     }
 
     if (auto res = this->collect_codec_params_impl(encoder_params_); !res.ok) {
-      return EncResult(
-        record_error("Failed to correct codec dedicated parameters (" + res.status.message + ")"));
+      throw std::runtime_error(
+        "Failed to correct codec dedicated parameters (" + res.status.message + ")");
     }
 
     if (auto res = ensure_session(encoder_params_.gpu_id); !res.ok) {
-      return EncResult(
-        record_error("Failed to open an encode session (" + res.status.message + ")"));
+      throw std::runtime_error("Failed to open an encode session (" + res.status.message + ")");
     }
 
     // Confirm the given combination of parameters is valid
     if (auto [is_valid, msg] = validate_compression_type_compatibility(); !is_valid) {
-      return EncResult(record_error("Invalid parameters (" + msg + ")"));
+      throw std::runtime_error("Invalid parameters (" + msg + ")");
     }
 
     if (
       image.encoding != common::ImageEncoding::RGB &&
       image.encoding != common::ImageEncoding::BGR) {
-      return EncResult(record_error("Unsupported input encoding detected"));
+      throw std::runtime_error("Unsupported input encoding detected");
     }
 
     // 4:2:0 subsampling halves the chroma resolution, hence odd dimensions cannot be handled
     if (image.width == 0 || image.height == 0 || image.width % 2 != 0 || image.height % 2 != 0) {
-      return EncResult(record_error("Input image dimensions must be non-zero and even"));
+      throw std::runtime_error("Input image dimensions must be non-zero and even");
     }
 
     encode_width_ = image.width;
@@ -405,8 +405,7 @@ EncResult NvencVideoCompressor::init_encoder(const common::Image & image)
 
     // Do codec specific configuration
     if (auto res = this->init_codec_impl(encode_config); !res.ok) {
-      return EncResult(
-        record_error("Codec specific configuration failed (" + res.status.message + ")"));
+      throw std::runtime_error("Codec specific configuration failed (" + res.status.message + ")");
     }
 
     init_params.encodeConfig = &encode_config;
@@ -415,8 +414,7 @@ EncResult NvencVideoCompressor::init_encoder(const common::Image & image)
       "Failed to initialize the encoder");
 
     if (auto res = setup_buffers(encode_width_, encode_height_); !res.ok) {
-      return EncResult(
-        record_error("Failed to setup the encoder buffers (" + res.status.message + ")"));
+      throw std::runtime_error("Failed to setup the encoder buffers (" + res.status.message + ")");
     }
   } catch (...) {
     auto exception_ptr = std::current_exception();
@@ -624,23 +622,20 @@ common::Image NvencVideoCompressor::process_impl(const common::Image & image)
 
     // The encode session is bound to the resolution given at the initialization
     if (image.width != encode_width_ || image.height != encode_height_) {
-      std::cerr << "Input image resolution has changed, which the encoder cannot follow"
-                << std::endl;
-      return common::Image();
+      throw std::runtime_error(
+        "Input image resolution has changed, which the encoder cannot follow");
     }
 
     auto & buffer = frame_buffers_[next_buffer_index_];
     next_buffer_index_ = (next_buffer_index_ + 1) % frame_buffers_.size();
 
     if (auto res = convert_to_yuv(image, buffer); !res.ok) {
-      std::cerr << "Failed to prepare the encoder input: " << res.status.message << std::endl;
-      return common::Image();
+      throw std::runtime_error("Failed to prepare the encoder input: " + res.status.message);
     }
 
     common::Image encoded;
     if (auto res = encode(image, buffer, encoded); !res.ok) {
-      std::cerr << "Failed to encode: " << res.status.message << std::endl;
-      return common::Image();
+      throw std::runtime_error("Failed to encode: " + res.status.message);
     }
 
     return encoded;

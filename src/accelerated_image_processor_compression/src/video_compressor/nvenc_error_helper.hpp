@@ -160,8 +160,24 @@ inline EncStatus check_npp_api_call(
     }                                                                                           \
   }
 
+/**
+ * @brief Helper macros so that the caller need only write: NVENC_CHECK_NO_THROW(f, "Some
+ * operation")
+ *
+ * Each macro returns EncResult carrying the error message from the enclosing function when
+ * the wrapped call fails
+ */
+#define NVENC_CHECK_NO_THROW_IMPL(checker, fn, msg)                                             \
+  {                                                                                             \
+    auto _res = accelerated_image_processor::compression::checker(fn, msg, __FILE__, __LINE__); \
+    if (!_res.ok) {                                                                             \
+      return accelerated_image_processor::compression::EncResult{_res};                         \
+    }                                                                                           \
+  }
+
 #define NVENC_CHECK(fn, msg) NVENC_CHECK_IMPL(check_nvenc_api_call, fn, msg)
 #define NVENC_CHECK_CUDA(fn, msg) NVENC_CHECK_IMPL(check_cuda_api_call, fn, msg)
-#define NVENC_CHECK_CU(fn, msg) NVENC_CHECK_IMPL(check_cu_api_call, fn, msg)
+#define NVENC_CHECK_CUDA_NO_THROW(fn, msg) NVENC_CHECK_NO_THROW_IMPL(check_cuda_api_call, fn, msg)
+#define NVENC_CHECK_CU_NO_THROW(fn, msg) NVENC_CHECK_NO_THROW_IMPL(check_cu_api_call, fn, msg)
 #define NVENC_CHECK_NPP(fn, msg) NVENC_CHECK_IMPL(check_npp_api_call, fn, msg)
 #endif  // NVENC_AVAILABLE
