@@ -30,6 +30,7 @@
 #include <stdexcept>
 #include <string>
 #include <tuple>
+#include <utility>
 #include <vector>
 
 namespace
@@ -313,105 +314,121 @@ std::tuple<bool, std::string> NvencVideoCompressor::validate_compression_type_co
 
 EncResult NvencVideoCompressor::init_encoder(const common::Image & image)
 {
-  // gather parameters
-  if (auto res = collect_params(encoder_params_); !res.ok) {
-    return EncResult(record_error("Failed to correct parameters (" + res.status.message + ")"));
-  }
+  try {
+    // gather parameters
+    if (auto res = collect_params(encoder_params_); !res.ok) {
+      return EncResult(record_error("Failed to correct parameters (" + res.status.message + ")"));
+    }
 
-  if (auto res = this->collect_codec_params_impl(encoder_params_); !res.ok) {
-    return EncResult(
-      record_error("Failed to correct codec dedicated parameters (" + res.status.message + ")"));
-  }
+    if (auto res = this->collect_codec_params_impl(encoder_params_); !res.ok) {
+      return EncResult(
+        record_error("Failed to correct codec dedicated parameters (" + res.status.message + ")"));
+    }
 
-  if (auto res = ensure_session(encoder_params_.gpu_id); !res.ok) {
-    return EncResult(record_error("Failed to open an encode session (" + res.status.message + ")"));
-  }
+    if (auto res = ensure_session(encoder_params_.gpu_id); !res.ok) {
+      return EncResult(
+        record_error("Failed to open an encode session (" + res.status.message + ")"));
+    }
 
-  // Confirm the given combination of parameters is valid
-  if (auto [is_valid, msg] = validate_compression_type_compatibility(); !is_valid) {
-    return EncResult(record_error("Invalid parameters (" + msg + ")"));
-  }
+    // Confirm the given combination of parameters is valid
+    if (auto [is_valid, msg] = validate_compression_type_compatibility(); !is_valid) {
+      return EncResult(record_error("Invalid parameters (" + msg + ")"));
+    }
 
-  if (
-    image.encoding != common::ImageEncoding::RGB && image.encoding != common::ImageEncoding::BGR) {
-    return EncResult(record_error("Unsupported input encoding detected"));
-  }
+    if (
+      image.encoding != common::ImageEncoding::RGB &&
+      image.encoding != common::ImageEncoding::BGR) {
+      return EncResult(record_error("Unsupported input encoding detected"));
+    }
 
-  // 4:2:0 subsampling halves the chroma resolution, hence odd dimensions cannot be handled
-  if (image.width == 0 || image.height == 0 || image.width % 2 != 0 || image.height % 2 != 0) {
-    return EncResult(record_error("Input image dimensions must be non-zero and even"));
-  }
+    // 4:2:0 subsampling halves the chroma resolution, hence odd dimensions cannot be handled
+    if (image.width == 0 || image.height == 0 || image.width % 2 != 0 || image.height % 2 != 0) {
+      return EncResult(record_error("Input image dimensions must be non-zero and even"));
+    }
 
-  encode_width_ = image.width;
-  encode_height_ = image.height;
-  buffer_format_ = pixel_format_map.at(encoder_params_.compression_type);
+    encode_width_ = image.width;
+    encode_height_ = image.height;
+    buffer_format_ = pixel_format_map.at(encoder_params_.compression_type);
 
-  NV_ENC_INITIALIZE_PARAMS init_params{};
-  init_params.version = NV_ENC_INITIALIZE_PARAMS_VER;
-  init_params.encodeGUID = codec_guid();
-  init_params.presetGUID = encoder_params_.preset_guid;
-  init_params.encodeWidth = encode_width_;
-  init_params.encodeHeight = encode_height_;
-  init_params.maxEncodeWidth = encode_width_;
-  init_params.maxEncodeHeight = encode_height_;
-  init_params.darWidth = encode_width_;
-  init_params.darHeight = encode_height_;
-  // rate is specified in [numerator (frames), denominator (second)] format, as the Jetson backend
-  init_params.frameRateNum = static_cast<uint32_t>(encoder_params_.frame_rate_numerator);
-  init_params.frameRateDen = static_cast<uint32_t>(encoder_params_.frame_rate_denominator);
-  init_params.enablePTD = 1;  // let NvEncodeAPI decide the picture type of each frame
-  init_params.tuningInfo = encoder_params_.tuning_info;
+    NV_ENC_INITIALIZE_PARAMS init_params{};
+    init_params.version = NV_ENC_INITIALIZE_PARAMS_VER;
+    init_params.encodeGUID = codec_guid();
+    init_params.presetGUID = encoder_params_.preset_guid;
+    init_params.encodeWidth = encode_width_;
+    init_params.encodeHeight = encode_height_;
+    init_params.maxEncodeWidth = encode_width_;
+    init_params.maxEncodeHeight = encode_height_;
+    init_params.darWidth = encode_width_;
+    init_params.darHeight = encode_height_;
+    // rate is specified in [numerator (frames), denominator (second)] format, as the Jetson backend
+    init_params.frameRateNum = static_cast<uint32_t>(encoder_params_.frame_rate_numerator);
+    init_params.frameRateDen = static_cast<uint32_t>(encoder_params_.frame_rate_denominator);
+    init_params.enablePTD = 1;  // let NvEncodeAPI decide the picture type of each frame
+    init_params.tuningInfo = encoder_params_.tuning_info;
 
-  // Start from the defaults of the chosen preset, then override what this package controls
-  NV_ENC_PRESET_CONFIG preset_config{};
-  preset_config.version = NV_ENC_PRESET_CONFIG_VER;
-  preset_config.presetCfg.version = NV_ENC_CONFIG_VER;
-  NVENC_CHECK(
-    nvenc_.nvEncGetEncodePresetConfigEx(
-      encoder_session_, init_params.encodeGUID, init_params.presetGUID, init_params.tuningInfo,
-      &preset_config),
-    "Failed to get the preset configuration");
-  NV_ENC_CONFIG encode_config = preset_config.presetCfg;
+    // Start from the defaults of the chosen preset, then override what this package controls
+    NV_ENC_PRESET_CONFIG preset_config{};
+    preset_config.version = NV_ENC_PRESET_CONFIG_VER;
+    preset_config.presetCfg.version = NV_ENC_CONFIG_VER;
+    NVENC_CHECK(
+      nvenc_.nvEncGetEncodePresetConfigEx(
+        encoder_session_, init_params.encodeGUID, init_params.presetGUID, init_params.tuningInfo,
+        &preset_config),
+      "Failed to get the preset configuration");
+    NV_ENC_CONFIG encode_config = preset_config.presetCfg;
 
-  // Set I frame interval (GOP length)
-  // I frame is self-decodable frame, which can be decoded without referring other frames
-  // NOTE: A codec dedicated implementation may narrow this value down in init_codec_impl() when
-  // the codec cannot express an I frame that is not an IDR frame (see NvencAV1Compressor)
-  encode_config.gopLength = static_cast<uint32_t>(encoder_params_.i_frame_interval);
-  // GOP pattern. 1 means IPP, that is, B-Frames are disabled for streaming compression
-  encode_config.frameIntervalP = 1;
+    // Set I frame interval (GOP length)
+    // I frame is self-decodable frame, which can be decoded without referring other frames
+    // NOTE: A codec dedicated implementation may narrow this value down in init_codec_impl() when
+    // the codec cannot express an I frame that is not an IDR frame (see NvencAV1Compressor)
+    encode_config.gopLength = static_cast<uint32_t>(encoder_params_.i_frame_interval);
+    // GOP pattern. 1 means IPP, that is, B-Frames are disabled for streaming compression
+    encode_config.frameIntervalP = 1;
 
-  if (encoder_params_.compression_type == VideoCompressionType::LOSSY) {
-    // Enable variable rate control (VRC)
-    encode_config.rcParams.rateControlMode = NV_ENC_PARAMS_RC_VBR;
+    if (encoder_params_.compression_type == VideoCompressionType::LOSSY) {
+      // Enable variable rate control (VRC)
+      encode_config.rcParams.rateControlMode = NV_ENC_PARAMS_RC_VBR;
 
-    // compute the target bit rate from input streaming rate
-    const double frame_rate = static_cast<double>(encoder_params_.frame_rate_numerator) /
-                              static_cast<double>(encoder_params_.frame_rate_denominator);
-    const auto target_bit_rate = static_cast<double>(image.height) *
-                                 static_cast<double>(image.width) * frame_rate *
-                                 encoder_params_.target_bits_per_pixel;
-    encode_config.rcParams.averageBitRate = static_cast<uint32_t>(target_bit_rate);
-    encode_config.rcParams.maxBitRate = static_cast<uint32_t>(peak_bitrate_ratio * target_bit_rate);
-  }
-  // Lookahead would make the encoder consume several frames before emitting the first packet,
-  // which breaks the one frame in / one packet out contract of process()
-  encode_config.rcParams.enableLookahead = 0;
+      // compute the target bit rate from input streaming rate
+      const double frame_rate = static_cast<double>(encoder_params_.frame_rate_numerator) /
+                                static_cast<double>(encoder_params_.frame_rate_denominator);
+      const auto target_bit_rate = static_cast<double>(image.height) *
+                                   static_cast<double>(image.width) * frame_rate *
+                                   encoder_params_.target_bits_per_pixel;
+      encode_config.rcParams.averageBitRate = static_cast<uint32_t>(target_bit_rate);
+      encode_config.rcParams.maxBitRate =
+        static_cast<uint32_t>(peak_bitrate_ratio * target_bit_rate);
+    }
+    // Lookahead would make the encoder consume several frames before emitting the first packet,
+    // which breaks the one frame in / one packet out contract of process()
+    encode_config.rcParams.enableLookahead = 0;
 
-  // Do codec specific configuration
-  if (auto res = this->init_codec_impl(encode_config); !res.ok) {
-    return EncResult(
-      record_error("Codec specific configuration failed (" + res.status.message + ")"));
-  }
+    // Do codec specific configuration
+    if (auto res = this->init_codec_impl(encode_config); !res.ok) {
+      return EncResult(
+        record_error("Codec specific configuration failed (" + res.status.message + ")"));
+    }
 
-  init_params.encodeConfig = &encode_config;
-  NVENC_CHECK(
-    nvenc_.nvEncInitializeEncoder(encoder_session_, &init_params),
-    "Failed to initialize the encoder");
+    init_params.encodeConfig = &encode_config;
+    NVENC_CHECK(
+      nvenc_.nvEncInitializeEncoder(encoder_session_, &init_params),
+      "Failed to initialize the encoder");
 
-  if (auto res = setup_buffers(encode_width_, encode_height_); !res.ok) {
-    return EncResult(
-      record_error("Failed to setup the encoder buffers (" + res.status.message + ")"));
+    if (auto res = setup_buffers(encode_width_, encode_height_); !res.ok) {
+      return EncResult(
+        record_error("Failed to setup the encoder buffers (" + res.status.message + ")"));
+    }
+  } catch (...) {
+    auto exception_ptr = std::current_exception();
+    this->set_exception_ptr(exception_ptr);
+    auto result = EncResult(EncStatus(false, ""));
+    // extract message from the exception
+    try {
+      std::rethrow_exception(exception_ptr);
+    } catch (std::exception & e) {
+      result = std::move(EncResult(record_error(e.what())));
+    }
+    return result;
   }
 
   // Now, ready to process
@@ -524,9 +541,10 @@ EncResult NvencVideoCompressor::encode(
   NV_ENC_MAP_INPUT_RESOURCE map_params{};
   map_params.version = NV_ENC_MAP_INPUT_RESOURCE_VER;
   map_params.registeredResource = buffer.registered_resource;
-  NVENC_CHECK(
-    nvenc_.nvEncMapInputResource(encoder_session_, &map_params),
-    "Failed to map the input buffer to the encoder");
+  if (auto stat = nvenc_.nvEncMapInputResource(encoder_session_, &map_params);
+      stat != NV_ENC_SUCCESS) {
+    return EncResult(EncStatus(false, "Failed to map the input buffer to the encoder"));
+  }
 
   NV_ENC_PIC_PARAMS pic_params{};
   pic_params.version = NV_ENC_PIC_PARAMS_VER;
@@ -577,49 +595,66 @@ EncResult NvencVideoCompressor::encode(
 
   payload_copy_impl(is_keyframe, payload_info, encoded.data);
 
-  NVENC_CHECK(
-    nvenc_.nvEncUnlockBitstream(encoder_session_, buffer.bitstream_buffer),
-    "Failed to unlock the bitstream buffer");
-  NVENC_CHECK(
-    nvenc_.nvEncUnmapInputResource(encoder_session_, map_params.mappedResource),
-    "Failed to unmap the input buffer");
+  if (auto stat = nvenc_.nvEncUnlockBitstream(encoder_session_, buffer.bitstream_buffer);
+      stat != NV_ENC_SUCCESS) {
+    nvenc_.nvEncUnmapInputResource(encoder_session_, map_params.mappedResource);
+    return EncResult(EncStatus(false, "Failed to unlock the bitstream buffer"));
+  }
+
+  if (auto stat = nvenc_.nvEncUnmapInputResource(encoder_session_, map_params.mappedResource);
+      stat != NV_ENC_SUCCESS) {
+    return EncResult(EncStatus(false, "Failed to unmap the input buffer"));
+  }
 
   return EncResult::success();
 }
 
 common::Image NvencVideoCompressor::process_impl(const common::Image & image)
 {
-  if (state_ != State::READY) {
-    if (!init_encoder(image).ok) {
-      throw std::runtime_error("Encoder initialization failed: " + last_error_);
+  try {
+    if (state_ != State::READY) {
+      if (!init_encoder(image).ok) {
+        throw std::runtime_error("Encoder initialization failed: " + last_error_);
+      }
     }
-  }
 
-  // cudaSetDevice() takes effect on the calling thread only, hence the device has to be selected
-  // again when process() is called from a thread other than the one that initialized the encoder
-  CHECK_CUDA(cudaSetDevice(encoder_params_.gpu_id));
+    // cudaSetDevice() takes effect on the calling thread only, hence the device has to be selected
+    // again when process() is called from a thread other than the one that initialized the encoder
+    CHECK_CUDA(cudaSetDevice(encoder_params_.gpu_id));
 
-  // The encode session is bound to the resolution given at the initialization
-  if (image.width != encode_width_ || image.height != encode_height_) {
-    std::cerr << "Input image resolution has changed, which the encoder cannot follow" << std::endl;
+    // The encode session is bound to the resolution given at the initialization
+    if (image.width != encode_width_ || image.height != encode_height_) {
+      std::cerr << "Input image resolution has changed, which the encoder cannot follow"
+                << std::endl;
+      return common::Image();
+    }
+
+    auto & buffer = frame_buffers_[next_buffer_index_];
+    next_buffer_index_ = (next_buffer_index_ + 1) % frame_buffers_.size();
+
+    if (auto res = convert_to_yuv(image, buffer); !res.ok) {
+      std::cerr << "Failed to prepare the encoder input: " << res.status.message << std::endl;
+      return common::Image();
+    }
+
+    common::Image encoded;
+    if (auto res = encode(image, buffer, encoded); !res.ok) {
+      std::cerr << "Failed to encode: " << res.status.message << std::endl;
+      return common::Image();
+    }
+
+    return encoded;
+  } catch (...) {
+    auto exception_ptr = std::current_exception();
+    this->set_exception_ptr(exception_ptr);
+    // extract message from the exception
+    try {
+      std::rethrow_exception(exception_ptr);
+    } catch (std::exception & e) {
+      record_error(e.what());
+    }
     return common::Image();
   }
-
-  auto & buffer = frame_buffers_[next_buffer_index_];
-  next_buffer_index_ = (next_buffer_index_ + 1) % frame_buffers_.size();
-
-  if (auto res = convert_to_yuv(image, buffer); !res.ok) {
-    std::cerr << "Failed to prepare the encoder input: " << res.status.message << std::endl;
-    return common::Image();
-  }
-
-  common::Image encoded;
-  if (auto res = encode(image, buffer, encoded); !res.ok) {
-    std::cerr << "Failed to encode: " << res.status.message << std::endl;
-    return common::Image();
-  }
-
-  return encoded;
 }
 
 void NvencVideoCompressor::release_resources()

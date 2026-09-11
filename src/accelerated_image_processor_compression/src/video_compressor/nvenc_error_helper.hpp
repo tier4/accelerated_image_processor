@@ -149,14 +149,14 @@ inline EncStatus check_npp_api_call(
 /**
  * @brief Helper macros so that the caller need only write: NVENC_CHECK(f, "Some operation")
  *
- * Each macro returns EncResult carrying the error message from the enclosing function when the
- * wrapped call fails, hence they are usable only in functions that return EncResult.
+ * Each macro throws std::runtime_error carrying the error message from the enclosing function when
+ * the wrapped call fails
  */
 #define NVENC_CHECK_IMPL(checker, fn, msg)                                                      \
   {                                                                                             \
     auto _res = accelerated_image_processor::compression::checker(fn, msg, __FILE__, __LINE__); \
     if (!_res.ok) {                                                                             \
-      return accelerated_image_processor::compression::EncResult{_res};                         \
+      throw std::runtime_error(_res.message);                                                   \
     }                                                                                           \
   }
 

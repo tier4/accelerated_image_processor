@@ -296,7 +296,10 @@ TEST_F(TestAV1Compressor, NvencVideoCompressorAV1RejectsLossless)
   const auto [is_valid, message] = compressor->validate_compression_type_compatibility();
   EXPECT_FALSE(is_valid);
   EXPECT_FALSE(message.empty());
-  EXPECT_THROW(compressor->process(get_image()), std::runtime_error);
+  compressor->process(get_image());
+  auto exc_ptr = compressor->exception_ptr();
+  ASSERT_TRUE(exc_ptr);
+  EXPECT_THROW(std::rethrow_exception(exc_ptr), std::runtime_error);
 }
 
 TEST_P(TestAV1Compressor, NvencVideoCompressorAV1TileTypeCombo)
