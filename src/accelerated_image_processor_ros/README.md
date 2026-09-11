@@ -30,6 +30,8 @@ ros2 launch accelerated_image_processor_ros imgproc.launch.xml
 | `image_rect/camera_info` | `sensor_msgs/CameraInfo`      | Rectified camera info (Published only if `rectifier.do_rectify=true`)      |
 | `image_rect/compressed`  | `sensor_msgs/CompressedImage` | Compressed rectified image (Published only if `rectifier.do_rectify=true`) |
 
+For details on how the rectified camera info published to `image_rect/camera_info` is computed, see [Rectified Camera Info](../accelerated_image_processor_pipeline/README.md#rectified-camera-info).
+
 ### Parameters
 
 | Name                   | Type     | Default | Description                                    |
