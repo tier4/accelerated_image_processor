@@ -22,7 +22,9 @@
 
 #include <endian.h>
 
+#include <atomic>
 #include <cstdint>
+#include <exception>
 #include <iostream>
 #include <memory>
 #include <ostream>
@@ -277,7 +279,12 @@ EncResult JetsonVideoCompressor::init_encoder(const common::Image & image)
   }
 
   // Now, ready to process
-  state_ = State::READY;
+  auto expected_state = State::UNINITIALIZED;
+  // make state READY only if the current state is UNINITIALIZED
+  if (!state_.compare_exchange_strong(expected_state, State::READY)) {
+    return EncResult(record_error("Module state is not expected. Cannot transition to READY"));
+  }
+
   return EncResult::success();
 }
 
@@ -309,10 +316,27 @@ EncResult JetsonVideoCompressor::setup_output_plane(const int & height, const in
 
 common::Image JetsonVideoCompressor::process_impl(const common::Image & image)
 {
-  if (state_ != State::READY) {
-    if (!init_encoder(image).ok) {
-      throw std::runtime_error("Encoder initialization failed: " + last_error_);
+  switch (state_) {
+    case State::ERROR: {
+      // If the state is ERROR, return immediately because exception may be thrown from other place
+      return common::Image();
     }
+
+    case State::UNINITIALIZED: {
+      const auto result = init_encoder(image);
+      if (!result.ok) {
+        this->set_exception_ptr(
+          std::make_exception_ptr(
+            std::runtime_error("Encoder initialization failed: " + last_error_)));
+        state_ = State::ERROR;
+        return common::Image();
+      }
+      break;
+    }
+
+    case State::READY:
+      // state is ready. proceed to process
+      break;
   }
 
   // queue video frame the output plane buffer
@@ -462,76 +486,80 @@ bool JetsonVideoCompressor::encoder_capture_plane_dq_callback(
   auto * compressor_object = callback_args->obj;
   auto * encoder = compressor_object->encoder();
 
-  if (v4l2_buf == nullptr) {
+  try {
+    if (v4l2_buf == nullptr) {
+      throw std::runtime_error("Error while dequeuing buffer from capture plane");
+    }
+
+    // Execute preprocess for the encoded payload (some codec requires dedicated handling)
+    auto payload_info =
+      compressor_object->payload_preprocess_impl(callback_args, v4l2_buf->bytesused, buffer);
+
+    // Since this function will also be called during initialization, which dummy frames are fed,
+    // skip such dummy data
+    {
+      auto & initial_frame_count = compressor_object->initial_frame_count();
+      const auto buffer_length = compressor_object->encoder_params().buffer_length;
+      if (initial_frame_count < buffer_length) {
+        // Do nothing for the dummy data. Just return (queue) buffer to the capture plane so that
+        // successive actual frames arrive
+        initial_frame_count++;
+        CHECK_ERROR(
+          encoder->capture_plane.qBuffer(*v4l2_buf, NULL) < 0,
+          "Failed to queuing buffer to the capture plane");
+        return true;
+      }
+    }
+
+    // Get encode metadata
+    v4l2_ctrl_videoenc_outputbuf_metadata enc_metadata{};
+    const bool has_encoder_metadata = encoder->getMetadata(v4l2_buf->index, enc_metadata) == 0;
+
+    // Create result data
+    common::Image processed;
+    {
+      auto & timestamp_map = compressor_object->timestamp_map();
+      int64_t stamp_in_nanosecond = 0;
+      TimestampMap::PreciseTimestamp ps;
+      if (!timestamp_map->get(v4l2_buf->index, ps)) {
+        // fail to fetch precise timestamp. Fallback to use v4l2 buffer timestamp
+        stamp_in_nanosecond = static_cast<int64_t>(v4l2_buf->timestamp.tv_sec) * 1e9 +
+                              static_cast<int64_t>(v4l2_buf->timestamp.tv_usec) * 1e3;
+      } else {
+        stamp_in_nanosecond = static_cast<int64_t>(ps);
+      }
+
+      processed.frame_id = callback_args->frame_id;
+      processed.timestamp = stamp_in_nanosecond;
+      processed.height = callback_args->input_height;
+      processed.width = callback_args->input_width;
+      // getMetadata() fills enc_metadata via V4L2 ioctl side effect. Use the buffer flag as the
+      // direct fallback so subscribers waiting for AV_PKT_FLAG_KEY can start reliably.
+      const bool is_keyframe = (has_encoder_metadata && enc_metadata.KeyFrame) ||
+                               (v4l2_buf->flags & V4L2_BUF_FLAG_KEYFRAME) != 0;
+
+      processed.format = supported_codec_format_map.at(compressor_object->codec());
+      processed.pts = compressor_object->next_pts_++;
+      processed.flags = is_keyframe ? AV_PKT_FLAG_KEY : 0;
+      processed.is_bigendian = is_big_endian;
+
+      compressor_object->payload_copy_impl(
+        is_keyframe, payload_info, callback_args, processed.data);
+    }
+
+    // Now, v4l2_buffer can be queued again
+    CHECK_ERROR(
+      encoder->capture_plane.qBuffer(*v4l2_buf, NULL) < 0,
+      "Failed to Queuing buffer to capture plane");
+
+    // call postprocess
+    compressor_object->postprocess(processed);
+  } catch (...) {
+    compressor_object->set_exception_ptr(std::current_exception());
+    compressor_object->state_ = State::ERROR;
     encoder->abort();
-    std::cerr << "Error while dequeuing buffer from capture plane" << std::endl;
     return false;
   }
-
-  // Execute preprocess for the encoded payload (some codec requires dedicated handling)
-  auto payload_info =
-    compressor_object->payload_preprocess_impl(callback_args, v4l2_buf->bytesused, buffer);
-
-  // Since this function will also be called during initialization, which dummy frames are fed,
-  // skip such dummy data
-  {
-    auto & initial_frame_count = compressor_object->initial_frame_count();
-    const auto buffer_length = compressor_object->encoder_params().buffer_length;
-    if (initial_frame_count < buffer_length) {
-      // Do nothing for the dummy data. Just return (queue) buffer to the capture plane so that
-      // successive actual frames arrive
-      initial_frame_count++;
-      CHECK_ERROR(
-        encoder->capture_plane.qBuffer(*v4l2_buf, NULL) < 0,
-        "Failed to queuing buffer to the capture plane");
-      return true;
-    }
-  }
-
-  // Get encode metadata
-  v4l2_ctrl_videoenc_outputbuf_metadata enc_metadata{};
-  const bool has_encoder_metadata = encoder->getMetadata(v4l2_buf->index, enc_metadata) == 0;
-
-  // Create result data
-  common::Image processed;
-  {
-    auto & timestamp_map = compressor_object->timestamp_map();
-    int64_t stamp_in_nanosecond = 0;
-    TimestampMap::PreciseTimestamp ps;
-    if (!timestamp_map->get(v4l2_buf->index, ps)) {
-      // fail to fetch precise timestamp. Fallback to use v4l2 buffer timestamp
-      stamp_in_nanosecond = static_cast<int64_t>(v4l2_buf->timestamp.tv_sec) * 1e9 +
-                            static_cast<int64_t>(v4l2_buf->timestamp.tv_usec) * 1e3;
-    } else {
-      stamp_in_nanosecond = static_cast<int64_t>(ps);
-    }
-
-    processed.frame_id = callback_args->frame_id;
-    processed.timestamp = stamp_in_nanosecond;
-    processed.height = callback_args->input_height;
-    processed.width = callback_args->input_width;
-    // getMetadata() fills enc_metadata via V4L2 ioctl side effect. Use the buffer flag as the
-    // direct fallback so subscribers waiting for AV_PKT_FLAG_KEY can start reliably.
-    const bool is_keyframe =
-      (has_encoder_metadata && enc_metadata.KeyFrame) ||
-      (v4l2_buf->flags & V4L2_BUF_FLAG_KEYFRAME) != 0;
-
-    processed.format = supported_codec_format_map.at(compressor_object->codec());
-    processed.pts = compressor_object->next_pts_++;
-    processed.flags = is_keyframe ? AV_PKT_FLAG_KEY : 0;
-    processed.is_bigendian = is_big_endian;
-
-    compressor_object->payload_copy_impl(
-      is_keyframe, payload_info, callback_args, processed.data);
-  }
-
-  // Now, v4l2_buffer can be queued again
-  CHECK_ERROR(
-    encoder->capture_plane.qBuffer(*v4l2_buf, NULL) < 0,
-    "Failed to Queuing buffer to capture plane");
-
-  // call postprocess
-  compressor_object->postprocess(processed);
 
   return true;
 }

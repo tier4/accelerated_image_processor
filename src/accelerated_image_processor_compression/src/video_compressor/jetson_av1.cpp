@@ -12,11 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "av1_obu.hpp"
 #include "jetson.hpp"
 
 #include <accelerated_image_processor_common/helper.hpp>
 
+#include <cstring>
 #include <memory>
+#include <stdexcept>
 #include <vector>
 
 namespace accelerated_image_processor::compression
@@ -25,6 +28,16 @@ namespace accelerated_image_processor::compression
 
 /**
  * @brief AV1 encoder working on Jetson devices.
+ *
+ * The hardware encoder wraps its output in an IVF container and emits the AV1 sequence header
+ * OBU only once at the beginning of the stream. This class strips the IVF headers and
+ * re-inserts the cached sequence header OBU into every key frame packet, so that each key
+ * frame packet forms a self-contained random access point (AV1 spec Section 7.6.2) and
+ * decoders can start decoding from any key frame.
+ *
+ * NOTE: Though V4L2 provides a standard control named `V4L2_CID_MPEG_VIDEO_REPEAT_SEQ_HEADER`
+ * to insert sequence header for every key frames, Jetson AV1 encoder seems not implment its
+ * behavior inside as of BSP 36.4.0
  */
 class JetsonAV1Compressor final : public JetsonVideoCompressor
 {
@@ -69,11 +82,21 @@ public:
   {
   }
 
+  /**
+   * @brief Destructor
+   *
+   * Drains the capture plane DQ thread while this derived object is still intact. Once the
+   * base class destructor starts, virtual dispatch resolves payload_preprocess_impl /
+   * payload_copy_impl to the base class implementations, so frames still in flight would be
+   * emitted as raw IVF-wrapped payloads without the sequence header inserted
+   */
+  ~JetsonAV1Compressor() override { encoder_->capture_plane.waitForDQThread(1000); }
+
 protected:
   /**
    * @brief Getter function to access private member
    */
-  auto & header_cache() { return header_cache_; }
+  auto & sequence_header_cache() { return sequence_header_cache_; }
 
   EncResult collect_codec_params_impl(
     [[maybe_unused]] const EncoderParameter & general_params) override
@@ -145,13 +168,19 @@ protected:
     payload_size = payload_size - offset;
     payload_ptr = payload_ptr + offset;
 
-    // Caching the AV1 header information so that payload can be decoded without the very first
-    // frame
-    auto & header_cache = dynamic_cast<JetsonAV1Compressor *>(callback_args->obj)->header_cache();
-    if (header_cache.empty() && offset == first_frame_header_size) {
-      // Save whole payload including sequence header
-      header_cache.resize(payload_size);
-      std::memcpy(header_cache.data(), payload_ptr, payload_size);
+    // Cache only the sequence header OBU from the very first payload so that it can be
+    // re-inserted into every subsequent key frame (see payload_copy_impl). The encoder emits
+    // the sequence header just once at the beginning of the stream
+    auto & sequence_header_cache =
+      dynamic_cast<JetsonAV1Compressor *>(callback_args->obj)->sequence_header_cache();
+    if (sequence_header_cache.empty() && offset == first_frame_header_size) {
+      const auto sequence_header = av1_obu::find_sequence_header(payload_ptr, payload_size);
+      if (!sequence_header) {
+        throw std::runtime_error("No sequence header OBU found in the first AV1 payload");
+      }
+      sequence_header_cache.assign(
+        payload_ptr + sequence_header->offset,
+        payload_ptr + sequence_header->offset + sequence_header->size);
     }
 
     return {payload_ptr, payload_size, offset};
@@ -161,17 +190,28 @@ protected:
     const bool is_keyframe, const PayloadInfo & payload_info, DqCallbackArgs * callback_args,
     std::vector<uint8_t> & copy_destination) override
   {
-    auto & header_cache = dynamic_cast<JetsonAV1Compressor *>(callback_args->obj)->header_cache();
+    auto & sequence_header_cache =
+      dynamic_cast<JetsonAV1Compressor *>(callback_args->obj)->sequence_header_cache();
     auto & [payload_ptr, payload_size, offset] = payload_info;
 
-    if (is_keyframe && !header_cache.empty() && offset != first_frame_header_size) {
-      // For the key frames, copy the AV1 sequence header so that decoders can start the process
-      // from any key frames
-      size_t header_size = header_cache.size();
-      copy_destination.resize(header_size + payload_size);
+    if (
+      is_keyframe && !sequence_header_cache.empty() &&
+      !av1_obu::contains_sequence_header(payload_ptr, payload_size)) {
+      // Insert the cached sequence header OBU right after the temporal delimiter so that this
+      // temporal unit forms a random access point (a key frame combined with a sequence header
+      // in the same temporal unit, AV1 spec Section 7.6.2) and decoders can start decoding
+      // from any key frame. Payloads that already carry a sequence header (e.g. the very first
+      // one) are passed through untouched
+      const size_t insert_pos =
+        av1_obu::sequence_header_insertion_offset(payload_ptr, payload_size);
+      const size_t header_size = sequence_header_cache.size();
+      copy_destination.resize(payload_size + header_size);
 
-      std::memcpy(copy_destination.data(), header_cache.data(), header_size);
-      std::memcpy(copy_destination.data() + header_size, payload_ptr, payload_size);
+      std::memcpy(copy_destination.data(), payload_ptr, insert_pos);
+      std::memcpy(copy_destination.data() + insert_pos, sequence_header_cache.data(), header_size);
+      std::memcpy(
+        copy_destination.data() + insert_pos + header_size, payload_ptr + insert_pos,
+        payload_size - insert_pos);
     } else {
       JetsonVideoCompressor::payload_copy_impl(
         is_keyframe, payload_info, callback_args, copy_destination);
@@ -184,7 +224,8 @@ private:
   int log2_num_tile_col_;
   bool enable_ssim_rdo_;
   bool enable_cdf_update_;
-  std::vector<uint8_t> header_cache_;
+  //! Bit-exact copy of the sequence header OBU taken from the first encoded payload
+  std::vector<uint8_t> sequence_header_cache_;
 };
 
 std::unique_ptr<VideoCompressor> make_jetson_av1_compressor()

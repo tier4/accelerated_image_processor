@@ -278,7 +278,7 @@ protected:
     size_t payload_size;
     size_t offset;
   };
-  State state_{State::UNINITIALIZED};
+  std::atomic<State> state_{State::UNINITIALIZED};
 
   /**
    * @brief codec dedicated parameter collection

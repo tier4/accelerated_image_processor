@@ -19,6 +19,7 @@
 #include "accelerated_image_processor_ros/qos.hpp"
 
 #include <chrono>
+#include <exception>
 #include <memory>
 #include <string>
 #include <utility>
@@ -119,6 +120,19 @@ void ImgProcNode::determine_qos(const bool do_rectify, const int max_task_length
 
 void ImgProcNode::on_image(const sensor_msgs::msg::Image::ConstSharedPtr msg)
 {
+  // Try to catch the compressor exception before proceeding with the new frame
+  if (raw_compressor_) {
+    if (auto exception_ptr = raw_compressor_->exception_ptr(); exception_ptr) {
+      std::rethrow_exception(exception_ptr);
+    }
+  }
+
+  if (rectified_compressor_) {
+    if (auto exception_ptr = rectified_compressor_->exception_ptr(); exception_ptr) {
+      std::rethrow_exception(exception_ptr);
+    }
+  }
+
   const auto image = std::make_shared<const common::Image>(from_ros_raw(*msg));
 
   // raw image compression

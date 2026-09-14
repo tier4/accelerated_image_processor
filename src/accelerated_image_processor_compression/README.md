@@ -14,6 +14,49 @@ It also includes support for hardware acceleration on NVIDIA Jetson devices usin
 | `JetsonH265Compressor` | `H265` | [NvVideoEncoder](https://docs.nvidia.com/jetson/l4t-multimedia/classNvVideoEncoder.html) | Jetson |
 | `JetsonAV1Compressor`  | `AV1`  | [NvVideoEncoder](https://docs.nvidia.com/jetson/l4t-multimedia/classNvVideoEncoder.html) | Jetson |
 
+## AV1 bitstream handling in `JetsonAV1Compressor`
+
+### AV1 structure in a nutshell
+
+An AV1 stream is a sequence of **OBUs** (Open Bitstream Units). Each OBU is a small
+self-describing box: a 1-byte header (type + flags), an optional size field, and a payload.
+The OBU types relevant here are:
+
+| OBU                     | Role                                                                                                          |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------- |
+| Temporal Delimiter (TD) | Marks the beginning of a _temporal unit_ (≈ one packet carrying one displayed frame)                          |
+| Sequence Header (SH)    | Stream-wide parameters (resolution, profile, bit depth, ...) the decoder needs before it can decode any frame |
+| Frame                   | One coded picture (a key frame or an inter frame)                                                             |
+
+Per the AV1 specification (Section 7.6.2), a decoder can start decoding mid-stream at a key
+frame only when the _same_ packet also contains a sequence header OBU — such a packet is
+called a _random access point_.
+
+### What this package does
+
+The Jetson hardware encoder wraps its output in an IVF container and emits the sequence
+header only once, in the very first packet:
+
+```text
+packet 0 (dropped internally): [IVF headers] TD  SH  KEY_FRAME   <- SH appears only here
+packet N (later key frame)   :               TD      KEY_FRAME   <- not decodable on its own
+```
+
+`JetsonAV1Compressor` therefore
+
+1. strips the IVF file/frame headers (plain OBU streams are what `ffmpeg_image_transport`
+   compatible decoders expect), and
+2. caches the sequence header OBU from the first packet and re-inserts it right after the
+   temporal delimiter of every subsequent key frame packet:
+
+```text
+packet N (later key frame)   :               TD  SH  KEY_FRAME   <- self-contained random access point
+```
+
+As a result, subscribers can join mid-stream and start decoding at any key frame, and every
+packet still decodes to exactly one frame (only the ~10-20 byte sequence header is
+duplicated, never a whole frame).
+
 ## Example Usage in ROS 2
 
 The following code demonstrates how to leverage the compressor in your ROS 2 codebase:

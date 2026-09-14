@@ -17,6 +17,7 @@
 
 #include <gtest/gtest.h>
 
+#include <exception>
 #include <stdexcept>
 #include <string>
 #include <tuple>
@@ -79,10 +80,14 @@ TEST_P(TestH265Compressor, JetsonVideoCompressorH265ProfileLevelTypeCombo)
 
   for (auto i = 0; i < TestH265Compressor::NUM_FRAMES; i++) {
     if (!is_valid_combination) {
-      EXPECT_THROW(compressor->process(get_image()), std::runtime_error);
+      compressor->process(get_image());
+      auto exc_ptr = compressor->exception_ptr();
+      ASSERT_TRUE(exc_ptr);
+      EXPECT_THROW(std::rethrow_exception(exc_ptr), std::runtime_error);
       SUCCEED();  // If exception throw is correctly detected, this test case is success
     } else {
-      EXPECT_NO_THROW(compressor->process(get_image()));
+      compressor->process(get_image());
+      ASSERT_FALSE(compressor->exception_ptr());
     }
   }
 }
