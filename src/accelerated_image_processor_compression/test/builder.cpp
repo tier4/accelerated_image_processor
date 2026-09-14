@@ -29,12 +29,17 @@ namespace accelerated_image_processor::compression
 {
 #ifdef JETSON_AVAILABLE
 constexpr auto ExpectedJPEGBackend = CompressorBackend::JETSON;
-constexpr std::optional<CompressorBackend> ExpectedVideoBackend = CompressorBackend::JETSON;
 #elif NVJPEG_AVAILABLE
 constexpr auto ExpectedJPEGBackend = CompressorBackend::NVJPEG;
-constexpr std::optional<CompressorBackend> ExpectedVideoBackend = std::nullopt;
 #else
 constexpr auto ExpectedJPEGBackend = CompressorBackend::CPU;
+#endif
+
+#ifdef JETSON_AVAILABLE
+constexpr std::optional<CompressorBackend> ExpectedVideoBackend = CompressorBackend::JETSON;
+#elif NVENC_AVAILABLE
+constexpr std::optional<CompressorBackend> ExpectedVideoBackend = CompressorBackend::NVENC;
+#else
 constexpr std::optional<CompressorBackend> ExpectedVideoBackend = std::nullopt;
 #endif
 
@@ -67,7 +72,7 @@ void check_compressor_type(const std::unique_ptr<Compressor> & compressor)
 
     EXPECT_EQ(ptr->backend(), ExpectedVideoBackend);
   } else {
-    // This function should not be called under the non-Jetson platform
+    // This function should not be called on a platform that has no video encoder
     FAIL();
   }
 }
@@ -215,6 +220,9 @@ TEST(TestCompressorBuilder, CreateH265Compressor6)
   check_video_compressor_type(compressor);
 }
 
+#endif  // JETSON_AVAILABLE
+
+#if defined(JETSON_AVAILABLE) || defined(NVENC_AVAILABLE)
 TEST(TestCompressorBuilder, CreateAV1Compressor1)
 {
   auto compressor = create_compressor(CompressionType::AV1);
@@ -256,10 +264,10 @@ TEST(TestCompressorBuilder, CreateAV1Compressor6)
   check_video_compressor_type(compressor);
 }
 #else
-TEST(TestCompressorBuilderSkip, JetsonUnavailable)
+TEST(TestCompressorBuilderSkip, VideoEncoderUnavailable)
 {
-  GTEST_SKIP()
-    << "Jetson not available. Skipping TestCompressorBuilder (for video compressor) tests.";
+  GTEST_SKIP() << "No video encoder available. Skipping TestCompressorBuilder (for video "
+                  "compressor) tests.";
 }
-#endif
+#endif  // defined(JETSON_AVAILABLE) || defined(NVENC_AVAILABLE)
 }  // namespace accelerated_image_processor::compression

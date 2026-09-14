@@ -157,6 +157,7 @@ BOOST_PYTHON_MODULE(accelerated_image_processor_python_compression)
 
   bp::enum_<compression::CompressorBackend>("CompressionBackend")
     .value("JETSON", compression::CompressorBackend::JETSON)
+    .value("NVENC", compression::CompressorBackend::NVENC)
     .value("NVJPEG", compression::CompressorBackend::NVJPEG)
     .value("CPU", compression::CompressorBackend::CPU);
 
