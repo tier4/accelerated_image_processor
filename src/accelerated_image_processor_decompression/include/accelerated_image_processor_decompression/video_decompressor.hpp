@@ -22,12 +22,12 @@
 
 namespace accelerated_image_processor::decompression
 {
-class FfmpegVideoDecompressor;
+class NvDecVideoDecompressor;
 
 /**
  * @brief Enumeration of video decompression backends.
  */
-enum class VideoBackend : uint8_t { FFMPEG };
+enum class VideoBackend : uint8_t { NVDEC };
 
 /**
  * @brief Abstract base class for video decompressors.
@@ -50,6 +50,6 @@ public:
 private:
   const VideoBackend backend_;  //!< Decompression backend type.
 };
-//!< @brief Factory function to create a FfmpegVideoDecompressor.
-std::unique_ptr<VideoDecompressor> make_ffmpeg_video_decompressor();
+//!< @brief Factory function to create a NvDecVideoDecompressor.
+std::unique_ptr<VideoDecompressor> make_nvdec_video_decompressor();
 }  // namespace accelerated_image_processor::decompression

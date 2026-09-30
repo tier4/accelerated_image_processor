@@ -1,22 +1,25 @@
 # accelerated_image_processor_decompression
 
-This package provides decompression functionalities for compressed video streams
-using a CUDA‑accelerated FFmpeg backend. It can be used on Jetson devices (GPU) as well as on a generic CUDA‑capable
-platform.
+This package provides decompression functionalities for compressed video streams using NVIDIA
+NVDEC and NPP on CUDA-capable discrete GPUs.
 
 ## Decompressor Supports
 
-| Decompressor              | Format                  | Backend | Device |
-| ------------------------- | ----------------------- | ------- | ------ |
-| `FfmpegVideoDecompressor` | `VIDEO` (H264/H265/AV1) | FFmpeg  | GPU    |
+| Decompressor             | Format                  | Backend | Device     |
+| ------------------------ | ----------------------- | ------- | ---------- |
+| `NvDecVideoDecompressor` | `VIDEO` (H264/H265/AV1) | NVDEC   | NVIDIA GPU |
 
 > **Note**
-> _Only a single hardware‑accelerated backend is currently supported:_
-> _`FfmpegVideoDecompressor` uses FFmpeg + NPP to decode the video and convert
-> the decoded frames to RGB (`BGR` on the GPU). The decompressor accepts a
+> _Only a single hardware-accelerated backend is currently supported:_
+> _`NvDecVideoDecompressor` directly loads `libnvcuvid` through the utility API provided by
+> `nv-codec-headers`, then uses NPP to convert decoded frames to `BGR` on the GPU. The decompressor accepts a
 > `common::Image` whose `format` field indicates the encoded format
 > (`H264`, `H265`, or `AV1`). It outputs a `common::Image` with
 > `format` set to `RAW`/`BGR`._
+
+The package requires nv-codec-headers 13 or newer. If no local or system installation is found,
+CMake downloads the pinned `n13.0.19.1` release, which requires NVIDIA driver 570.0 or newer on
+Linux. Submit an empty `data` payload after the final encoded packet to drain delayed frames.
 
 ## Example Usage in ROS 2
 
