@@ -234,6 +234,9 @@ private:
    */
   std::vector<common::Image> process_packet(const common::Image & image)
   {
+    // Holding this lock across postprocess() deadlocks if the callback calls process() again.
+    std::lock_guard<std::mutex> lock(decode_mutex_);
+
     // Initialize decoder for the first attempt
     if (!is_ready()) {
       if (auto res = init_decoder(image.format); !res.success) {
@@ -380,6 +383,8 @@ private:
    *         have been successfully initialized; false otherwise.
    */
   bool is_ready() const override { return (codec_ctx_) && (hw_device_ctx_) && (decoded_frame_); }
+
+  std::mutex decode_mutex_;
 
   // FFmpeg stuff
   AVPacket * packet_{nullptr};
