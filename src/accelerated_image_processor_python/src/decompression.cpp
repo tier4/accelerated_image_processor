@@ -95,6 +95,18 @@ private:
     PyThreadState * state_;
   };
 
+  class GilAcquire
+  {
+  public:
+    GilAcquire() : state_(PyGILState_Ensure()) {}
+    ~GilAcquire() { PyGILState_Release(state_); }
+    GilAcquire(const GilAcquire &) = delete;
+    GilAcquire & operator=(const GilAcquire &) = delete;
+
+  private:
+    PyGILState_STATE state_;
+  };
+
   // Called from process() while the GIL is released.
   void on_postprocess(const common::Image & image)
   {
@@ -102,17 +114,10 @@ private:
       return;
     }
 
-    // register_postprocess() may disable the callback after the load above.
-    // Touch callback_ only while the GIL is held, and recheck the flag there.
-    PyGILState_STATE gil_state = PyGILState_Ensure();
-    try {
-      if (callback_enabled_.load(std::memory_order_acquire)) {
-        callback_(image);
-      }
-    } catch (const bp::error_already_set &) {
-      PyErr_Print();
+    GilAcquire acquire;
+    if (callback_enabled_.load(std::memory_order_acquire)) {
+      callback_(image);
     }
-    PyGILState_Release(gil_state);
   }
 
   std::unique_ptr<decompression::Decompressor> decompressor_;
