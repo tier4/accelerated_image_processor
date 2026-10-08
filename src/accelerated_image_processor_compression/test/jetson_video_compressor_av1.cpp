@@ -15,6 +15,7 @@
 #include "accelerated_image_processor_compression/video_compressor.hpp"
 #include "test_utility.hpp"
 #include "video_compressor/av1_obu.hpp"
+#include "video_compressor/av1_sequence_header.hpp"
 
 #include <gtest/gtest.h>
 
@@ -71,12 +72,17 @@ public:
         case av1_obu::ObuType::TEMPORAL_DELIMITER:
           num_temporal_delimiter++;
           break;
-        case av1_obu::ObuType::SEQUENCE_HEADER:
+        case av1_obu::ObuType::SEQUENCE_HEADER: {
           num_sequence_header++;
           if (!first_sequence_header_pos) {
             first_sequence_header_pos = obu->offset;
           }
+          // The color description has to describe the encoder input, i.e. full range BT.709
+          const auto color = av1_sequence_header::read_color_config(data + obu->offset, obu->size);
+          ASSERT_TRUE(color.has_value());
+          EXPECT_EQ(*color, av1_sequence_header::bt709_full_range);
           break;
+        }
         case av1_obu::ObuType::FRAME_HEADER:
         case av1_obu::ObuType::FRAME:
           num_frame++;

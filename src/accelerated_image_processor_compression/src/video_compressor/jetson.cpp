@@ -158,7 +158,9 @@ EncResult JetsonVideoCompressor::init_encoder(const common::Image & image)
       "Failed to set encoder hardware preset type");
 
     // Video Usability Information (VUI) and extended color format are required to embed source
-    // image information properly
+    // image information properly. They take effect on H.264/H.265 only: the AV1 encoder emits
+    // neither the color description nor the full range flag as of BSP 36.4.0, hence
+    // JetsonAV1Compressor rewrites the sequence header instead
     CHECK_NVENC(
       encoder_->setInsertVuiEnabled(true), "Failed to set insert Video Usability information");
     CHECK_NVENC(encoder_->setExtendedColorFormat(true), "Failed to set extended color format");

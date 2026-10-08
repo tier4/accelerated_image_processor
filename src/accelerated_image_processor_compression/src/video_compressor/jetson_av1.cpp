@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "av1_obu.hpp"
+#include "av1_sequence_header.hpp"
 #include "jetson.hpp"
 
 #include <accelerated_image_processor_common/helper.hpp>
@@ -20,6 +21,7 @@
 #include <cstring>
 #include <memory>
 #include <stdexcept>
+#include <utility>
 #include <vector>
 
 namespace accelerated_image_processor::compression
@@ -34,6 +36,11 @@ namespace accelerated_image_processor::compression
  * re-inserts the cached sequence header OBU into every key frame packet, so that each key
  * frame packet forms a self-contained random access point (AV1 spec Section 7.6.2) and
  * decoders can start decoding from any key frame.
+ *
+ * Besides, the color description of the cached sequence header is rewritten to the full range
+ * BT.709 the encoder input is converted into (see JetsonVideoCompressor::nvbuf_color_format_map),
+ * and every sequence header in the stream is replaced with the rewritten one, since the
+ * encoder offers no control over the color description of AV1.
  *
  * NOTE: Though V4L2 provides a standard control named `V4L2_CID_MPEG_VIDEO_REPEAT_SEQ_HEADER`
  * to insert sequence header for every key frames, Jetson AV1 encoder seems not implment its
@@ -170,7 +177,8 @@ protected:
 
     // Cache only the sequence header OBU from the very first payload so that it can be
     // re-inserted into every subsequent key frame (see payload_copy_impl). The encoder emits
-    // the sequence header just once at the beginning of the stream
+    // the sequence header just once at the beginning of the stream. Its color description is
+    // rewritten so that it describes the actual encoder input
     auto & sequence_header_cache =
       dynamic_cast<JetsonAV1Compressor *>(callback_args->obj)->sequence_header_cache();
     if (sequence_header_cache.empty() && offset == first_frame_header_size) {
@@ -178,9 +186,14 @@ protected:
       if (!sequence_header) {
         throw std::runtime_error("No sequence header OBU found in the first AV1 payload");
       }
-      sequence_header_cache.assign(
-        payload_ptr + sequence_header->offset,
-        payload_ptr + sequence_header->offset + sequence_header->size);
+      auto rewritten = av1_sequence_header::rewrite_color_config(
+        payload_ptr + sequence_header->offset, sequence_header->size,
+        av1_sequence_header::bt709_full_range);
+      if (!rewritten) {
+        throw std::runtime_error(
+          "Failed to rewrite the color description of the AV1 sequence header OBU");
+      }
+      sequence_header_cache = std::move(*rewritten);
     }
 
     return {payload_ptr, payload_size, offset};
@@ -194,28 +207,32 @@ protected:
       dynamic_cast<JetsonAV1Compressor *>(callback_args->obj)->sequence_header_cache();
     auto & [payload_ptr, payload_size, offset] = payload_info;
 
-    if (
-      is_keyframe && !sequence_header_cache.empty() &&
-      !av1_obu::contains_sequence_header(payload_ptr, payload_size)) {
-      // Insert the cached sequence header OBU right after the temporal delimiter so that this
-      // temporal unit forms a random access point (a key frame combined with a sequence header
-      // in the same temporal unit, AV1 spec Section 7.6.2) and decoders can start decoding
-      // from any key frame. Payloads that already carry a sequence header (e.g. the very first
-      // one) are passed through untouched
-      const size_t insert_pos =
-        av1_obu::sequence_header_insertion_offset(payload_ptr, payload_size);
-      const size_t header_size = sequence_header_cache.size();
-      copy_destination.resize(payload_size + header_size);
-
-      std::memcpy(copy_destination.data(), payload_ptr, insert_pos);
-      std::memcpy(copy_destination.data() + insert_pos, sequence_header_cache.data(), header_size);
-      std::memcpy(
-        copy_destination.data() + insert_pos + header_size, payload_ptr + insert_pos,
-        payload_size - insert_pos);
-    } else {
+    const auto existing_header = av1_obu::find_sequence_header(payload_ptr, payload_size);
+    if (sequence_header_cache.empty() || (!existing_header && !is_keyframe)) {
       JetsonVideoCompressor::payload_copy_impl(
         is_keyframe, payload_info, callback_args, copy_destination);
+      return;
     }
+
+    // Put the cached sequence header OBU, whose color description has been rewritten, into
+    // [head, tail) of the payload:
+    //   - a sequence header the payload already carries (e.g. the very first one) is replaced
+    //     so that every sequence header in the stream stays identical (AV1 spec Section 7.5)
+    //   - otherwise the cached one is inserted right after the temporal delimiter (head ==
+    //     tail) so that this temporal unit forms a random access point (a key frame combined
+    //     with a sequence header in the same temporal unit, AV1 spec Section 7.6.2) and
+    //     decoders can start decoding from any key frame
+    const size_t head = existing_header
+                          ? existing_header->offset
+                          : av1_obu::sequence_header_insertion_offset(payload_ptr, payload_size);
+    const size_t tail = existing_header ? existing_header->offset + existing_header->size : head;
+    const size_t header_size = sequence_header_cache.size();
+    copy_destination.resize(payload_size - (tail - head) + header_size);
+
+    std::memcpy(copy_destination.data(), payload_ptr, head);
+    std::memcpy(copy_destination.data() + head, sequence_header_cache.data(), header_size);
+    std::memcpy(
+      copy_destination.data() + head + header_size, payload_ptr + tail, payload_size - tail);
   }
 
 private:

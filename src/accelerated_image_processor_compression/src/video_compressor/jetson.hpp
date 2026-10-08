@@ -125,8 +125,8 @@ public:
    * @brief Map between compression type and NvBuffer pixel format to be used for configuring
    * encoder input DMA buffer (consumed by NvBuffer API)
    *
-   * Both are BT.709 with the extended (full) range, which has to agree with `encoder_colorspace`
-   * and `encoder_input_color_spec`
+   * Both are BT.709 with the extended (full) range, which has to agree with `encoder_colorspace`,
+   * `encoder_input_color_spec`, and the color description JetsonAV1Compressor writes
    */
   inline static const std::unordered_map<VideoCompressionType, NvBufSurfaceColorFormat>
     nvbuf_color_format_map = {

@@ -201,8 +201,10 @@ endif()
 install(DIRECTORY include/${PROJECT_NAME} DESTINATION include)
 
 if(BUILD_TESTING AND NOT SKBUILD)
-  set(test_files test/av1_obu.cpp test/builder.cpp test/cpu_jpeg_compressor.cpp
-                 test/jetson_jpeg_compressor.cpp test/nv_jpeg_compressor.cpp)
+  set(test_files
+      test/av1_obu.cpp test/av1_sequence_header.cpp test/builder.cpp
+      test/cpu_jpeg_compressor.cpp test/jetson_jpeg_compressor.cpp
+      test/nv_jpeg_compressor.cpp)
 
   foreach(test_file IN LISTS test_files)
     get_filename_component(test_file_name ${test_file} NAME)
@@ -210,10 +212,12 @@ if(BUILD_TESTING AND NOT SKBUILD)
     target_link_libraries(${test_file_name}_${PROJECT_NAME} ${PROJECT_NAME})
   endforeach()
 
-  # The AV1 OBU scanner test exercises an internal header under src/, which is
-  # not installed
-  target_include_directories(av1_obu.cpp_${PROJECT_NAME}
-                             PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+  # The AV1 OBU scanner and sequence header tests exercise internal headers
+  # under src/, which are not installed
+  foreach(av1_test av1_obu.cpp av1_sequence_header.cpp)
+    target_include_directories(${av1_test}_${PROJECT_NAME}
+                               PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+  endforeach()
 
   # Treat some tests separately because they contains many test cases and cause
   # colcon test timeout if the tests are generated in the above way
