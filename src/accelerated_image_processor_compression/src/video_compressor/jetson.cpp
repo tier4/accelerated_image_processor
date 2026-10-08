@@ -93,7 +93,7 @@ EncResult JetsonVideoCompressor::init_encoder(const common::Image & image)
   {
     auto pixel_format = pixel_format_map.at(encoder_params_.compression_type);
     CHECK_NVENC(
-      encoder_->setOutputPlaneFormat(pixel_format, image.width, image.height),
+      encoder_->setOutputPlaneFormat(pixel_format, image.width, image.height, encoder_colorspace),
       "Failed to set output plane format");
   }
 
@@ -178,6 +178,24 @@ EncResult JetsonVideoCompressor::init_encoder(const common::Image & image)
     if (auto res = setup_output_plane(image.height, image.width); !res.ok) {
       return EncResult(
         record_error("Failed to setup output DMA buffer (" + res.status.message + ")"));
+    }
+  }
+
+  // Allocate the intermediate image the source image is repacked into before VIC converts it into
+  // YCbCr (see fill_encoder_input_async). Unlike the input/output images, which wrap memory owned
+  // by others and therefore have to be re-wrapped every frame, this image owns its memory and is
+  // fully overwritten every frame. Hence it is allocated just once here, where the resolution is
+  // fixed as is the case with the output plane buffers
+  {
+    if (
+      vpiImageCreate(
+        static_cast<int32_t>(image.width), static_cast<int32_t>(image.height),
+        intermediate_rgba_format, VPI_BACKEND_CUDA | VPI_BACKEND_VIC,
+        &intermediate_rgba_dev_) != VPI_SUCCESS) {
+      char msg[VPI_MAX_STATUS_MESSAGE_LENGTH];
+      vpiGetLastStatusMessage(msg, sizeof(msg));
+      return EncResult(
+        record_error("Failed to allocate the intermediate image (" + std::string(msg) + ")"));
     }
   }
 
@@ -392,8 +410,9 @@ common::Image JetsonVideoCompressor::process_impl(const common::Image & image)
 
     VPIImageWrapperParams wrapper_params = {};
     CHECK_VPI(vpiInitImageWrapperParams(&wrapper_params));
-    wrapper_params.colorSpec =
-      VPI_COLOR_SPEC_DEFAULT;  // Informs that the color spec is to be inferred.
+    // State the color spec explicitly rather than letting VPI infer it from the NvBuffer, so that
+    // the conversion always agrees with the color description embedded into the stream
+    wrapper_params.colorSpec = encoder_input_color_spec;
 
     uint64_t wrapper_flag = 0;  // The backend selection happens during the algorithm submission
     if (!output_yuv_dev_) {
@@ -464,14 +483,23 @@ common::Image JetsonVideoCompressor::process_impl(const common::Image & image)
 
 void JetsonVideoCompressor::fill_encoder_input_async(void)
 {
-  uint64_t backend = VPI_BACKEND_CUDA;
-  VPIConvertImageFormatParams cvt_params;
-  vpiInitConvertImageFormatParams(&cvt_params);
-  cvt_params.policy = VPI_CONVERSION_CAST;
-  cvt_params.flags = VPI_PRECISE;
-
-  CHECK_VPI(vpiSubmitConvertImageFormat(
-    vpi_stream_, backend, input_rgb_dev_, output_yuv_dev_, &cvt_params));
+  // As of VPI 3.2, neither CUDA nor CPU backend implements the conversion into BT.709 YCbCr,
+  // which only VIC does from 4 channel images. Therefore the conversion is split into two
+  // stages: CUDA repacks the RGB/BGR source into RGBA, then VIC converts it into YCbCr.
+  // Both are submitted to the same stream, which executes them in order
+  {
+    VPIConvertImageFormatParams repack_params;
+    CHECK_VPI(vpiInitConvertImageFormatParams(&repack_params));
+    CHECK_VPI(vpiSubmitConvertImageFormat(
+      vpi_stream_, VPI_BACKEND_CUDA, input_rgb_dev_, intermediate_rgba_dev_, &repack_params));
+  }
+  {
+    VPIConvertImageFormatParams cvt_params;
+    CHECK_VPI(vpiInitConvertImageFormatParams(&cvt_params));
+    cvt_params.policy = VPI_CONVERSION_CLAMP;  // the only policy VIC supports
+    CHECK_VPI(vpiSubmitConvertImageFormat(
+      vpi_stream_, VPI_BACKEND_VIC, intermediate_rgba_dev_, output_yuv_dev_, &cvt_params));
+  }
 }
 
 bool JetsonVideoCompressor::encoder_capture_plane_dq_callback(

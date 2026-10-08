@@ -189,13 +189,13 @@ harmless.
 
 ### Differences from the Jetson backend
 
-| Aspect             | `JetsonAV1Compressor`                                             | `NvencAV1Compressor`                                              |
-| ------------------ | ----------------------------------------------------------------- | ----------------------------------------------------------------- |
-| Result delivery    | Asynchronous: the capture plane dequeue thread emits packets      | Synchronous: `process()` returns the packet of the frame just fed |
-| Color conversion   | VPI (`NVBUF_COLOR_FORMAT_NV12_ER`, full range)                    | NPP (`nppi*ToYCbCr420_JPEG_*`, full range) into planar YUV 4:2:0  |
-| Lossless encoding  | Supported                                                         | Not supported for AV1 (rejected during the parameter validation)  |
-| Container overhead | IVF headers have to be stripped from every packet                 | None: NVENC emits a plain OBU stream                              |
-| Sequence header    | Cached from the first packet and re-inserted into every key frame | Emitted by the encoder for every key frame                        |
+| Aspect             | `JetsonAV1Compressor`                                                                                    | `NvencAV1Compressor`                                                                                             |
+| ------------------ | -------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| Result delivery    | Asynchronous: the capture plane dequeue thread emits packets                                             | Synchronous: `process()` returns the packet of the frame just fed                                                |
+| Color conversion   | VPI: CUDA repacks into RGBA, then VIC converts into BT.709 full range (`NVBUF_COLOR_FORMAT_NV12_709_ER`) | NPP: `nppiSwapChannels_8u_C3C4R` + `nppiBGRToYCbCr420_709HDTV_8u_AC4P3R` into BT.709 full range planar YUV 4:2:0 |
+| Lossless encoding  | Supported                                                                                                | Not supported for AV1 (rejected during the parameter validation)                                                 |
+| Container overhead | IVF headers have to be stripped from every packet                                                        | None: NVENC emits a plain OBU stream                                                                             |
+| Sequence header    | Cached from the first packet and re-inserted into every key frame                                        | Emitted by the encoder for every key frame                                                                       |
 
 Note that the registered postprocess function is invoked in both cases, hence the user code can be
 shared between the backends.

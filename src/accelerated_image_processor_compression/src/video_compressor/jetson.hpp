@@ -124,14 +124,36 @@ public:
   /**
    * @brief Map between compression type and NvBuffer pixel format to be used for configuring
    * encoder input DMA buffer (consumed by NvBuffer API)
+   *
+   * Both are BT.709 with the extended (full) range, which has to agree with `encoder_colorspace`
+   * and `encoder_input_color_spec`
    */
   inline static const std::unordered_map<VideoCompressionType, NvBufSurfaceColorFormat>
     nvbuf_color_format_map = {
       {VideoCompressionType::LOSSY,
-       NVBUF_COLOR_FORMAT_NV12_ER},  // Y/CbCr 4:2:0 multi-planar, extended range (full color)
+       NVBUF_COLOR_FORMAT_NV12_709_ER},  // BT.709 Y/CbCr 4:2:0 multi-planar, extended range
       {VideoCompressionType::LOSSLESS,
-       NVBUF_COLOR_FORMAT_NV24_ER},  // Y/CbCr 4:4:4 multi-planar, extended range (full color)
+       NVBUF_COLOR_FORMAT_NV24_709_ER},  // BT.709 Y/CbCr 4:4:4 multi-planar, extended range
     };
+
+  /**
+   * @brief Colorspace of the encoder input, which the encoder embeds into the VUI of H.264/H.265
+   * (the range is signaled separately via setExtendedColorFormat())
+   */
+  static constexpr v4l2_colorspace encoder_colorspace = V4L2_COLORSPACE_REC709;
+
+  /**
+   * @brief Color spec VPI converts the source RGB image into, matching `nvbuf_color_format_map`
+   */
+  static constexpr VPIColorSpec encoder_input_color_spec = VPI_COLOR_SPEC_BT709_ER;
+
+  /**
+   * @brief Format of the intermediate image the source RGB/BGR image is repacked into
+   *
+   * As of VPI 3.2, only the VIC backend implements the conversion into BT.709 YCbCr, and VIC takes
+   * 4 channel images only. Hence the source image is repacked into this format by CUDA first
+   */
+  static constexpr VPIImageFormat intermediate_rgba_format = VPI_IMAGE_FORMAT_RGBA8;
 
   /**
    * @brief Configuration parameters for the Jetson video encoder.
@@ -227,6 +249,10 @@ public:
 
     if (input_rgb_dev_) {
       vpiImageDestroy(input_rgb_dev_);
+    }
+
+    if (intermediate_rgba_dev_) {
+      vpiImageDestroy(intermediate_rgba_dev_);
     }
 
     if (output_yuv_dev_) {
@@ -369,6 +395,7 @@ private:
   std::vector<int> output_plane_fds_{};
   std::vector<NvBufSurface *> output_nvsurface_{};
   VPIImage input_rgb_dev_{nullptr};
+  VPIImage intermediate_rgba_dev_{nullptr};
   VPIImage output_yuv_dev_{nullptr};
   cudaStream_t stream_{};
   VPIStream vpi_stream_{};

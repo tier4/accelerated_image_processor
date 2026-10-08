@@ -29,6 +29,7 @@
 #include <cuda_runtime.h>
 #include <ffnvcodec/nvEncodeAPI.h>
 #include <nppi_color_conversion.h>
+#include <nppi_data_exchange_and_initialization.h>
 #endif
 
 namespace accelerated_image_processor::compression
@@ -335,6 +336,10 @@ private:
   //! Device memory holding the packed RGB/BGR source image transferred from the host
   uint8_t * rgb_device_{nullptr};
   size_t rgb_pitch_{0};
+  //! Device memory holding the source image reordered into BGRA, which the BT.709 color
+  //! conversion of NPP takes as its input
+  uint8_t * bgra_device_{nullptr};
+  size_t bgra_pitch_{0};
 
   std::vector<FrameBuffer> frame_buffers_{};
   size_t next_buffer_index_{0};
