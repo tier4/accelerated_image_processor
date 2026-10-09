@@ -48,8 +48,9 @@ packet N (later key frame)   :               TD      KEY_FRAME   <- not decodabl
 
 1. strips the IVF file/frame headers (plain OBU streams are what `ffmpeg_image_transport`
    compatible decoders expect), and
-2. caches the sequence header OBU from the first packet and re-inserts it right after the
-   temporal delimiter of every subsequent key frame packet:
+2. caches the sequence header OBU from the first packet, rewrites its color description (see
+   [Color description](#color-description)), and re-inserts it right after the temporal
+   delimiter of every subsequent key frame packet:
 
 ```text
 packet N (later key frame)   :               TD  SH  KEY_FRAME   <- self-contained random access point
@@ -80,6 +81,19 @@ smaller of `i_frame_interval` and `idr_frame_interval`. Every packet flagged as 
 then an actual AV1 key frame accompanied by a sequence header, that is, a random access point.
 AV1 needs no equivalent of the H264/H265 "I frame that is not an IDR frame" anyway, because its
 key frame already resets the reference frames.
+
+### Color description
+
+Every video compressor of this package feeds its encoder with **BT.709, full range** YCbCr
+(both lossy and lossless), and the stream says so: the AV1 sequence header carries
+`color_primaries` / `transfer_characteristics` / `matrix_coefficients` = 1 (BT.709) and
+`color_range` = 1 (full), and the H.264/H.265 VUI carries the equivalent values.
+
+The Jetson AV1 encoder, however, offers no control over these fields, and the sequence header it
+emits does not describe the actual input. `JetsonAV1Compressor` therefore rewrites
+`color_config()` of the cached sequence header (`src/video_compressor/av1_sequence_header.hpp`)
+and replaces every sequence header in the stream with the rewritten one, so that the sequence
+headers stay identical throughout the stream.
 
 ## Video compression on a non-Jetson platform (`NvencAV1Compressor`)
 
@@ -189,13 +203,13 @@ harmless.
 
 ### Differences from the Jetson backend
 
-| Aspect             | `JetsonAV1Compressor`                                             | `NvencAV1Compressor`                                              |
-| ------------------ | ----------------------------------------------------------------- | ----------------------------------------------------------------- |
-| Result delivery    | Asynchronous: the capture plane dequeue thread emits packets      | Synchronous: `process()` returns the packet of the frame just fed |
-| Color conversion   | VPI (`NVBUF_COLOR_FORMAT_NV12_ER`, full range)                    | NPP (`nppi*ToYCbCr420_JPEG_*`, full range) into planar YUV 4:2:0  |
-| Lossless encoding  | Supported                                                         | Not supported for AV1 (rejected during the parameter validation)  |
-| Container overhead | IVF headers have to be stripped from every packet                 | None: NVENC emits a plain OBU stream                              |
-| Sequence header    | Cached from the first packet and re-inserted into every key frame | Emitted by the encoder for every key frame                        |
+| Aspect             | `JetsonAV1Compressor`                                                                                    | `NvencAV1Compressor`                                                                                             |
+| ------------------ | -------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| Result delivery    | Asynchronous: the capture plane dequeue thread emits packets                                             | Synchronous: `process()` returns the packet of the frame just fed                                                |
+| Color conversion   | VPI: CUDA repacks into RGBA, then VIC converts into BT.709 full range (`NVBUF_COLOR_FORMAT_NV12_709_ER`) | NPP: `nppiSwapChannels_8u_C3C4R` + `nppiBGRToYCbCr420_709HDTV_8u_AC4P3R` into BT.709 full range planar YUV 4:2:0 |
+| Lossless encoding  | Supported                                                                                                | Not supported for AV1 (rejected during the parameter validation)                                                 |
+| Container overhead | IVF headers have to be stripped from every packet                                                        | None: NVENC emits a plain OBU stream                                                                             |
+| Sequence header    | Cached from the first packet, its color description rewritten, and re-inserted into every key frame      | Emitted by the encoder for every key frame                                                                       |
 
 Note that the registered postprocess function is invoked in both cases, hence the user code can be
 shared between the backends.
@@ -232,8 +246,9 @@ packet N (later key frame)   :               TD      KEY_FRAME   <- not decodabl
 
 1. strips the IVF file/frame headers (plain OBU streams are what `ffmpeg_image_transport`
    compatible decoders expect), and
-2. caches the sequence header OBU from the first packet and re-inserts it right after the
-   temporal delimiter of every subsequent key frame packet:
+2. caches the sequence header OBU from the first packet, rewrites its color description (see
+   [Color description](#color-description)), and re-inserts it right after the temporal
+   delimiter of every subsequent key frame packet:
 
 ```text
 packet N (later key frame)   :               TD  SH  KEY_FRAME   <- self-contained random access point

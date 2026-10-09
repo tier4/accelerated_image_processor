@@ -443,6 +443,11 @@ EncResult NvencVideoCompressor::setup_buffers(const uint32_t width, const uint32
       reinterpret_cast<void **>(&rgb_device_), &rgb_pitch_, static_cast<size_t>(width) * channels,
       height),
     "Failed to allocate the device memory for the source image");
+  NVENC_CHECK_CUDA(
+    cudaMallocPitch(
+      reinterpret_cast<void **>(&bgra_device_), &bgra_pitch_, static_cast<size_t>(width) * 4,
+      height),
+    "Failed to allocate the device memory for the BGRA reordered source image");
 
   frame_buffers_.assign(static_cast<size_t>(encoder_params_.buffer_length), FrameBuffer{});
   for (auto & buffer : frame_buffers_) {
@@ -506,21 +511,26 @@ EncResult NvencVideoCompressor::convert_to_yuv(
   int destination_steps[3] = {luma_pitch, chroma_pitch, chroma_pitch};
   NppiSize roi = {static_cast<int>(encode_width_), static_cast<int>(encode_height_)};
 
-  // The `_JPEG_` variants yield full range (0-255) YCbCr, which corresponds to the extended
-  // color range (NVBUF_COLOR_FORMAT_NV12_ER) the Jetson backend feeds its encoder with
-  if (image.encoding == common::ImageEncoding::RGB) {
+  // The `_709HDTV_` variant yields full range (0-255) BT.709 YCbCr, which corresponds to the
+  // extended color range (NVBUF_COLOR_FORMAT_NV12_709_ER) the Jetson backend feeds its encoder
+  // with. NPP provides it only for 4 channel BGR input, hence the source image is reordered into
+  // BGRA first. The alpha channel is ignored by the conversion
+  {
+    constexpr int rgb_to_bgra[4] = {2, 1, 0, 3};
+    constexpr int bgr_to_bgra[4] = {0, 1, 2, 3};
+    constexpr Npp8u alpha = 255;
     NVENC_CHECK_NPP(
-      nppiRGBToYCbCr420_JPEG_8u_C3P3R_Ctx(
-        rgb_device_, static_cast<int>(rgb_pitch_), destination_planes, destination_steps, roi,
+      nppiSwapChannels_8u_C3C4R_Ctx(
+        rgb_device_, static_cast<int>(rgb_pitch_), bgra_device_, static_cast<int>(bgra_pitch_), roi,
+        image.encoding == common::ImageEncoding::RGB ? rgb_to_bgra : bgr_to_bgra, alpha,
         npp_stream_ctx_),
-      "Failed to convert the source image from RGB to YCbCr 4:2:0");
-  } else {
-    NVENC_CHECK_NPP(
-      nppiBGRToYCbCr420_JPEG_8u_C3P3R_Ctx(
-        rgb_device_, static_cast<int>(rgb_pitch_), destination_planes, destination_steps, roi,
-        npp_stream_ctx_),
-      "Failed to convert the source image from BGR to YCbCr 4:2:0");
+      "Failed to reorder the source image into BGRA");
   }
+  NVENC_CHECK_NPP(
+    nppiBGRToYCbCr420_709HDTV_8u_AC4P3R_Ctx(
+      bgra_device_, static_cast<int>(bgra_pitch_), destination_planes, destination_steps, roi,
+      npp_stream_ctx_),
+    "Failed to convert the source image from BGRA to BT.709 YCbCr 4:2:0");
 
   // The encoder is driven by the host thread below, hence the asynchronous work submitted above
   // has to be completed before the frame is handed over to it
@@ -683,6 +693,11 @@ void NvencVideoCompressor::release_resources()
   if (rgb_device_) {
     CHECK_CUDA(cudaFree(rgb_device_));
     rgb_device_ = nullptr;
+  }
+
+  if (bgra_device_) {
+    CHECK_CUDA(cudaFree(bgra_device_));
+    bgra_device_ = nullptr;
   }
 
   if (encoder_session_) {

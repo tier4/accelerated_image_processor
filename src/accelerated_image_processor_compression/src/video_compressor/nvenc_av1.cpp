@@ -125,10 +125,10 @@ protected:
     av1_config.outputBitDepth = NV_ENC_BIT_DEPTH_8;
 
     // Color description has to be embedded to let decoders reproduce the source colors. The
-    // input is converted to full range BT.601 YCbCr (see NvencVideoCompressor::convert_to_yuv)
-    av1_config.colorPrimaries = NV_ENC_VUI_COLOR_PRIMARIES_SMPTE170M;
-    av1_config.transferCharacteristics = NV_ENC_VUI_TRANSFER_CHARACTERISTIC_SMPTE170M;
-    av1_config.matrixCoefficients = NV_ENC_VUI_MATRIX_COEFFS_SMPTE170M;
+    // input is converted to full range BT.709 YCbCr (see NvencVideoCompressor::convert_to_yuv)
+    av1_config.colorPrimaries = NV_ENC_VUI_COLOR_PRIMARIES_BT709;
+    av1_config.transferCharacteristics = NV_ENC_VUI_TRANSFER_CHARACTERISTIC_BT709;
+    av1_config.matrixCoefficients = NV_ENC_VUI_MATRIX_COEFFS_BT709;
     av1_config.colorRange = 1;  // 0: limited (studio swing), 1: full
 
     // Tiling divides a frame into independently encodable regions, which the hardware encodes in
