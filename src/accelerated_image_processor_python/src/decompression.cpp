@@ -21,6 +21,7 @@
 #include <boost/python.hpp>
 
 #include <algorithm>
+#include <atomic>
 #include <memory>
 #include <optional>
 #include <string>
@@ -52,13 +53,19 @@ public:
     if (!decompressor_) {
       return std::nullopt;
     }
+    // Release the GIL while decoding so that multiple decompressors can run in parallel
+    // and other Python threads (e.g., ROS executors) are not starved.
+    GilRelease release;
     return decompressor_->process(image);
   }
 
   void register_postprocess(const bp::object & callback)
   {
-    // Treat None as disabling the postprocess callback
+    // Treat None as disabling the postprocess callback.
+    // Publish the disabled flag before clearing the callable. on_postprocess() can run
+    // without the GIL and must not invoke a callback that is already cleared.
     if (callback.is_none()) {
+      callback_enabled_.store(false, std::memory_order_release);
       callback_ = bp::object();
       return;
     }
@@ -69,20 +76,52 @@ public:
       bp::throw_error_already_set();
     }
     callback_ = callback;
+    callback_enabled_.store(true, std::memory_order_release);
   }
 
   common::ParameterMap & parameters() { return decompressor_->parameters(); }
   const common::ParameterMap & parameters() const { return decompressor_->parameters(); }
 
 private:
+  class GilRelease
+  {
+  public:
+    GilRelease() : state_(PyEval_SaveThread()) {}
+    ~GilRelease() { PyEval_RestoreThread(state_); }
+    GilRelease(const GilRelease &) = delete;
+    GilRelease & operator=(const GilRelease &) = delete;
+
+  private:
+    PyThreadState * state_;
+  };
+
+  class GilAcquire
+  {
+  public:
+    GilAcquire() : state_(PyGILState_Ensure()) {}
+    ~GilAcquire() { PyGILState_Release(state_); }
+    GilAcquire(const GilAcquire &) = delete;
+    GilAcquire & operator=(const GilAcquire &) = delete;
+
+  private:
+    PyGILState_STATE state_;
+  };
+
+  // Called from process() while the GIL is released.
   void on_postprocess(const common::Image & image)
   {
-    if (callback_) {
+    if (!callback_enabled_.load(std::memory_order_acquire)) {
+      return;
+    }
+
+    GilAcquire acquire;
+    if (callback_enabled_.load(std::memory_order_acquire)) {
       callback_(image);
     }
   }
 
   std::unique_ptr<decompression::Decompressor> decompressor_;
+  std::atomic<bool> callback_enabled_{false};
   bp::object callback_;
 };
 }  // namespace
