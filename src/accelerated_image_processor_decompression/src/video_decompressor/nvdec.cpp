@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "accelerated_image_processor_decompression/video_decompressor.hpp"
+#include "color_convert.hpp"
 
 #include <accelerated_image_processor_common/datatype.hpp>
 
@@ -468,6 +469,12 @@ private:
     output_height_ = static_cast<uint32_t>(display_height);
     decode_surface_count_ = required_decode_surfaces;
 
+    // Remember the signalled matrix coefficients so the YUV->BGR conversion can match the encoder.
+    // We do NOT read video_full_range_flag: cuvid does not parse the AV1 color_range bit (always
+    // reports 0), and the correct NPP decode variant is instead chosen empirically to invert the
+    // encoder (verified by a round-trip test; see README and the conversion below).
+    matrix_coefficients_ = format->video_signal_description.matrix_coefficients;
+
     return static_cast<int>(decode_surface_count_);
   }
 
@@ -540,6 +547,10 @@ private:
     const auto * y_plane =
       reinterpret_cast<const Npp8u *>(static_cast<std::uintptr_t>(y_plane_address));
 
+    // Pick the YUV->BGR inverse that matches the encoder for the stream's matrix coefficients.
+    // matrix_coefficients per ITU-T H.273: 1 = BT.709, 5/6 = BT.601; anything else
+    // (including 2 = unspecified) defaults to BT.709, this project's encoder convention.
+    const bool is_bt601 = matrix_coefficients_ == 5 || matrix_coefficients_ == 6;
     NppStatus conversion_status = NPP_NOT_SUPPORTED_MODE_ERROR;
     if (output_surface_format_ == cudaVideoSurfaceFormat_NV12) {
       // UV plane follows the full luma plane (surface_height_ rows). 4:2:0 chroma is half-res,
@@ -549,9 +560,21 @@ private:
         static_cast<CUdeviceptr>(display_top_ / 2) * source_pitch + display_left_;
       const Npp8u * source_planes[2] = {
         y_plane, reinterpret_cast<const Npp8u *>(static_cast<std::uintptr_t>(uv_plane_address))};
-      conversion_status = nppiNV12ToBGR_8u_P2C3R_Ctx(
-        source_planes, static_cast<int>(source_pitch), bgr_device_, bgr_pitch_, roi,
-        npp_stream_context_);
+      if (is_bt601) {
+        // BT.601 (limited range); NPP has no full-range 4:2:0 BT.601 variant.
+        conversion_status = nppiNV12ToBGR_8u_P2C3R_Ctx(
+          source_planes, static_cast<int>(source_pitch), bgr_device_, bgr_pitch_, roi,
+          npp_stream_context_);
+      } else {
+        // BT.709. NPP's fixed NV12->BGR converters do not correctly invert the encoder's
+        // full-range nppiBGRToYCbCr420_709HDTV (709HDTV desaturates chroma, 709CSC crushes the
+        // luma range), so apply the standard ITU-R BT.709 full-range matrix with our own kernel.
+        const cudaError_t kernel_status = nv12_to_bgr_bt709_full(
+          source_planes[0], source_planes[1], static_cast<int>(source_pitch), bgr_device_,
+          bgr_pitch_, static_cast<int>(output_width_), static_cast<int>(output_height_), stream_);
+        conversion_status =
+          kernel_status == cudaSuccess ? NPP_SUCCESS : NPP_NOT_SUPPORTED_MODE_ERROR;
+      }
     } else if (output_surface_format_ == cudaVideoSurfaceFormat_YUV444) {
       const CUdeviceptr u_plane_address =
         mapped_frame + static_cast<CUdeviceptr>(surface_height_) * source_pitch +
@@ -562,9 +585,21 @@ private:
       const Npp8u * source_planes[3] = {
         y_plane, reinterpret_cast<const Npp8u *>(static_cast<std::uintptr_t>(u_plane_address)),
         reinterpret_cast<const Npp8u *>(static_cast<std::uintptr_t>(v_plane_address))};
-      conversion_status = nppiYUVToBGR_8u_P3C3R_Ctx(
-        source_planes, static_cast<int>(source_pitch), bgr_device_, bgr_pitch_, roi,
-        npp_stream_context_);
+      if (is_bt601) {
+        // BT.601 full range.
+        conversion_status = nppiYCbCrToBGR_8u_P3C3R_Ctx(
+          source_planes, static_cast<int>(source_pitch), bgr_device_, bgr_pitch_, roi,
+          npp_stream_context_);
+      } else {
+        // BT.709: same standard ITU-R BT.709 full-range matrix as the NV12 path, via our kernel.
+        // The 4:4:4 path is not exercised by the 4:2:0 pipeline but is kept consistent.
+        const cudaError_t kernel_status = yuv444_to_bgr_bt709_full(
+          source_planes[0], source_planes[1], source_planes[2], static_cast<int>(source_pitch),
+          bgr_device_, bgr_pitch_, static_cast<int>(output_width_),
+          static_cast<int>(output_height_), stream_);
+        conversion_status =
+          kernel_status == cudaSuccess ? NPP_SUCCESS : NPP_NOT_SUPPORTED_MODE_ERROR;
+      }
     }
 
     if (conversion_status != NPP_SUCCESS) {
@@ -705,6 +740,7 @@ private:
   cudaVideoChromaFormat chroma_format_{cudaVideoChromaFormat_Monochrome};
   cudaVideoSurfaceFormat output_surface_format_{cudaVideoSurfaceFormat_NV12};
   unsigned int bit_depth_minus_8_{0};
+  uint8_t matrix_coefficients_{2};  // ITU-T H.273; 2 = unspecified (treated as BT.709)
 
   CuvidFunctions * cuvid_{nullptr};
   CUvideoparser parser_{nullptr};

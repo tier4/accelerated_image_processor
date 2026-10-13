@@ -26,8 +26,9 @@ find_library(CUDA_nppidei_LIBRARY nppidei
              ${CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES})
 find_library(CUDA_nppisu_LIBRARY nppisu ${CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES})
 
-add_library(${PROJECT_NAME} SHARED src/builder.cpp
-                                   src/video_decompressor/nvdec.cpp)
+add_library(
+  ${PROJECT_NAME} SHARED src/builder.cpp src/video_decompressor/nvdec.cpp
+                         src/video_decompressor/color_convert.cu)
 
 target_include_directories(
   ${PROJECT_NAME} PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
