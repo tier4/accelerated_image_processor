@@ -99,6 +99,9 @@ public:
    */
   common::Image process_impl(const common::Image & image) override
   {
+    // Holding this lock across postprocess() deadlocks if the callback calls process() again.
+    std::lock_guard<std::mutex> lock(decode_mutex_);
+
     try {
       if (state_ == State::ERROR) {
         throw std::runtime_error(last_error_);
@@ -768,6 +771,8 @@ private:
   std::deque<CUvideotimestamp> packet_metadata_order_{};
   std::vector<common::Image> decoded_images_{};
   CUvideotimestamp next_packet_timestamp_{0};
+
+  std::mutex decode_mutex_;
 };
 
 std::unique_ptr<VideoDecompressor> make_nvdec_video_decompressor()
