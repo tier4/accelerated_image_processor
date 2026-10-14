@@ -61,7 +61,7 @@ std::unique_ptr<Decompressor> create_decompressor(DecompressionType type)
 {
   switch (type) {
     case DecompressionType::VIDEO:
-      return make_ffmpeg_video_decompressor();
+      return make_nvdec_video_decompressor();
     default:
       throw std::invalid_argument("Invalid decompression type");
   }

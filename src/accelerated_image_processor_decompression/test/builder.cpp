@@ -29,7 +29,7 @@ namespace accelerated_image_processor::decompression
 
 namespace
 {
-constexpr auto ExpectedBackend = VideoBackend::FFMPEG;
+constexpr auto ExpectedBackend = VideoBackend::NVDEC;
 
 /**
  * @brief Check decompressor type by dynamic_cast.
@@ -61,19 +61,19 @@ void dummy_function(const common::Image &)
 }
 }  // namespace
 
-TEST(TestDecompressorBuilder, CreateFFMPEGDecompressor1)
+TEST(TestDecompressorBuilder, CreateNvDecDecompressor1)
 {
   auto decompressor = create_decompressor(DecompressionType::VIDEO);
   check_decompressor_type(decompressor);
 }
 
-TEST(TestDecompressorBuilder, CreateFFMPEGDecompressor2)
+TEST(TestDecompressorBuilder, CreateNvDecDecompressor2)
 {
   auto decompressor = create_decompressor("video");
   check_decompressor_type(decompressor);
 }
 
-TEST(TestDecompressorBuilder, CreateFFMPEGDecompressor3)
+TEST(TestDecompressorBuilder, CreateNvDecDecompressor3)
 {
   DummyClass dummy;
 
@@ -82,13 +82,13 @@ TEST(TestDecompressorBuilder, CreateFFMPEGDecompressor3)
   check_decompressor_type(decompressor);
 }
 
-TEST(TestDecompressorBuilder, CreateFFMPEGDecompressor4)
+TEST(TestDecompressorBuilder, CreateNvDecDecompressor4)
 {
   auto decompressor = create_decompressor(DecompressionType::VIDEO, &dummy_function);
   check_decompressor_type(decompressor);
 }
 
-TEST(TestDecompressorBuilder, CreateFFMPEGDecompressor5)
+TEST(TestDecompressorBuilder, CreateNvDecDecompressor5)
 {
   DummyClass dummy;
 
@@ -96,7 +96,7 @@ TEST(TestDecompressorBuilder, CreateFFMPEGDecompressor5)
   check_decompressor_type(decompressor);
 }
 
-TEST(TestDecompressorBuilder, CreateFFMPEGDecompressor6)
+TEST(TestDecompressorBuilder, CreateNvDecDecompressor6)
 {
   auto decompressor = create_decompressor("video", &dummy_function);
   check_decompressor_type(decompressor);
