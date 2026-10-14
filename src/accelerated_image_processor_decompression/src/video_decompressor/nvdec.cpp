@@ -94,12 +94,60 @@ public:
 
   /**
    * Decode one encoded packet and invoke the registered postprocess for every output frame.
-   * NVDEC parser callbacks are synchronous with cuvidParseVideoData(), so decoded_images_ is
-   * complete when that call returns.
+   * Overrides BaseProcessor::process() because one packet can yield zero or multiple frames.
+   * postprocess() runs after decode_mutex_ is released, so the callback may call process() again.
+   * If the same instance is called from multiple threads, the callbacks may run concurrently.
+   * @return The first decoded frame, or std::nullopt if the packet produced no frame.
    */
-  common::Image process_impl(const common::Image & image) override
+  std::optional<common::Image> process(const common::Image & image) override
   {
-    // Holding this lock across postprocess() deadlocks if the callback calls process() again.
+    auto processed_vec = process_packet(image);
+
+    for (auto & decoded : processed_vec) {
+      this->postprocess(decoded);
+    }
+
+    if (processed_vec.empty()) {
+      return std::nullopt;
+    } else {
+      return std::move(processed_vec.front());
+    }
+  }
+
+  /**
+   * Dummy override for the pure virtual function. Not used because process() is overridden.
+   */
+  common::Image process_impl(const common::Image & image) override { return image; }
+
+  bool is_ready() const override
+  {
+    return state_ == State::UNINITIALIZED || state_ == State::READY;
+  }
+
+private:
+  enum class State : uint8_t { UNINITIALIZED, READY, DRAINED, ERROR };
+
+  struct PacketMetadata
+  {
+    std::string frame_id;
+    int64_t timestamp;
+    std::optional<uint64_t> pts;
+    std::optional<uint8_t> flags;
+  };
+
+  static constexpr std::size_t kMaxPacketMetadataCount = 256;
+
+  /**
+   * Decode one encoded packet under decode_mutex_ and return the decoded frames.
+   * NVDEC parser callbacks are synchronous with cuvidParseVideoData(), so decoded_images_ is
+   * complete when that call returns; it is moved out so that callers can use the frames after
+   * the lock is released.
+   * @return The decoded frames, or an empty vector if none was produced or an error occurred.
+   */
+  std::vector<common::Image> process_packet(const common::Image & image)
+  {
+    // Do not invoke postprocess() while holding this lock: it deadlocks if the callback calls
+    // process() again. process() invokes it after this function returns.
     std::lock_guard<std::mutex> lock(decode_mutex_);
 
     try {
@@ -108,12 +156,12 @@ public:
       }
       if (state_ == State::DRAINED) {
         if (image.data.empty()) {
-          return common::Image();
+          return std::vector<common::Image>();
         }
         throw std::runtime_error("The NVDEC stream was already drained");
       }
       if (state_ == State::UNINITIALIZED && image.data.empty()) {
-        return common::Image();
+        return std::vector<common::Image>();
       }
       if (state_ == State::UNINITIALIZED) {
         initialize(image.format);
@@ -129,7 +177,7 @@ public:
       // flag is treated as "not a key frame", so we keep waiting until one arrives.
       const bool is_keyframe = image.flags.has_value() && (image.flags.value() & 0x1) != 0;
       if (!decoder_ && !is_end_of_stream && !is_keyframe) {
-        return common::Image();
+        return std::vector<common::Image>();
       }
 
       throw_on_cuda_error(cudaSetDevice(gpu_id_), "Selecting the CUDA device");
@@ -173,9 +221,9 @@ public:
       }
 
       if (decoded_images_.empty()) {
-        return common::Image();
+        return std::vector<common::Image>();
       }
-      return decoded_images_.front();
+      return std::move(decoded_images_);
     } catch (...) {
       auto exception = std::current_exception();
       set_exception_ptr(exception);
@@ -187,27 +235,9 @@ public:
       } catch (...) {
         record_error("Unknown NVDEC error");
       }
-      return common::Image();
+      return std::vector<common::Image>();
     }
   }
-
-  bool is_ready() const override
-  {
-    return state_ == State::UNINITIALIZED || state_ == State::READY;
-  }
-
-private:
-  enum class State : uint8_t { UNINITIALIZED, READY, DRAINED, ERROR };
-
-  struct PacketMetadata
-  {
-    std::string frame_id;
-    int64_t timestamp;
-    std::optional<uint64_t> pts;
-    std::optional<uint8_t> flags;
-  };
-
-  static constexpr std::size_t kMaxPacketMetadataCount = 256;
 
   static cudaVideoCodec to_nvdec_codec(common::ImageFormat format)
   {
