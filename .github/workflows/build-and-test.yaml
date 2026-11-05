@@ -24,11 +24,11 @@ jobs:
   
       steps:
         - name: setup ROS environment
-          uses: ros-tooling/setup-ros@v0.4
+          uses: ros-tooling/setup-ros@0.4.2
           with:
             required-ros-distributions: ${{ matrix.ros_distribution }}
         - name: build and test ROS 2
-          uses: ros-tooling/action-ros-ci@v0.3
+          uses: ros-tooling/action-ros-ci@0.3.16
           with:
             target-ros2-distro: ${{ matrix.ros_distribution }}
             import-token: ${{ secrets.GITHUB_TOKEN }}
